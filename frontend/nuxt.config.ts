@@ -5,9 +5,19 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   ssr: false,
+
+  // App configuration
   app: {
     baseURL: "/",
     buildAssetsDir: "/_nuxt/",
+    head: {
+      title: 'aDex-UI',
+      meta: [
+        { charset: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { name: 'description', content: 'A modern science fiction desktop environment terminal application' }
+      ]
+    }
   },
 
   modules: [
@@ -62,17 +72,5 @@ export default defineNuxtConfig({
 
   experimental: {
     typescriptPlugin: true
-  },
-
-  // App configuration
-  app: {
-    head: {
-      title: 'aDex-UI',
-      meta: [
-        { charset: 'utf-8' },
-        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'description', content: 'A modern science fiction desktop environment terminal application' }
-      ]
-    }
   }
 })
