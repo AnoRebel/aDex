@@ -1,0 +1,499 @@
+{
+  "layouts": {
+    "qwerty": {
+      "name": "QWERTY",
+      "displayName": "QWERTY (US)",
+      "type": "standard",
+      "rows": [
+        [
+          { "key": "Escape", "width": 1, "type": "function" },
+          { "key": "F1", "width": 1, "type": "function" },
+          { "key": "F2", "width": 1, "type": "function" },
+          { "key": "F3", "width": 1, "type": "function" },
+          { "key": "F4", "width": 1, "type": "function" },
+          { "key": "F5", "width": 1, "type": "function" },
+          { "key": "F6", "width": 1, "type": "function" },
+          { "key": "F7", "width": 1, "type": "function" },
+          { "key": "F8", "width": 1, "type": "function" },
+          { "key": "F9", "width": 1, "type": "function" },
+          { "key": "F10", "width": 1, "type": "function" },
+          { "key": "F11", "width": 1, "type": "function" },
+          { "key": "F12", "width": 1, "type": "function" }
+        ],
+        [
+          { "key": "`", "shift": "~", "width": 1 },
+          { "key": "1", "shift": "!", "width": 1 },
+          { "key": "2", "shift": "@", "width": 1 },
+          { "key": "3", "shift": "#", "width": 1 },
+          { "key": "4", "shift": "$", "width": 1 },
+          { "key": "5", "shift": "%", "width": 1 },
+          { "key": "6", "shift": "^", "width": 1 },
+          { "key": "7", "shift": "&", "width": 1 },
+          { "key": "8", "shift": "*", "width": 1 },
+          { "key": "9", "shift": "(", "width": 1 },
+          { "key": "0", "shift": ")", "width": 1 },
+          { "key": "-", "shift": "_", "width": 1 },
+          { "key": "=", "shift": "+", "width": 1 },
+          { "key": "Backspace", "width": 2, "type": "special" }
+        ],
+        [
+          { "key": "Tab", "width": 1.5, "type": "special" },
+          { "key": "q", "shift": "Q", "width": 1 },
+          { "key": "w", "shift": "W", "width": 1 },
+          { "key": "e", "shift": "E", "width": 1 },
+          { "key": "r", "shift": "R", "width": 1 },
+          { "key": "t", "shift": "T", "width": 1 },
+          { "key": "y", "shift": "Y", "width": 1 },
+          { "key": "u", "shift": "U", "width": 1 },
+          { "key": "i", "shift": "I", "width": 1 },
+          { "key": "o", "shift": "O", "width": 1 },
+          { "key": "p", "shift": "P", "width": 1 },
+          { "key": "[", "shift": "{", "width": 1 },
+          { "key": "]", "shift": "}", "width": 1 },
+          { "key": "\\", "shift": "|", "width": 1.5 }
+        ],
+        [
+          { "key": "CapsLock", "width": 1.75, "type": "special" },
+          { "key": "a", "shift": "A", "width": 1 },
+          { "key": "s", "shift": "S", "width": 1 },
+          { "key": "d", "shift": "D", "width": 1 },
+          { "key": "f", "shift": "F", "width": 1 },
+          { "key": "g", "shift": "G", "width": 1 },
+          { "key": "h", "shift": "H", "width": 1 },
+          { "key": "j", "shift": "J", "width": 1 },
+          { "key": "k", "shift": "K", "width": 1 },
+          { "key": "l", "shift": "L", "width": 1 },
+          { "key": ";", "shift": ":", "width": 1 },
+          { "key": "'", "shift": "\"", "width": 1 },
+          { "key": "Enter", "width": 2.25, "type": "special" }
+        ],
+        [
+          { "key": "Shift", "width": 2.25, "type": "modifier", "side": "left" },
+          { "key": "z", "shift": "Z", "width": 1 },
+          { "key": "x", "shift": "X", "width": 1 },
+          { "key": "c", "shift": "C", "width": 1 },
+          { "key": "v", "shift": "V", "width": 1 },
+          { "key": "b", "shift": "B", "width": 1 },
+          { "key": "n", "shift": "N", "width": 1 },
+          { "key": "m", "shift": "M", "width": 1 },
+          { "key": ",", "shift": "<", "width": 1 },
+          { "key": ".", "shift": ">", "width": 1 },
+          { "key": "/", "shift": "?", "width": 1 },
+          { "key": "Shift", "width": 2.75, "type": "modifier", "side": "right" }
+        ],
+        [
+          { "key": "Ctrl", "width": 1.5, "type": "modifier", "side": "left" },
+          { "key": "Alt", "width": 1.5, "type": "modifier", "side": "left" },
+          { "key": "Space", "width": 7, "type": "space" },
+          { "key": "Alt", "width": 1.5, "type": "modifier", "side": "right" },
+          { "key": "Ctrl", "width": 1.5, "type": "modifier", "side": "right" }
+        ]
+      ]
+    },
+    "dvorak": {
+      "name": "dvorak",
+      "displayName": "Dvorak (Simplified)",
+      "type": "alternative",
+      "rows": [
+        [
+          { "key": "Escape", "width": 1, "type": "function" },
+          { "key": "F1", "width": 1, "type": "function" },
+          { "key": "F2", "width": 1, "type": "function" },
+          { "key": "F3", "width": 1, "type": "function" },
+          { "key": "F4", "width": 1, "type": "function" },
+          { "key": "F5", "width": 1, "type": "function" },
+          { "key": "F6", "width": 1, "type": "function" },
+          { "key": "F7", "width": 1, "type": "function" },
+          { "key": "F8", "width": 1, "type": "function" },
+          { "key": "F9", "width": 1, "type": "function" },
+          { "key": "F10", "width": 1, "type": "function" },
+          { "key": "F11", "width": 1, "type": "function" },
+          { "key": "F12", "width": 1, "type": "function" }
+        ],
+        [
+          { "key": "`", "shift": "~", "width": 1 },
+          { "key": "1", "shift": "!", "width": 1 },
+          { "key": "2", "shift": "@", "width": 1 },
+          { "key": "3", "shift": "#", "width": 1 },
+          { "key": "4", "shift": "$", "width": 1 },
+          { "key": "5", "shift": "%", "width": 1 },
+          { "key": "6", "shift": "^", "width": 1 },
+          { "key": "7", "shift": "&", "width": 1 },
+          { "key": "8", "shift": "*", "width": 1 },
+          { "key": "9", "shift": "(", "width": 1 },
+          { "key": "0", "shift": ")", "width": 1 },
+          { "key": "[", "shift": "{", "width": 1 },
+          { "key": "]", "shift": "}", "width": 1 },
+          { "key": "Backspace", "width": 2, "type": "special" }
+        ],
+        [
+          { "key": "Tab", "width": 1.5, "type": "special" },
+          { "key": "'", "shift": "\"", "width": 1 },
+          { "key": ",", "shift": "<", "width": 1 },
+          { "key": ".", "shift": ">", "width": 1 },
+          { "key": "p", "shift": "P", "width": 1 },
+          { "key": "y", "shift": "Y", "width": 1 },
+          { "key": "f", "shift": "F", "width": 1 },
+          { "key": "g", "shift": "G", "width": 1 },
+          { "key": "c", "shift": "C", "width": 1 },
+          { "key": "r", "shift": "R", "width": 1 },
+          { "key": "l", "shift": "L", "width": 1 },
+          { "key": "/", "shift": "?", "width": 1 },
+          { "key": "=", "shift": "+", "width": 1 },
+          { "key": "\\", "shift": "|", "width": 1.5 }
+        ],
+        [
+          { "key": "CapsLock", "width": 1.75, "type": "special" },
+          { "key": "a", "shift": "A", "width": 1 },
+          { "key": "o", "shift": "O", "width": 1 },
+          { "key": "e", "shift": "E", "width": 1 },
+          { "key": "u", "shift": "U", "width": 1 },
+          { "key": "i", "shift": "I", "width": 1 },
+          { "key": "d", "shift": "D", "width": 1 },
+          { "key": "h", "shift": "H", "width": 1 },
+          { "key": "t", "shift": "T", "width": 1 },
+          { "key": "n", "shift": "N", "width": 1 },
+          { "key": "s", "shift": "S", "width": 1 },
+          { "key": "-", "shift": "_", "width": 1 },
+          { "key": "Enter", "width": 2.25, "type": "special" }
+        ],
+        [
+          { "key": "Shift", "width": 2.25, "type": "modifier", "side": "left" },
+          { "key": ";", "shift": ":", "width": 1 },
+          { "key": "q", "shift": "Q", "width": 1 },
+          { "key": "j", "shift": "J", "width": 1 },
+          { "key": "k", "shift": "K", "width": 1 },
+          { "key": "x", "shift": "X", "width": 1 },
+          { "key": "b", "shift": "B", "width": 1 },
+          { "key": "m", "shift": "M", "width": 1 },
+          { "key": "w", "shift": "W", "width": 1 },
+          { "key": "v", "shift": "V", "width": 1 },
+          { "key": "z", "shift": "Z", "width": 1 },
+          { "key": "Shift", "width": 2.75, "type": "modifier", "side": "right" }
+        ],
+        [
+          { "key": "Ctrl", "width": 1.5, "type": "modifier", "side": "left" },
+          { "key": "Alt", "width": 1.5, "type": "modifier", "side": "left" },
+          { "key": "Space", "width": 7, "type": "space" },
+          { "key": "Alt", "width": 1.5, "type": "modifier", "side": "right" },
+          { "key": "Ctrl", "width": 1.5, "type": "modifier", "side": "right" }
+        ]
+      ]
+    },
+    "numpad": {
+      "name": "numpad",
+      "displayName": "Numeric Pad",
+      "type": "special",
+      "rows": [
+        [
+          { "key": "NumLock", "width": 1, "type": "special" },
+          { "key": "/", "width": 1, "type": "operator" },
+          { "key": "*", "width": 1, "type": "operator" },
+          { "key": "-", "width": 1, "type": "operator" }
+        ],
+        [
+          { "key": "7", "width": 1, "type": "number" },
+          { "key": "8", "width": 1, "type": "number" },
+          { "key": "9", "width": 1, "type": "number" },
+          { "key": "+", "width": 1, "type": "operator" }
+        ],
+        [
+          { "key": "4", "width": 1, "type": "number" },
+          { "key": "5", "width": 1, "type": "number" },
+          { "key": "6", "width": 1, "type": "number" }
+        ],
+        [
+          { "key": "1", "width": 1, "type": "number" },
+          { "key": "2", "width": 1, "type": "number" },
+          { "key": "3", "width": 1, "type": "number" },
+          { "key": "Enter", "width": 1, "type": "special" }
+        ],
+        [
+          { "key": "0", "width": 2, "type": "number" },
+          { "key": ".", "width": 1, "type": "operator" }
+        ]
+      ]
+    },
+    "qwertz": {
+      "name": "qwertz",
+      "displayName": "QWERTZ (German)",
+      "type": "standard",
+      "rows": [
+        [
+          { "key": "Escape", "width": 1, "type": "function" },
+          { "key": "F1", "width": 1, "type": "function" },
+          { "key": "F2", "width": 1, "type": "function" },
+          { "key": "F3", "width": 1, "type": "function" },
+          { "key": "F4", "width": 1, "type": "function" },
+          { "key": "F5", "width": 1, "type": "function" },
+          { "key": "F6", "width": 1, "type": "function" },
+          { "key": "F7", "width": 1, "type": "function" },
+          { "key": "F8", "width": 1, "type": "function" },
+          { "key": "F9", "width": 1, "type": "function" },
+          { "key": "F10", "width": 1, "type": "function" },
+          { "key": "F11", "width": 1, "type": "function" },
+          { "key": "F12", "width": 1, "type": "function" }
+        ],
+        [
+          { "key": "^", "shift": "°", "width": 1 },
+          { "key": "1", "shift": "!", "width": 1 },
+          { "key": "2", "shift": "\"", "width": 1 },
+          { "key": "3", "shift": "§", "width": 1 },
+          { "key": "4", "shift": "$", "width": 1 },
+          { "key": "5", "shift": "%", "width": 1 },
+          { "key": "6", "shift": "&", "width": 1 },
+          { "key": "7", "shift": "/", "width": 1 },
+          { "key": "8", "shift": "(", "width": 1 },
+          { "key": "9", "shift": ")", "width": 1 },
+          { "key": "0", "shift": "=", "width": 1 },
+          { "key": "ß", "shift": "?", "width": 1 },
+          { "key": "´", "shift": "`", "width": 1 },
+          { "key": "Backspace", "width": 2, "type": "special" }
+        ],
+        [
+          { "key": "Tab", "width": 1.5, "type": "special" },
+          { "key": "q", "shift": "Q", "width": 1 },
+          { "key": "w", "shift": "W", "width": 1 },
+          { "key": "e", "shift": "E", "width": 1 },
+          { "key": "r", "shift": "R", "width": 1 },
+          { "key": "t", "shift": "T", "width": 1 },
+          { "key": "z", "shift": "Z", "width": 1 },
+          { "key": "u", "shift": "U", "width": 1 },
+          { "key": "i", "shift": "I", "width": 1 },
+          { "key": "o", "shift": "O", "width": 1 },
+          { "key": "p", "shift": "P", "width": 1 },
+          { "key": "ü", "shift": "Ü", "width": 1 },
+          { "key": "+", "shift": "*", "width": 1 },
+          { "key": "#", "shift": "'", "width": 1.5 }
+        ],
+        [
+          { "key": "CapsLock", "width": 1.75, "type": "special" },
+          { "key": "a", "shift": "A", "width": 1 },
+          { "key": "s", "shift": "S", "width": 1 },
+          { "key": "d", "shift": "D", "width": 1 },
+          { "key": "f", "shift": "F", "width": 1 },
+          { "key": "g", "shift": "G", "width": 1 },
+          { "key": "h", "shift": "H", "width": 1 },
+          { "key": "j", "shift": "J", "width": 1 },
+          { "key": "k", "shift": "K", "width": 1 },
+          { "key": "l", "shift": "L", "width": 1 },
+          { "key": "ö", "shift": "Ö", "width": 1 },
+          { "key": "ä", "shift": "Ä", "width": 1 },
+          { "key": "Enter", "width": 2.25, "type": "special" }
+        ],
+        [
+          { "key": "Shift", "width": 2.25, "type": "modifier", "side": "left" },
+          { "key": "y", "shift": "Y", "width": 1 },
+          { "key": "x", "shift": "X", "width": 1 },
+          { "key": "c", "shift": "C", "width": 1 },
+          { "key": "v", "shift": "V", "width": 1 },
+          { "key": "b", "shift": "B", "width": 1 },
+          { "key": "n", "shift": "N", "width": 1 },
+          { "key": "m", "shift": "M", "width": 1 },
+          { "key": ",", "shift": ";", "width": 1 },
+          { "key": ".", "shift": ":", "width": 1 },
+          { "key": "-", "shift": "_", "width": 1 },
+          { "key": "Shift", "width": 2.75, "type": "modifier", "side": "right" }
+        ],
+        [
+          { "key": "Ctrl", "width": 1.5, "type": "modifier", "side": "left" },
+          { "key": "Alt", "width": 1.5, "type": "modifier", "side": "left" },
+          { "key": "Space", "width": 7, "type": "space" },
+          { "key": "Alt", "width": 1.5, "type": "modifier", "side": "right" },
+          { "key": "Ctrl", "width": 1.5, "type": "modifier", "side": "right" }
+        ]
+      ]
+    },
+    "azerty": {
+      "name": "azerty",
+      "displayName": "AZERTY (French)",
+      "type": "standard",
+      "rows": [
+        [
+          { "key": "Escape", "width": 1, "type": "function" },
+          { "key": "F1", "width": 1, "type": "function" },
+          { "key": "F2", "width": 1, "type": "function" },
+          { "key": "F3", "width": 1, "type": "function" },
+          { "key": "F4", "width": 1, "type": "function" },
+          { "key": "F5", "width": 1, "type": "function" },
+          { "key": "F6", "width": 1, "type": "function" },
+          { "key": "F7", "width": 1, "type": "function" },
+          { "key": "F8", "width": 1, "type": "function" },
+          { "key": "F9", "width": 1, "type": "function" },
+          { "key": "F10", "width": 1, "type": "function" },
+          { "key": "F11", "width": 1, "type": "function" },
+          { "key": "F12", "width": 1, "type": "function" }
+        ],
+        [
+          { "key": "²", "shift": "~", "width": 1 },
+          { "key": "&", "shift": "1", "width": 1 },
+          { "key": "é", "shift": "2", "width": 1 },
+          { "key": "\"", "shift": "3", "width": 1 },
+          { "key": "'", "shift": "4", "width": 1 },
+          { "key": "(", "shift": "5", "width": 1 },
+          { "key": "-", "shift": "6", "width": 1 },
+          { "key": "è", "shift": "7", "width": 1 },
+          { "key": "_", "shift": "8", "width": 1 },
+          { "key": "ç", "shift": "9", "width": 1 },
+          { "key": "à", "shift": "0", "width": 1 },
+          { "key": ")", "shift": "°", "width": 1 },
+          { "key": "=", "shift": "+", "width": 1 },
+          { "key": "Backspace", "width": 2, "type": "special" }
+        ],
+        [
+          { "key": "Tab", "width": 1.5, "type": "special" },
+          { "key": "a", "shift": "A", "width": 1 },
+          { "key": "z", "shift": "Z", "width": 1 },
+          { "key": "e", "shift": "E", "width": 1 },
+          { "key": "r", "shift": "R", "width": 1 },
+          { "key": "t", "shift": "T", "width": 1 },
+          { "key": "y", "shift": "Y", "width": 1 },
+          { "key": "u", "shift": "U", "width": 1 },
+          { "key": "i", "shift": "I", "width": 1 },
+          { "key": "o", "shift": "O", "width": 1 },
+          { "key": "p", "shift": "P", "width": 1 },
+          { "key": "^", "shift": "¨", "width": 1 },
+          { "key": "$", "shift": "£", "width": 1 },
+          { "key": "Backspace", "width": 2, "type": "special" }
+        ],
+        [
+          { "key": "CapsLock", "width": 1.75, "type": "special" },
+          { "key": "q", "shift": "Q", "width": 1 },
+          { "key": "s", "shift": "S", "width": 1 },
+          { "key": "d", "shift": "D", "width": 1 },
+          { "key": "f", "shift": "F", "width": 1 },
+          { "key": "g", "shift": "G", "width": 1 },
+          { "key": "h", "shift": "H", "width": 1 },
+          { "key": "j", "shift": "J", "width": 1 },
+          { "key": "k", "shift": "K", "width": 1 },
+          { "key": "l", "shift": "L", "width": 1 },
+          { "key": "m", "shift": "M", "width": 1 },
+          { "key": "ù", "shift": "%", "width": 1 },
+          { "key": "*", "shift": "µ", "width": 1 },
+          { "key": "Enter", "width": 2.25, "type": "special" }
+        ],
+        [
+          { "key": "Shift", "width": 2.25, "type": "modifier", "side": "left" },
+          { "key": "w", "shift": "W", "width": 1 },
+          { "key": "x", "shift": "X", "width": 1 },
+          { "key": "c", "shift": "C", "width": 1 },
+          { "key": "v", "shift": "V", "width": 1 },
+          { "key": "b", "shift": "B", "width": 1 },
+          { "key": "n", "shift": "N", "width": 1 },
+          { "key": ",", "shift": "?", "width": 1 },
+          { "key": ";", "shift": ".", "width": 1 },
+          { "key": ":", "shift": "/", "width": 1 },
+          { "key": "!", "shift": "§", "width": 1 },
+          { "key": "Shift", "width": 2.75, "type": "modifier", "side": "right" }
+        ],
+        [
+          { "key": "Ctrl", "width": 1.5, "type": "modifier", "side": "left" },
+          { "key": "Alt", "width": 1.5, "type": "modifier", "side": "left" },
+          { "key": "Space", "width": 7, "type": "space" },
+          { "key": "Alt", "width": 1.5, "type": "modifier", "side": "right" },
+          { "key": "Ctrl", "width": 1.5, "type": "modifier", "side": "right" }
+        ]
+      ]
+    },
+    "colemak": {
+      "name": "colemak",
+      "displayName": "Colemak",
+      "type": "alternative",
+      "rows": [
+        [
+          { "key": "Escape", "width": 1, "type": "function" },
+          { "key": "F1", "width": 1, "type": "function" },
+          { "key": "F2", "width": 1, "type": "function" },
+          { "key": "F3", "width": 1, "type": "function" },
+          { "key": "F4", "width": 1, "type": "function" },
+          { "key": "F5", "width": 1, "type": "function" },
+          { "key": "F6", "width": 1, "type": "function" },
+          { "key": "F7", "width": 1, "type": "function" },
+          { "key": "F8", "width": 1, "type": "function" },
+          { "key": "F9", "width": 1, "type": "function" },
+          { "key": "F10", "width": 1, "type": "function" },
+          { "key": "F11", "width": 1, "type": "function" },
+          { "key": "F12", "width": 1, "type": "function" }
+        ],
+        [
+          { "key": "`", "shift": "~", "width": 1 },
+          { "key": "1", "shift": "!", "width": 1 },
+          { "key": "2", "shift": "@", "width": 1 },
+          { "key": "3", "shift": "#", "width": 1 },
+          { "key": "4", "shift": "$", "width": 1 },
+          { "key": "5", "shift": "%", "width": 1 },
+          { "key": "6", "shift": "^", "width": 1 },
+          { "key": "7", "shift": "&", "width": 1 },
+          { "key": "8", "shift": "*", "width": 1 },
+          { "key": "9", "shift": "(", "width": 1 },
+          { "key": "0", "shift": ")", "width": 1 },
+          { "key": "-", "shift": "_", "width": 1 },
+          { "key": "=", "shift": "+", "width": 1 },
+          { "key": "Backspace", "width": 2, "type": "special" }
+        ],
+        [
+          { "key": "Tab", "width": 1.5, "type": "special" },
+          { "key": "q", "shift": "Q", "width": 1 },
+          { "key": "w", "shift": "W", "width": 1 },
+          { "key": "f", "shift": "F", "width": 1 },
+          { "key": "p", "shift": "P", "width": 1 },
+          { "key": "g", "shift": "G", "width": 1 },
+          { "key": "j", "shift": "J", "width": 1 },
+          { "key": "l", "shift": "L", "width": 1 },
+          { "key": "u", "shift": "U", "width": 1 },
+          { "key": "y", "shift": "Y", "width": 1 },
+          { "key": ";", "shift": ":", "width": 1 },
+          { "key": "[", "shift": "{", "width": 1 },
+          { "key": "]", "shift": "}", "width": 1 },
+          { "key": "\\", "shift": "|", "width": 1.5 }
+        ],
+        [
+          { "key": "CapsLock", "width": 1.75, "type": "special" },
+          { "key": "a", "shift": "A", "width": 1 },
+          { "key": "r", "shift": "R", "width": 1 },
+          { "key": "s", "shift": "S", "width": 1 },
+          { "key": "t", "shift": "T", "width": 1 },
+          { "key": "d", "shift": "D", "width": 1 },
+          { "key": "h", "shift": "H", "width": 1 },
+          { "key": "n", "shift": "N", "width": 1 },
+          { "key": "e", "shift": "E", "width": 1 },
+          { "key": "i", "shift": "I", "width": 1 },
+          { "key": "o", "shift": "O", "width": 1 },
+          { "key": "'", "shift": "\"", "width": 1 },
+          { "key": "Enter", "width": 2.25, "type": "special" }
+        ],
+        [
+          { "key": "Shift", "width": 2.25, "type": "modifier", "side": "left" },
+          { "key": "z", "shift": "Z", "width": 1 },
+          { "key": "x", "shift": "X", "width": 1 },
+          { "key": "c", "shift": "C", "width": 1 },
+          { "key": "v", "shift": "V", "width": 1 },
+          { "key": "b", "shift": "B", "width": 1 },
+          { "key": "k", "shift": "K", "width": 1 },
+          { "key": "m", "shift": "M", "width": 1 },
+          { "key": ",", "shift": "<", "width": 1 },
+          { "key": ".", "shift": ">", "width": 1 },
+          { "key": "/", "shift": "?", "width": 1 },
+          { "key": "Shift", "width": 2.75, "type": "modifier", "side": "right" }
+        ],
+        [
+          { "key": "Ctrl", "width": 1.5, "type": "modifier", "side": "left" },
+          { "key": "Alt", "width": 1.5, "type": "modifier", "side": "left" },
+          { "key": "Space", "width": 7, "type": "space" },
+          { "key": "Alt", "width": 1.5, "type": "modifier", "side": "right" },
+          { "key": "Ctrl", "width": 1.5, "type": "modifier", "side": "right" }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "defaultLayout": "qwerty",
+    "keyRepeatDelay": 500,
+    "keyRepeatInterval": 50,
+    "autoShow": false,
+    "hapticFeedback": false,
+    "soundFeedback": false,
+    "opacity": 0.9,
+    "theme": "dark"
+  }
+}
