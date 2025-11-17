@@ -2,7 +2,6 @@ package security
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -12,6 +11,9 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"aDex-UI/internal/logger"
+)
 
 // Service provides security features including input sanitization and validation
 type Service struct {
@@ -336,17 +338,12 @@ func (s *Service) ValidateCSRFToken(token string, expectedToken *CSRFToken) bool
 	return token == expectedToken.Token
 }
 
-// HashPassword securely hashes a password
+// HashPassword securely hashes a password using argon2id
+// This method is deprecated - use AuthService.HashPassword instead
 func (s *Service) HashPassword(password string) (string, error) {
-	// Use bcrypt or Argon2 for password hashing
-	// This is a placeholder - in production, use a proper password hashing library
-	if len(password) == 0 {
-		return "", fmt.Errorf("password cannot be empty")
-	}
-
-	// Simple hash for demonstration - use proper crypto in production
-	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(password)))
-	return hash, nil
+	// Create a temporary AuthService for backwards compatibility
+	authService := NewAuthService(nil, s.logger)
+	return authService.HashPassword(password)
 }
 
 // GenerateSecureToken generates a cryptographically secure random token
