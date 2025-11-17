@@ -4,6 +4,12 @@ bin/
 wails.json
 app.syso
 wails_app_manifest.json
+.task
+bin
+frontend/dist
+frontend/node_modules
+build/linux/appimage/build
+build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
 
 # Nuxt v4 specific
 .nuxt/
