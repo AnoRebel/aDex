@@ -1,0 +1,330 @@
+{
+  "default": {
+    "id": "default",
+    "name": "Default",
+    "displayName": "Default Soundpack",
+    "description": "Default aDex-UI sound effects - clean, modern, and professional",
+    "version": "1.0.0",
+    "author": "aDex-UI Team",
+    "isBuiltIn": true,
+    "enabled": true,
+    "events": {
+      "system_startup": {
+        "id": "system_startup",
+        "name": "System Startup",
+        "description": "Sound played when aDex-UI starts up",
+        "category": "system",
+        "filePath": "/audio/default/system_startup.wav",
+        "duration": 1500,
+        "volume": 60,
+        "enabled": true
+      },
+      "terminal_bell": {
+        "id": "terminal_bell",
+        "name": "Terminal Bell",
+        "description": "Terminal bell or alert sound",
+        "category": "interaction",
+        "filePath": "/audio/default/terminal_bell.wav",
+        "duration": 200,
+        "volume": 50,
+        "enabled": true
+      },
+      "command_success": {
+        "id": "command_success",
+        "name": "Command Success",
+        "description": "Sound when a command completes successfully",
+        "category": "success",
+        "filePath": "/audio/default/command_success.wav",
+        "duration": 300,
+        "volume": 40,
+        "enabled": true
+      },
+      "command_error": {
+        "id": "command_error",
+        "name": "Command Error",
+        "description": "Sound when a command fails",
+        "category": "error",
+        "filePath": "/audio/default/command_error.wav",
+        "duration": 400,
+        "volume": 70,
+        "enabled": true
+      },
+      "button_click": {
+        "id": "button_click",
+        "name": "Button Click",
+        "description": "UI button click sound",
+        "category": "interaction",
+        "filePath": "/audio/default/button_click.wav",
+        "duration": 100,
+        "volume": 30,
+        "enabled": true
+      },
+      "menu_open": {
+        "id": "menu_open",
+        "name": "Menu Open",
+        "description": "Menu or dropdown open sound",
+        "category": "interaction",
+        "filePath": "/audio/default/menu_open.wav",
+        "duration": 150,
+        "volume": 35,
+        "enabled": true
+      },
+      "notification": {
+        "id": "notification",
+        "name": "Notification",
+        "description": "General notification sound",
+        "category": "notification",
+        "filePath": "/audio/default/notification.wav",
+        "duration": 500,
+        "volume": 60,
+        "enabled": true
+      },
+      "file_complete": {
+        "id": "file_complete",
+        "name": "File Operation Complete",
+        "description": "File copy/move/delete completion sound",
+        "category": "success",
+        "filePath": "/audio/default/file_complete.wav",
+        "duration": 350,
+        "volume": 45,
+        "enabled": true
+      },
+      "file_error": {
+        "id": "file_error",
+        "name": "File Operation Error",
+        "description": "File operation error sound",
+        "category": "error",
+        "filePath": "/audio/default/file_error.wav",
+        "duration": 450,
+        "volume": 75,
+        "enabled": true
+      },
+      "network_connected": {
+        "id": "network_connected",
+        "name": "Network Connected",
+        "description": "Network connection established sound",
+        "category": "success",
+        "filePath": "/audio/default/network_connected.wav",
+        "duration": 600,
+        "volume": 50,
+        "enabled": true
+      },
+      "network_disconnected": {
+        "id": "network_disconnected",
+        "name": "Network Disconnected",
+        "description": "Network connection lost sound",
+        "category": "error",
+        "filePath": "/audio/default/network_disconnected.wav",
+        "duration": 400,
+        "volume": 65,
+        "enabled": true
+      },
+      "system_alert": {
+        "id": "system_alert",
+        "name": "System Alert",
+        "description": "Critical system alert sound",
+        "category": "error",
+        "filePath": "/audio/default/system_alert.wav",
+        "duration": 800,
+        "volume": 80,
+        "enabled": true
+      }
+    }
+  },
+  "minimal": {
+    "id": "minimal",
+    "name": "Minimal",
+    "displayName": "Minimal Soundpack",
+    "description": "Minimal sound effects with reduced noise and distraction",
+    "version": "1.0.0",
+    "author": "aDex-UI Team",
+    "isBuiltIn": true,
+    "enabled": false,
+    "events": {
+      "terminal_bell": {
+        "id": "terminal_bell",
+        "name": "Soft Bell",
+        "description": "Gentle terminal bell",
+        "category": "interaction",
+        "filePath": "/audio/minimal/soft_bell.wav",
+        "duration": 150,
+        "volume": 25,
+        "enabled": true
+      },
+      "command_error": {
+        "id": "command_error",
+        "name": "Soft Error",
+        "description": "Subtle error indication",
+        "category": "error",
+        "filePath": "/audio/minimal/soft_error.wav",
+        "duration": 200,
+        "volume": 35,
+        "enabled": true
+      },
+      "notification": {
+        "id": "notification",
+        "name": "Gentle Chime",
+        "description": "Soft notification chime",
+        "category": "notification",
+        "filePath": "/audio/minimal/gentle_chime.wav",
+        "duration": 300,
+        "volume": 30,
+        "enabled": true
+      }
+    }
+  },
+  "retro": {
+    "id": "retro",
+    "name": "Retro",
+    "displayName": "8-Bit Retro Soundpack",
+    "description": "Retro 8-bit style sound effects inspired by classic computers",
+    "version": "1.0.0",
+    "author": "aDex-UI Team",
+    "isBuiltIn": true,
+    "enabled": false,
+    "events": {
+      "system_startup": {
+        "id": "system_startup",
+        "name": "Boot Up",
+        "description": "8-bit computer boot sequence",
+        "category": "system",
+        "filePath": "/audio/retro/boot_up.wav",
+        "duration": 1200,
+        "volume": 55,
+        "enabled": true
+      },
+      "terminal_bell": {
+        "id": "terminal_bell",
+        "name": "Beep",
+        "description": "Classic 8-bit beep",
+        "category": "interaction",
+        "filePath": "/audio/retro/beep.wav",
+        "duration": 100,
+        "volume": 40,
+        "enabled": true
+      },
+      "command_success": {
+        "id": "command_success",
+        "name": "Success Fanfare",
+        "description": "8-bit success sound",
+        "category": "success",
+        "filePath": "/audio/retro/success_fanfare.wav",
+        "duration": 400,
+        "volume": 45,
+        "enabled": true
+      },
+      "command_error": {
+        "id": "command_error",
+        "name": "Error Buzz",
+        "description": "8-bit error buzz",
+        "category": "error",
+        "filePath": "/audio/retro/error_buzz.wav",
+        "duration": 300,
+        "volume": 60,
+        "enabled": true
+      },
+      "button_click": {
+        "id": "button_click",
+        "name": "Pixel Click",
+        "description": "8-bit button click",
+        "category": "interaction",
+        "filePath": "/audio/retro/pixel_click.wav",
+        "duration": 80,
+        "volume": 35,
+        "enabled": true
+      },
+      "notification": {
+        "id": "notification",
+        "name": "Retro Alert",
+        "description": "8-bit notification alert",
+        "category": "notification",
+        "filePath": "/audio/retro/alert.wav",
+        "duration": 350,
+        "volume": 50,
+        "enabled": true
+      }
+    }
+  },
+  "cyberpunk": {
+    "id": "cyberpunk",
+    "name": "Cyberpunk",
+    "displayName": "Cyberpunk Electronic Soundpack",
+    "description": "Cyberpunk-themed electronic sound effects with glitch and synth elements",
+    "version": "1.0.0",
+    "author": "aDex-UI Team",
+    "isBuiltIn": true,
+    "enabled": false,
+    "events": {
+      "system_startup": {
+        "id": "system_startup",
+        "name": "System Online",
+        "description": "Cyberpunk system activation",
+        "category": "system",
+        "filePath": "/audio/cyberpunk/system_online.wav",
+        "duration": 2000,
+        "volume": 65,
+        "enabled": true
+      },
+      "terminal_bell": {
+        "id": "terminal_bell",
+        "name": "Digital Ping",
+        "description": "Electronic ping sound",
+        "category": "interaction",
+        "filePath": "/audio/cyberpunk/digital_ping.wav",
+        "duration": 180,
+        "volume": 45,
+        "enabled": true
+      },
+      "command_success": {
+        "id": "command_success",
+        "name": "Hack Complete",
+        "description": "Successful hack sound",
+        "category": "success",
+        "filePath": "/audio/cyberpunk/hack_complete.wav",
+        "duration": 500,
+        "volume": 55,
+        "enabled": true
+      },
+      "command_error": {
+        "id": "command_error",
+        "name": "Glitch Error",
+        "description": "Digital glitch error",
+        "category": "error",
+        "filePath": "/audio/cyberpunk/glitch_error.wav",
+        "duration": 350,
+        "volume": 70,
+        "enabled": true
+      },
+      "button_click": {
+        "id": "button_click",
+        "name": "Cyber Click",
+        "description": "Electronic button click",
+        "category": "interaction",
+        "filePath": "/audio/cyberpunk/cyber_click.wav",
+        "duration": 120,
+        "volume": 40,
+        "enabled": true
+      },
+      "notification": {
+        "id": "notification",
+        "name": "Alert",
+        "description": "Cyberpunk notification alert",
+        "category": "notification",
+        "filePath": "/audio/cyberpunk/alert.wav",
+        "duration": 450,
+        "volume": 60,
+        "enabled": true
+      },
+      "network_connected": {
+        "id": "network_connected",
+        "name": "Neural Link",
+        "description": "Neural network connection",
+        "category": "success",
+        "filePath": "/audio/cyberpunk/neural_link.wav",
+        "duration": 700,
+        "volume": 50,
+        "enabled": true
+      }
+    }
+  }
+}

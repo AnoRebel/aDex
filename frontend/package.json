@@ -1,0 +1,56 @@
+{
+  "name": "frontend",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@nuxt/eslint": "1.9.0",
+    "@nuxt/icon": "^2.1.0",
+    "@nuxt/image": "1.11.0",
+    "@nuxt/scripts": "0.13.0",
+    "@nuxt/ui": "4.0.1",
+    "@pinia/nuxt": "0.11.2",
+    "@tailwindcss/vite": "^4.1.16",
+    "@unhead/vue": "^2.0.19",
+    "@vueuse/nuxt": "13.9.0",
+    "@wailsio/runtime": "latest",
+    "chart.js": "^4.5.1",
+    "motion-v": "^1.7.4",
+    "nuxt": "^4.2.0",
+    "pinia": "^3.0.3",
+    "tailwindcss": "^4.1.16",
+    "vue": "^3.5.22",
+    "vue-chartjs": "^5.3.2",
+    "vue-router": "^4.6.3",
+    "xterm": "^5.3.0",
+    "xterm-addon-canvas": "^0.5.0",
+    "xterm-addon-fit": "^0.8.0",
+    "xterm-addon-ligatures": "^0.7.0",
+    "xterm-addon-webgl": "^0.16.0"
+  },
+  "devDependencies": {
+    "@nuxt/test-utils": "^3.20.1",
+    "@vue/test-utils": "^2.4.6",
+    "eslint": "^9.38.0",
+    "happy-dom": "^20.0.8",
+    "playwright-core": "^1.56.1",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.3"
+  },
+  "trustedDependencies": [
+    "@parcel/watcher",
+    "@tailwindcss/oxide",
+    "esbuild",
+    "sharp",
+    "unrs-resolver",
+    "vue-demi"
+  ],
+  "packageManager": "bun@1.3"
+}
