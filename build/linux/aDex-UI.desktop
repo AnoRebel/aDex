@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=aDex-UI
+GenericName=Terminal Emulator
+Comment=A science fiction desktop running everywhere
+Exec=aDex-UI
+Icon=aDex-UI
+Categories=Development;System;TerminalEmulator;
+Terminal=false
+Keywords=terminal;emulator;system;monitor;science-fiction;
+Version=1.0.0
+StartupNotify=true
+StartupWMClass=aDex-UI
+MimeType=

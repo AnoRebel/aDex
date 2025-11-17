@@ -1,5 +1,4 @@
 # Wails v3 specific
-build/
 bin/
 wails.json
 app.syso

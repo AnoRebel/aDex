@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MsixPackagingToolTemplate
+    xmlns="http://schemas.microsoft.com/msix/packaging/msixpackagingtool/template/2022">
+    <Settings
+        AllowTelemetry="false"
+        ApplyACLsToPackageFiles="true"
+        GenerateCommandLineFile="true"
+        AllowPromptForPassword="false">
+    </Settings>
+    <Installer
+        Path="adex-ui"
+        Arguments=""
+        InstallLocation="C:\Program Files\aDex-UI Team\aDex-UI">
+    </Installer>
+    <PackageInformation
+        PackageName="aDex-UI"
+        PackageDisplayName="aDex-UI"
+        PublisherName="CN=aDex-UI Team"
+        PublisherDisplayName="aDex-UI Team"
+        Version="1.0.0.0"
+        PackageDescription="A modern science fiction desktop environment terminal application">
+        <Capabilities>
+            <Capability Name="runFullTrust" />
+            
+        </Capabilities>
+        <Applications>
+            <Application
+                Id="com.wails.adex-ui"
+                Description="A modern science fiction desktop environment terminal application"
+                DisplayName="aDex-UI"
+                ExecutableName="adex-ui"
+                EntryPoint="Windows.FullTrustApplication">
+                
+            </Application>
+        </Applications>
+        <Resources>
+            <Resource Language="en-us" />
+        </Resources>
+        <Dependencies>
+            <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.19041.0" />
+        </Dependencies>
+        <Properties>
+            <Framework>false</Framework>
+            <DisplayName>aDex-UI</DisplayName>
+            <PublisherDisplayName>aDex-UI Team</PublisherDisplayName>
+            <Description>A modern science fiction desktop environment terminal application</Description>
+            <Logo>Assets\AppIcon.png</Logo>
+        </Properties>
+    </PackageInformation>
+    <SaveLocation PackagePath="adex-ui.msix" />
+    <PackageIntegrity>
+        <CertificatePath></CertificatePath>
+    </PackageIntegrity>
+</MsixPackagingToolTemplate>

@@ -1,0 +1,42 @@
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>CFBundlePackageType</key>
+            <string>APPL</string>
+        <key>CFBundleName</key>
+            <string>aDex-UI</string>
+        <key>CFBundleDisplayName</key>
+            <string>aDex-UI</string>
+        <key>CFBundleExecutable</key>
+            <string>aDex-UI</string>
+        <key>CFBundleIdentifier</key>
+            <string>com.hackeac.adex-ui</string>
+        <key>CFBundleVersion</key>
+            <string>1.0.0</string>
+        <key>CFBundleGetInfoString</key>
+            <string>aDex-UI version 1.0.0 - A science fiction desktop running everywhere</string>
+        <key>CFBundleShortVersionString</key>
+            <string>1.0.0</string>
+        <key>CFBundleIconFile</key>
+            <string>icons</string>
+        <key>LSMinimumSystemVersion</key>
+            <string>10.15.0</string>
+        <key>NSHighResolutionCapable</key>
+            <string>true</string>
+        <key>NSHumanReadableCopyright</key>
+            <string>Copyright © 2025 HackEAC</string>
+        <key>NSSupportsAutomaticGraphicsSwitching</key>
+            <string>true</string>
+        <key>LSApplicationCategoryType</key>
+            <string>public.app-category.developer-tools</string>
+        <key>NSRequiresAquaSystemAppearance</key>
+            <string>false</string>
+        <key>NSSystemAppearanceRequiresAquaSystemAppearance</key>
+            <string>false</string>
+        <key>LSArchitecturePriority</key>
+            <array>
+                <string>arm64</string>
+                <string>x86_64</string>
+            </array>
+    </dict>
+</plist>
