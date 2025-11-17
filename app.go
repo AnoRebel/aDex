@@ -7,9 +7,9 @@ import (
 	"sync"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
-	"aDex-UI/internal/colorscheme"
+	"aDex-UI/internal/services/colorscheme"
 	"aDex-UI/internal/events"
-	"aDex-UI/internal/font"
+	"aDex-UI/internal/services/font"
 	"aDex-UI/internal/logger"
 )
 

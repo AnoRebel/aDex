@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/adex-ui/aDex-UI/internal/logger"
+	"aDex-UI/internal/logger"
 )
 
 // Middleware provides HTTP security middleware

@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"aDex-UI/internal/colorscheme"
+	"aDex-UI/internal/services/colorscheme"
 	"aDex-UI/internal/events"
-	"aDex-UI/internal/font"
-	"aDex-UI/internal/network"
+	"aDex-UI/internal/services/font"
+	"aDex-UI/internal/services/network"
 	"aDex-UI/backend/services/audio"
 	"aDex-UI/backend/services/config"
 	"aDex-UI/backend/services/filesystem"

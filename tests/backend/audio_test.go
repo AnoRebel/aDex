@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/adex-ui/aDex-UI/internal/models"
-	"github.com/adex-ui/aDex-UI/internal/services/audio"
+	"aDex-UI/internal/models"
+	"aDex-UI/internal/services/audio"
 )
 
 func TestAudioService(t *testing.T) {

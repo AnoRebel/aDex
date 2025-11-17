@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/adex-ui/aDex-UI/internal/logger"
-	"github.com/adex-ui/aDex-UI/internal/services/security"
+	"aDex-UI/internal/logger"
+	"aDex-UI/internal/services/security"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
