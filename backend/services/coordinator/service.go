@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"sync"
@@ -9,6 +10,7 @@ import (
 
 	"aDex-UI/internal/services/colorscheme"
 	"aDex-UI/internal/events"
+	"aDex-UI/internal/models"
 	"aDex-UI/internal/services/font"
 	"aDex-UI/internal/services/network"
 	"aDex-UI/backend/services/audio"
@@ -19,6 +21,23 @@ import (
 	"aDex-UI/backend/services/theme"
 	"aDex-UI/backend/utils"
 )
+
+// convertToStruct converts an interface{} to a specific struct using JSON marshaling
+// This is used for converting data from frontend (which comes as interface{}) to proper Go structs
+func convertToStruct(source interface{}, dest interface{}) error {
+	// Marshal the source to JSON
+	jsonData, err := json.Marshal(source)
+	if err != nil {
+		return fmt.Errorf("failed to marshal source: %w", err)
+	}
+
+	// Unmarshal JSON to destination struct
+	if err := json.Unmarshal(jsonData, dest); err != nil {
+		return fmt.Errorf("failed to unmarshal to destination: %w", err)
+	}
+
+	return nil
+}
 
 // ServiceCoordinator manages all application services
 type ServiceCoordinator struct {
@@ -636,8 +655,12 @@ func (sc *ServiceCoordinator) CreateFontConfiguration(config interface{}) error 
 	}
 
 	// Convert interface{} to *models.FontConfiguration
-	// This will need proper type conversion based on how the data comes from frontend
-	return fmt.Errorf("font configuration creation needs proper type conversion")
+	var fontConfig models.FontConfiguration
+	if err := convertToStruct(config, &fontConfig); err != nil {
+		return fmt.Errorf("invalid font configuration: %w", err)
+	}
+
+	return sc.font.CreateConfiguration(&fontConfig)
 }
 
 // UpdateFontConfiguration updates an existing font configuration
@@ -649,7 +672,13 @@ func (sc *ServiceCoordinator) UpdateFontConfiguration(config interface{}) error 
 		return fmt.Errorf("font service not available")
 	}
 
-	return fmt.Errorf("font configuration update needs proper type conversion")
+	// Convert interface{} to *models.FontConfiguration
+	var fontConfig models.FontConfiguration
+	if err := convertToStruct(config, &fontConfig); err != nil {
+		return fmt.Errorf("invalid font configuration: %w", err)
+	}
+
+	return sc.font.UpdateConfiguration(&fontConfig)
 }
 
 // DeleteFontConfiguration deletes a font configuration
@@ -719,7 +748,18 @@ func (sc *ServiceCoordinator) ImportFont(request interface{}) (interface{}, erro
 		return nil, fmt.Errorf("font service not available")
 	}
 
-	return fmt.Errorf("font import needs proper type conversion")
+	// Convert interface{} to *models.FontImportRequest
+	var importRequest models.FontImportRequest
+	if err := convertToStruct(request, &importRequest); err != nil {
+		return nil, fmt.Errorf("invalid font import request: %w", err)
+	}
+
+	result, err := sc.font.ImportFont(&importRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 // ValidateFont validates a font configuration
@@ -731,7 +771,18 @@ func (sc *ServiceCoordinator) ValidateFont(config interface{}) (interface{}, err
 		return nil, fmt.Errorf("font service not available")
 	}
 
-	return fmt.Errorf("font validation needs proper type conversion")
+	// Convert interface{} to *models.FontConfiguration
+	var fontConfig models.FontConfiguration
+	if err := convertToStruct(config, &fontConfig); err != nil {
+		return nil, fmt.Errorf("invalid font configuration: %w", err)
+	}
+
+	result, err := sc.font.ValidateFont(&fontConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 // GetFontMetrics returns metrics for a font
@@ -771,7 +822,13 @@ func (sc *ServiceCoordinator) UpdateFontSettings(settings interface{}) error {
 		return fmt.Errorf("font service not available")
 	}
 
-	return fmt.Errorf("font settings update needs proper type conversion")
+	// Convert interface{} to *models.FontSettings
+	var fontSettings models.FontSettings
+	if err := convertToStruct(settings, &fontSettings); err != nil {
+		return fmt.Errorf("invalid font settings: %w", err)
+	}
+
+	return sc.font.UpdateSettings(&fontSettings)
 }
 
 // GetDefaultFontConfiguration returns the default font configuration
@@ -953,8 +1010,13 @@ func (sc *ServiceCoordinator) UpdateNetworkConfig(config interface{}) error {
 		return fmt.Errorf("network service not available")
 	}
 
-	// This would need proper type conversion
-	return fmt.Errorf("network config update needs proper type conversion")
+	// Convert interface{} to *network.NetworkServiceConfig
+	var networkConfig network.NetworkServiceConfig
+	if err := convertToStruct(config, &networkConfig); err != nil {
+		return fmt.Errorf("invalid network configuration: %w", err)
+	}
+
+	return sc.network.UpdateConfiguration(&networkConfig)
 }
 
 // ResetNetworkService resets the network service
