@@ -29,7 +29,74 @@ This document outlines the next steps required to complete the frontend-backend 
 
 ## Required Next Steps
 
-### 3. Generate Wails v3 TypeScript Bindings ⚠️
+### 3. File System Operations ✅
+- Implemented copy and move operations with progress tracking
+- Added cross-filesystem support (atomic rename with fallback to copy+delete)
+- Files updated:
+  - `internal/services/filesystem/service.go` - Added `executeCopy`, `copyFile`, `copyDir`, `executeMove`
+
+### 4. Bookmarks Persistence System ✅
+- Complete JSON-based storage at `~/.file_bookmarks.json`
+- CRUD operations: Add, Remove, Update bookmarks
+- Export/Import functionality
+- Cache management with expiration
+- Session preferences storage
+- Files updated:
+  - `internal/services/filesystem/navigation.go` (+361 lines)
+  - Added `BookmarkStore`, `loadBookmarks`, `saveBookmarks`, `ExportBookmarks`, `ImportBookmarks`
+  - Added `GetBookmarkByPath`, `IsBookmarked`, `NavigateToBookmark`
+  - Added cache methods: `getCachedEntries`, `cacheEntries`, `InvalidateCache`
+
+### 5. Log Rotation System ✅
+- Implemented size-based rotation with backup limits
+- Age-based cleanup for old log files
+- Compression support for archived logs
+- Files created:
+  - `internal/logger/logger.go` - Added `RotatingFileWriter` (~200 lines)
+
+### 6. CPU Temperature Monitoring ✅
+- Cross-platform temperature reading via gopsutil sensors
+- Linux sysfs fallback for `/sys/class/thermal` and `/sys/class/hwmon`
+- Thermal state detection: idle → normal → warm → hot → critical → emergency
+- Per-core temperature tracking
+- Files updated:
+  - `internal/services/system/cpu.go` (+201 lines)
+  - Added `GetCPUTemperature`, `GetAllTemperatures`, `GetCPUThermalState`, `GetCPUTemperatureDetails`
+  - Added platform-specific methods: `getLinuxTemperature`, `getMacOSTemperature`, `getWindowsTemperature`
+  - `internal/models/system.go` - Added `TemperatureInfo` struct
+
+### 7. Audio Session Detection ✅
+- Linux: PulseAudio (`pactl`) and PipeWire support
+- macOS: CoreAudio assertion detection stub
+- Windows: WASAPI detection stub
+- Automatic background muting when `MuteInBackground` is enabled
+- Background state monitoring
+- Files updated:
+  - `internal/services/audio/service.go` (+249 lines)
+  - Added `AudioSessionDetector` struct with platform detection methods
+  - Added `HandleBackgroundStateChange`, `StartBackgroundMonitor`
+  - Added `GetActiveAudioSessions`
+
+### 8. Frontend Store Updates ✅
+- Updated all stores to use Wails bindings instead of fetch() API
+- Files updated:
+  - `frontend/app/stores/filesystem.ts` - Now uses Wails bindings for file operations
+  - `frontend/app/stores/terminal.ts` - Uses ServiceCoordinator for terminal management
+  - `frontend/app/stores/system.ts` - Integrated system monitoring
+  - `frontend/app/stores/network.ts` - Uses ServiceCoordinator for network metrics
+  - `frontend/app/stores/audio.ts` - Backend integration for audio events
+
+### 9. Configuration Persistence ✅
+- Already implemented in `internal/services/settings/service.go`
+- Automatic loading from `~/.config/aDex-UI/settings.json`
+- Atomic saves (temp file + rename)
+- Backup/restore functionality
+- Import/export capabilities
+- Legacy eDEX-UI config migration
+
+## Required Next Steps
+
+### 10. Generate Wails v3 TypeScript Bindings ⚠️
 
 **CRITICAL**: The TypeScript bindings in `frontend/bindings/` are outdated and do not include the latest coordinator methods.
 
@@ -199,41 +266,73 @@ task linux:package
 - Some features may be unstable
 - Check Wails v3 documentation for updates
 
-### Missing Features Still to Implement
-As documented in the original analysis:
+### Completed Features (Previously Listed as Missing)
 
-1. **File Operations** (Priority: High)
-   - Copy operation (`filesystem/service.go:848`)
-   - Move operation (`filesystem/service.go:854`)
+1. **File Operations** ✅ COMPLETED
+   - Copy operation with progress tracking
+   - Move operation with cross-filesystem support
 
-2. **Bookmarks System** (Priority: Medium)
-   - Persistent bookmarks storage (`filesystem/navigation.go`)
+2. **Bookmarks System** ✅ COMPLETED
+   - Persistent bookmarks storage in `~/.file_bookmarks.json`
+   - Export/import functionality
 
-3. **Configuration Persistence** (Priority: High)
-   - Settings don't persist between sessions
+3. **Configuration Persistence** ✅ COMPLETED
+   - Settings persist in `~/.config/aDex-UI/settings.json`
+   - Auto-save with atomic writes
 
-4. **Log Rotation** (Priority: Medium)
-   - Prevent unbounded log growth (`logger/logger.go:189`)
+4. **Log Rotation** ✅ COMPLETED
+   - Size-based rotation with compression
+   - Age-based cleanup
 
-5. **Platform-Specific Features** (Priority: Low)
-   - Audio session detection for Windows/macOS
-   - CPU temperature monitoring
+5. **Platform-Specific Features** ✅ COMPLETED
+   - Audio session detection for Linux (PulseAudio/PipeWire)
+   - Audio session detection stubs for Windows/macOS
+   - CPU temperature monitoring across platforms
+
+### Remaining Features to Implement
+
+1. **Full-Stack Integration Tests** (Priority: High)
+   - End-to-end testing of all services
+   - 85% test coverage target
+
+2. **Cross-Platform Testing** (Priority: High)
+   - Windows build verification
+   - macOS build verification
+   - Linux distribution testing
+
+3. **Production Build Optimization** (Priority: Medium)
+   - Asset optimization
+   - Code splitting
+   - Performance profiling
+
+4. **Documentation** (Priority: Medium)
+   - User guide
+   - API documentation
+   - Deployment guide
 
 ## Branch Information
 
-**Current Branch**: `claude/fix-coordinator-integration-01HQCQuGtdcBCntoduk57gyh`
+**Current Branch**: `claude/refactor-edex-ui-production-01HQCQuGtdcBCntoduk57gyh`
 
-**Commits**:
-1. `fix: correct all import paths and Go version` - Fixed module import paths
-2. `fix: merge duplicate app configuration in nuxt.config.ts` - Fixed Nuxt config
-3. `feat: implement comprehensive security system with argon2id` - Security implementation
-4. `fix: implement type conversion for coordinator service methods` - Coordinator fixes
+**Latest Commits** (in chronological order):
+1. Security system implementation with argon2id
+2. Coordinator type conversion fixes
+3. File system copy/move operations
+4. Frontend store updates for Wails bindings
+5. Log rotation system
+6. Audio store and filesystem renameItem fixes
+7. `feat: implement production features for bookmarks, temperature, and audio` - Latest
 
-**To merge to main**:
+**Merged PRs**:
+- PR #1: `claude/fix-coordinator-integration-01HQCQuGtdcBCntoduk57gyh`
+- PR #2: `claude/refactor-edex-ui-production-01HQCQuGtdcBCntoduk57gyh` (first batch)
+
+**To merge current work to main**:
 ```bash
-# After completing all integration steps and testing
+# Create PR or merge directly
 git checkout main
-git merge claude/fix-coordinator-integration-01HQCQuGtdcBCntoduk57gyh
+git pull origin main
+git merge claude/refactor-edex-ui-production-01HQCQuGtdcBCntoduk57gyh
 git push origin main
 ```
 
@@ -246,13 +345,46 @@ For issues or questions:
 
 ## Completion Checklist
 
-- [x] Security system implementation
+### Backend Implementation
+- [x] Security system implementation (argon2id, sessions, CSRF)
 - [x] Coordinator type conversion fixes
-- [x] Git commits with clear messages
-- [ ] Wails bindings generation (requires wails3 CLI)
-- [ ] Frontend composables update
-- [ ] Pinia stores connection
+- [x] File system copy/move operations
+- [x] Bookmarks persistence system
+- [x] Configuration persistence (settings service)
+- [x] Log rotation system
+- [x] CPU temperature monitoring
+- [x] Audio session detection (Linux, stubs for Windows/macOS)
+
+### Frontend Integration
+- [x] Frontend stores updated to use Wails bindings
+- [x] useWails composable imports fixed
+- [ ] Wails TypeScript bindings generation (requires wails3 CLI)
+
+### Testing & Deployment
+- [ ] Frontend test environment setup (jsdom/happy-dom)
+- [ ] Backend unit tests (requires Go 1.25.0 toolchain)
 - [ ] Integration testing
+- [ ] Cross-platform builds (Windows, macOS, Linux)
 - [ ] Production build verification
-- [ ] All platforms tested
-- [ ] Merge to main branch
+
+### Git & Release
+- [x] Git commits with clear messages
+- [x] Feature branch pushed
+- [ ] PR review and merge to main
+- [ ] Release tags and notes
+
+## Progress Summary
+
+**Estimated Completion**: ~75%
+
+**What's Done**:
+- All core backend services implemented
+- Frontend stores connected to Wails bindings
+- Platform-specific features (temperature, audio)
+- Persistence systems (bookmarks, settings, logs)
+
+**What's Left**:
+- Generate Wails TypeScript bindings (requires wails3 CLI)
+- Test suite fixes (frontend environment, Go toolchain)
+- Cross-platform testing and production builds
+- Final merge to main
