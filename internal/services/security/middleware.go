@@ -2,17 +2,19 @@ package security
 
 import (
 	"context"
+	"crypto/subtle"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/adex-ui/aDex-UI/internal/logger"
+	"aDex-UI/internal/logger"
 )
 
 // Middleware provides HTTP security middleware
 type Middleware struct {
 	securityService *Service
+	sessionManager  *SessionManager
 	logger          *logger.Logger
 	config          *SecurityConfig
 	rateLimiter     *RateLimiter
@@ -44,13 +46,14 @@ type SecurityHeaders struct {
 }
 
 // NewMiddleware creates a new security middleware
-func NewMiddleware(securityService *Service, logger *logger.Logger, config *SecurityConfig) *Middleware {
+func NewMiddleware(securityService *Service, sessionManager *SessionManager, logger *logger.Logger, config *SecurityConfig) *Middleware {
 	if config == nil {
 		config = securityService.GetDefaultConfig()
 	}
 
 	return &Middleware{
 		securityService: securityService,
+		sessionManager:  sessionManager,
 		logger:          logger,
 		config:          config,
 		rateLimiter:     NewRateLimiter(config),
@@ -255,9 +258,31 @@ func (m *Middleware) validateCSRFToken(r *http.Request) bool {
 		token = formToken
 	}
 
-	// In a real implementation, validate against session/cookie
-	// This is a placeholder that should be replaced with proper session validation
-	return token != ""
+	// Validate CSRF token against session
+	if token == "" {
+		return false
+	}
+
+	// Get session ID from cookie or header
+	sessionID := m.getSessionID(r)
+	if sessionID == "" {
+		return false
+	}
+
+	// Validate session exists and is active
+	session, err := m.sessionManager.ValidateSession(sessionID)
+	if err != nil || session == nil {
+		return false
+	}
+
+	// Validate CSRF token from session metadata
+	storedToken, err := m.sessionManager.GetSessionMetadata(sessionID, "csrf_token")
+	if err != nil {
+		return false
+	}
+
+	// Constant-time comparison to prevent timing attacks
+	return subtle.ConstantTimeCompare([]byte(token), []byte(storedToken.(string))) == 1
 }
 
 // validateQueryParams validates all query parameters
@@ -429,4 +454,28 @@ func (rl *RateLimiter) Cleanup() {
 			delete(rl.clients, clientID)
 		}
 	}
+}
+
+// getSessionID extracts the session ID from request cookie or header
+func (m *Middleware) getSessionID(r *http.Request) string {
+	// Try cookie first
+	cookie, err := r.Cookie("session_id")
+	if err == nil && cookie.Value != "" {
+		return cookie.Value
+	}
+
+	// Fall back to Authorization header
+	auth := r.Header.Get("Authorization")
+	if auth != "" {
+		// Support "Bearer <session_id>" format
+		parts := strings.SplitN(auth, " ", 2)
+		if len(parts) == 2 && strings.ToLower(parts[0]) == "bearer" {
+			return parts[1]
+		}
+		// Also support raw session ID
+		return auth
+	}
+
+	// Try X-Session-ID header
+	return r.Header.Get("X-Session-ID")
 }

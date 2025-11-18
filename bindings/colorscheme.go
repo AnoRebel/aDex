@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"aDex-UI/internal/colorscheme"
+	"aDex-UI/internal/services/colorscheme"
 	"aDex-UI/internal/models"
 )
 

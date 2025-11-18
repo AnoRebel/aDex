@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/adex-ui/aDex-UI/internal/logger"
-	"github.com/adex-ui/aDex-UI/internal/models"
+	"aDex-UI/internal/logger"
+	"aDex-UI/internal/models"
 )
 
 // Migration handles importing settings from legacy eDEX-UI configurations
