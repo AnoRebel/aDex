@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { useWails } from '~/composables/useWails'
 import type { FileItem, DirectoryItem, FileSystemStats, FileOperation } from '~/types/filesystem'
 
 interface FilesystemState {
@@ -145,15 +146,42 @@ export const useFilesystemStore = defineStore('filesystem', {
       try {
         this.setLoading(true)
 
-        // Call Go backend via Wails
-        const response = await fetch(`/api/filesystem/directory?path=${encodeURIComponent(path)}`)
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
+        // Call Go backend via Wails bindings
+        const { filesystem } = useWails()
+        const data = await filesystem.readDirectory(path)
+
+        if (data) {
+          // Separate directories and files from the response
+          const directories: DirectoryItem[] = []
+          const files: FileItem[] = []
+
+          if (Array.isArray(data)) {
+            data.forEach((item: any) => {
+              if (item.isDir || item.type === 'directory') {
+                directories.push({
+                  name: item.name,
+                  path: item.path,
+                  size: item.size || 0,
+                  modified: item.modTime || new Date().toISOString(),
+                  type: 'directory'
+                })
+              } else {
+                files.push({
+                  name: item.name,
+                  path: item.path,
+                  size: item.size || 0,
+                  modified: item.modTime || new Date().toISOString(),
+                  type: item.type || 'file',
+                  extension: item.name.includes('.') ? item.name.split('.').pop() : ''
+                })
+              }
+            })
+          }
+
+          this.setDirectories(directories)
+          this.setFiles(files)
         }
 
-        const data = await response.json()
-        this.setDirectories(data.directories || [])
-        this.setFiles(data.files || [])
         this.setCurrentPath(path)
 
       } catch (error) {
@@ -175,39 +203,32 @@ export const useFilesystemStore = defineStore('filesystem', {
         const basePath = parentPath || this.currentPath
         const fullPath = basePath === '/' ? `/${name}` : `${basePath}/${name}`
 
-        const response = await fetch('/api/filesystem/directory', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ path: fullPath }),
-        })
-
-        if (!response.ok) {
-          throw new Error(`Failed to create directory: ${response.status}`)
-        }
+        const { filesystem } = useWails()
+        await filesystem.createDirectory(fullPath, 0o755)
 
         await this.fetchDirectory(this.currentPath)
         return true
 
       } catch (error) {
         console.error('Failed to create directory:', error)
+        this.addAlert({
+          type: 'error',
+          title: 'Create Directory Error',
+          message: `Failed to create directory: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          timestamp: new Date(),
+          acknowledged: false
+        })
         return false
       }
     },
 
     async deleteItems(paths: string[]): Promise<boolean> {
       try {
-        const response = await fetch('/api/filesystem/delete', {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ paths }),
-        })
+        const { filesystem } = useWails()
 
-        if (!response.ok) {
-          throw new Error(`Failed to delete items: ${response.status}`)
+        // Delete each item
+        for (const path of paths) {
+          await filesystem.deleteFile(path)
         }
 
         // Remove items from local state
@@ -221,6 +242,13 @@ export const useFilesystemStore = defineStore('filesystem', {
 
       } catch (error) {
         console.error('Failed to delete items:', error)
+        this.addAlert({
+          type: 'error',
+          title: 'Delete Error',
+          message: `Failed to delete items: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          timestamp: new Date(),
+          acknowledged: false
+        })
         return false
       }
     },
@@ -252,16 +280,13 @@ export const useFilesystemStore = defineStore('filesystem', {
 
     async copyItems(sourcePaths: string[], destinationPath: string): Promise<boolean> {
       try {
-        const response = await fetch('/api/filesystem/copy', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ sourcePaths, destinationPath }),
-        })
+        const { filesystem } = useWails()
 
-        if (!response.ok) {
-          throw new Error(`Failed to copy items: ${response.status}`)
+        // Copy each item to destination
+        for (const sourcePath of sourcePaths) {
+          const fileName = sourcePath.split('/').pop() || ''
+          const destPath = destinationPath === '/' ? `/${fileName}` : `${destinationPath}/${fileName}`
+          await filesystem.copyFile(sourcePath, destPath)
         }
 
         await this.fetchDirectory(this.currentPath)
@@ -269,22 +294,26 @@ export const useFilesystemStore = defineStore('filesystem', {
 
       } catch (error) {
         console.error('Failed to copy items:', error)
+        this.addAlert({
+          type: 'error',
+          title: 'Copy Error',
+          message: `Failed to copy items: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          timestamp: new Date(),
+          acknowledged: false
+        })
         return false
       }
     },
 
     async moveItems(sourcePaths: string[], destinationPath: string): Promise<boolean> {
       try {
-        const response = await fetch('/api/filesystem/move', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ sourcePaths, destinationPath }),
-        })
+        const { filesystem } = useWails()
 
-        if (!response.ok) {
-          throw new Error(`Failed to move items: ${response.status}`)
+        // Move each item to destination
+        for (const sourcePath of sourcePaths) {
+          const fileName = sourcePath.split('/').pop() || ''
+          const destPath = destinationPath === '/' ? `/${fileName}` : `${destinationPath}/${fileName}`
+          await filesystem.moveFile(sourcePath, destPath)
         }
 
         // Remove items from local state
@@ -298,20 +327,23 @@ export const useFilesystemStore = defineStore('filesystem', {
 
       } catch (error) {
         console.error('Failed to move items:', error)
+        this.addAlert({
+          type: 'error',
+          title: 'Move Error',
+          message: `Failed to move items: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          timestamp: new Date(),
+          acknowledged: false
+        })
         return false
       }
     },
 
     async searchFiles(query: string, searchPath?: string): Promise<FileItem[] | DirectoryItem[]> {
       try {
+        const { filesystem } = useWails()
         const path = searchPath || this.currentPath
-        const response = await fetch(`/api/filesystem/search?query=${encodeURIComponent(query)}&path=${encodeURIComponent(path)}`)
-
-        if (!response.ok) {
-          throw new Error(`Search error: ${response.status}`)
-        }
-
-        return await response.json()
+        const results = await filesystem.searchFiles(path, query)
+        return results || []
 
       } catch (error) {
         console.error('Search failed:', error)
@@ -321,13 +353,15 @@ export const useFilesystemStore = defineStore('filesystem', {
 
     async getFileSystemStats(): Promise<void> {
       try {
-        const response = await fetch('/api/filesystem/stats')
-        if (!response.ok) {
-          throw new Error(`Stats error: ${response.status}`)
-        }
-
-        const stats = await response.json()
-        this.setStats(stats)
+        // Stats would be fetched from the system service
+        // For now, use default stats
+        this.setStats({
+          totalSpace: 0,
+          usedSpace: 0,
+          freeSpace: 0,
+          fileCount: this.files.length,
+          directoryCount: this.directories.length
+        })
 
       } catch (error) {
         console.error('Failed to get filesystem stats:', error)
@@ -336,12 +370,9 @@ export const useFilesystemStore = defineStore('filesystem', {
 
     async getFileContent(path: string): Promise<string> {
       try {
-        const response = await fetch(`/api/filesystem/file?path=${encodeURIComponent(path)}`)
-        if (!response.ok) {
-          throw new Error(`File read error: ${response.status}`)
-        }
-
-        return await response.text()
+        const { filesystem } = useWails()
+        const content = await filesystem.readFile(path)
+        return content || ''
 
       } catch (error) {
         console.error('Failed to read file:', error)
@@ -351,22 +382,19 @@ export const useFilesystemStore = defineStore('filesystem', {
 
     async saveFileContent(path: string, content: string): Promise<boolean> {
       try {
-        const response = await fetch('/api/filesystem/file', {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ path, content }),
-        })
-
-        if (!response.ok) {
-          throw new Error(`File save error: ${response.status}`)
-        }
-
+        const { filesystem } = useWails()
+        await filesystem.writeFile(path, content, 0o644)
         return true
 
       } catch (error) {
         console.error('Failed to save file:', error)
+        this.addAlert({
+          type: 'error',
+          title: 'Save Error',
+          message: `Failed to save file: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          timestamp: new Date(),
+          acknowledged: false
+        })
         return false
       }
     },
