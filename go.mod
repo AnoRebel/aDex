@@ -1,6 +1,6 @@
 module aDex-UI
 
-go 1.21
+go 1.25.0
 
 require (
 	github.com/creack/pty v1.1.21
