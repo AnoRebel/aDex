@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import * as ServiceCoordinator from '~/bindings/aDex-UI/backend/services/coordinator/servicecoordinator'
 import type {
   AudioEvent,
   AudioSettings,
@@ -423,6 +424,72 @@ export const useAudioStore = defineStore('audio', {
     // Initialize store
     initialize() {
       this.loadFromStorage()
+    },
+
+    // Fetch data from backend using Wails bindings
+    async fetchAvailableEvents(): Promise<void> {
+      try {
+        this.setLoading(true)
+        const events = await ServiceCoordinator.GetService('audio').then(s => s?.GetAvailableEvents())
+        if (events) {
+          this.availableEvents = events
+        }
+      } catch (error) {
+        console.error('Failed to fetch audio events:', error)
+        this.setError(`Failed to fetch audio events: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      } finally {
+        this.setLoading(false)
+      }
+    },
+
+    async fetchSoundpacks(): Promise<void> {
+      try {
+        const soundpacks = await ServiceCoordinator.GetService('audio').then(s => s?.GetSoundpacks())
+        if (soundpacks) {
+          this.soundpacks = soundpacks
+        }
+      } catch (error) {
+        console.error('Failed to fetch soundpacks:', error)
+      }
+    },
+
+    async fetchStats(): Promise<void> {
+      try {
+        const stats = await ServiceCoordinator.GetService('audio').then(s => s?.GetStats())
+        if (stats) {
+          this.stats = stats
+        }
+      } catch (error) {
+        console.error('Failed to fetch audio stats:', error)
+      }
+    },
+
+    async playEvent(eventId: string): Promise<void> {
+      if (!this.isEventEnabled(eventId)) return
+      if (!this.canPlayEvent(eventId)) return
+
+      try {
+        const event = this.eventById(eventId)
+        if (!event) return
+
+        this.startPlayback(event)
+        await ServiceCoordinator.GetService('audio').then(s => s?.PlayEvent(eventId))
+        this.incrementPlayCount(eventId)
+      } catch (error) {
+        console.error('Failed to play audio event:', error)
+        this.playbackError(`Failed to play event: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      } finally {
+        this.stopPlayback()
+      }
+    },
+
+    async initializeFromBackend(): Promise<void> {
+      this.loadFromStorage()
+      await Promise.all([
+        this.fetchAvailableEvents(),
+        this.fetchSoundpacks(),
+        this.fetchStats()
+      ])
     },
 
     // Cleanup

@@ -257,23 +257,21 @@ export const useFilesystemStore = defineStore('filesystem', {
       try {
         const newPath = oldPath.substring(0, oldPath.lastIndexOf('/')) + '/' + newName
 
-        const response = await fetch('/api/filesystem/rename', {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ oldPath, newPath }),
-        })
-
-        if (!response.ok) {
-          throw new Error(`Failed to rename item: ${response.status}`)
-        }
+        const { filesystem } = useWails()
+        await filesystem.renameFile(oldPath, newPath)
 
         await this.fetchDirectory(this.currentPath)
         return true
 
       } catch (error) {
         console.error('Failed to rename item:', error)
+        this.addAlert({
+          type: 'error',
+          title: 'Rename Error',
+          message: `Failed to rename item: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          timestamp: new Date(),
+          acknowledged: false
+        })
         return false
       }
     },
