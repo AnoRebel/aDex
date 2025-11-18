@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { useWails } from '~/composables/useWails'
 import type { SystemInfo, SystemStats, Process, SystemMetrics, CPUMetrics, MemoryMetrics, ProcessMetrics, DiskMetrics, NetworkMetrics, TemperatureMetrics } from '~/types/system'
 import { handleBackendError, handleComponentError } from '~/utils/errorHandler'
 import { createLoading, completeLoading } from '~/utils/loadingStates'
@@ -481,6 +482,86 @@ export const useSystemStore = defineStore('system', () => {
     clearAlerts()
   }
 
+  // Fetch methods using Wails bindings
+  const fetchSystemInfo = async (): Promise<void> => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const { system } = useWails()
+      const info = await system.getSystemInfo()
+
+      if (info) {
+        setSystemInfo(info as SystemInfo)
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch system info'
+      setError(errorMessage)
+      console.error('Failed to fetch system info:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchSystemStats = async (): Promise<void> => {
+    try {
+      const { system } = useWails()
+
+      // Fetch CPU and memory usage
+      const [cpuData, memoryData, diskData] = await Promise.all([
+        system.getCPUUsage(),
+        system.getMemoryUsage(),
+        system.getDiskUsage()
+      ])
+
+      if (cpuData || memoryData || diskData) {
+        const stats: SystemStats = {
+          cpu: cpuData ? { usage: cpuData.usage || 0, cores: cpuData.cores || [] } : { usage: 0, cores: [] },
+          memory: memoryData ? {
+            total: memoryData.total || 0,
+            used: memoryData.used || 0,
+            free: memoryData.free || 0,
+            usage: memoryData.usage || 0
+          } : { total: 0, used: 0, free: 0, usage: 0 },
+          disk: diskData || []
+        }
+        setSystemStats(stats)
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch system stats'
+      setError(errorMessage)
+      console.error('Failed to fetch system stats:', err)
+    }
+  }
+
+  const startSystemMonitoring = async (interval?: number): Promise<void> => {
+    try {
+      const { system } = useWails()
+      await system.startMonitoring(interval || refreshInterval.value)
+      startMonitoring()
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to start monitoring'
+      setError(errorMessage)
+      console.error('Failed to start system monitoring:', err)
+    }
+  }
+
+  const stopSystemMonitoring = async (): Promise<void> => {
+    try {
+      const { system } = useWails()
+      await system.stopMonitoring()
+      stopMonitoring()
+    } catch (err) {
+      console.error('Failed to stop system monitoring:', err)
+    }
+  }
+
+  // Initialize store with data from backend
+  const initialize = async (): Promise<void> => {
+    await fetchSystemInfo()
+    await fetchSystemStats()
+  }
+
   return {
     // State
     systemInfo: systemInfo,
@@ -537,6 +618,13 @@ export const useSystemStore = defineStore('system', () => {
     acknowledgeAlert: acknowledgeAlert,
     clearAlerts: clearAlerts,
     clearHistory: clearHistory,
-    reset: reset
+    reset: reset,
+
+    // Wails integration methods
+    fetchSystemInfo: fetchSystemInfo,
+    fetchSystemStats: fetchSystemStats,
+    startSystemMonitoring: startSystemMonitoring,
+    stopSystemMonitoring: stopSystemMonitoring,
+    initialize: initialize
   }
 })

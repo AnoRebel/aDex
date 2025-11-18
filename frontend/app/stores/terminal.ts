@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import * as ServiceCoordinator from '~/bindings/aDex-UI/backend/services/coordinator/servicecoordinator'
 import type { TerminalSession, TerminalCommand, TerminalOutput } from '~/types/terminal'
 
 // Import types from useTerminal composable for tab and theme support
@@ -182,28 +183,25 @@ export const useTerminalStore = defineStore('terminal', () => {
       setLoading(true)
       clearError()
 
-      const response = await fetch('/api/terminal/sessions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: title || `Terminal ${sessions.value.size + 1}`,
-          shell: shell || config.value.shell,
-          workingDirectory: workingDirectory || '/',
-        }),
-      })
+      // Create terminal using Wails bindings
+      const cols = settings.value.defaultCols
+      const rows = settings.value.defaultRows
+      const terminalData = await ServiceCoordinator.CreateTerminal(cols, rows)
 
-      if (!response.ok) {
-        throw new Error(`Failed to create terminal session: ${response.status}`)
+      if (!terminalData) {
+        throw new Error('Failed to create terminal session')
       }
 
-      const sessionData = await response.json()
       const session: TerminalSession = {
-        ...sessionData,
+        id: terminalData.id || `terminal-${Date.now()}`,
+        title: title || `Terminal ${sessions.value.size + 1}`,
+        shell: shell || config.value.shell,
+        workingDirectory: workingDirectory || '/',
+        columns: cols,
+        rows: rows,
         isActive: false,
-        createdAt: new Date(sessionData.createdAt),
-        lastActivity: new Date(sessionData.lastActivity),
+        createdAt: new Date(),
+        lastActivity: new Date(),
       }
 
       addSession(session)
@@ -218,16 +216,10 @@ export const useTerminalStore = defineStore('terminal', () => {
     }
   }
 
-    const closeSession = async (sessionId: string): Promise<boolean> => {
+  const closeSession = async (sessionId: string): Promise<boolean> => {
     try {
-      const response = await fetch(`/api/terminal/sessions/${sessionId}`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to close session: ${response.status}`)
-      }
-
+      // Close terminal using Wails bindings
+      await ServiceCoordinator.CloseTerminal(sessionId)
       removeSession(sessionId)
       return true
 
@@ -292,17 +284,8 @@ export const useTerminalStore = defineStore('terminal', () => {
     }
 
     try {
-      const response = await fetch(`/api/terminal/sessions/${targetSessionId}/input`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ input }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to send input: ${response.status}`)
-      }
+      // Write to terminal using Wails bindings
+      await ServiceCoordinator.WriteToTerminal(targetSessionId, input)
 
     } catch (error) {
       console.error('Failed to send input:', error)
@@ -344,18 +327,8 @@ export const useTerminalStore = defineStore('terminal', () => {
     if (!targetSessionId) return false
 
     try {
-      const response = await fetch(`/api/terminal/sessions/${targetSessionId}/resize`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ columns, rows }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to resize session: ${response.status}`)
-      }
-
+      // Resize terminal using Wails bindings
+      await ServiceCoordinator.ResizeTerminal(targetSessionId, columns, rows)
       return true
 
     } catch (error) {

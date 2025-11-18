@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,12 +9,207 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	"aDex-UI/internal/models"
 )
+
+// RotatingFileWriter implements a file writer with rotation support
+type RotatingFileWriter struct {
+	config     Config
+	filename   string
+	file       *os.File
+	size       int64
+	mu         sync.Mutex
+}
+
+// NewRotatingFileWriter creates a new rotating file writer
+func NewRotatingFileWriter(config Config) (*RotatingFileWriter, error) {
+	w := &RotatingFileWriter{
+		config:   config,
+		filename: config.File,
+	}
+
+	if err := w.openFile(); err != nil {
+		return nil, err
+	}
+
+	return w, nil
+}
+
+// Write implements io.Writer
+func (w *RotatingFileWriter) Write(p []byte) (n int, err error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	// Check if rotation is needed
+	if w.config.MaxSize > 0 && w.size+int64(len(p)) > w.config.MaxSize {
+		if err := w.rotate(); err != nil {
+			return 0, fmt.Errorf("failed to rotate log file: %w", err)
+		}
+	}
+
+	n, err = w.file.Write(p)
+	w.size += int64(n)
+	return n, err
+}
+
+// Close closes the file
+func (w *RotatingFileWriter) Close() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if w.file != nil {
+		return w.file.Close()
+	}
+	return nil
+}
+
+// openFile opens or creates the log file
+func (w *RotatingFileWriter) openFile() error {
+	// Ensure directory exists
+	dir := filepath.Dir(w.filename)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create log directory: %w", err)
+	}
+
+	// Open file
+	file, err := os.OpenFile(w.filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open log file: %w", err)
+	}
+
+	// Get current file size
+	info, err := file.Stat()
+	if err != nil {
+		file.Close()
+		return fmt.Errorf("failed to stat log file: %w", err)
+	}
+
+	w.file = file
+	w.size = info.Size()
+	return nil
+}
+
+// rotate rotates the log file
+func (w *RotatingFileWriter) rotate() error {
+	// Close current file
+	if w.file != nil {
+		w.file.Close()
+	}
+
+	// Generate rotated filename with timestamp
+	timestamp := time.Now().Format("20060102-150405")
+	ext := filepath.Ext(w.filename)
+	base := strings.TrimSuffix(w.filename, ext)
+	rotatedName := fmt.Sprintf("%s.%s%s", base, timestamp, ext)
+
+	// Rename current file
+	if err := os.Rename(w.filename, rotatedName); err != nil {
+		return fmt.Errorf("failed to rename log file: %w", err)
+	}
+
+	// Compress if enabled
+	if w.config.Compress {
+		go w.compressFile(rotatedName)
+	}
+
+	// Clean up old files
+	go w.cleanupOldFiles()
+
+	// Open new file
+	return w.openFile()
+}
+
+// compressFile compresses a log file
+func (w *RotatingFileWriter) compressFile(filename string) {
+	// Open source file
+	src, err := os.Open(filename)
+	if err != nil {
+		return
+	}
+	defer src.Close()
+
+	// Create compressed file
+	dst, err := os.Create(filename + ".gz")
+	if err != nil {
+		return
+	}
+	defer dst.Close()
+
+	// Create gzip writer
+	gz := gzip.NewWriter(dst)
+	defer gz.Close()
+
+	// Copy data
+	if _, err := io.Copy(gz, src); err != nil {
+		return
+	}
+
+	// Close gzip writer to flush
+	gz.Close()
+	dst.Close()
+	src.Close()
+
+	// Remove original file
+	os.Remove(filename)
+}
+
+// cleanupOldFiles removes old backup files
+func (w *RotatingFileWriter) cleanupOldFiles() {
+	dir := filepath.Dir(w.filename)
+	base := filepath.Base(w.filename)
+	ext := filepath.Ext(base)
+	prefix := strings.TrimSuffix(base, ext)
+
+	// Find all backup files
+	files, err := filepath.Glob(filepath.Join(dir, prefix+".*"+ext+"*"))
+	if err != nil {
+		return
+	}
+
+	// Sort by modification time (oldest first)
+	type fileInfo struct {
+		path    string
+		modTime time.Time
+	}
+	var backups []fileInfo
+
+	for _, f := range files {
+		if f == w.filename {
+			continue
+		}
+		info, err := os.Stat(f)
+		if err != nil {
+			continue
+		}
+		backups = append(backups, fileInfo{f, info.ModTime()})
+	}
+
+	sort.Slice(backups, func(i, j int) bool {
+		return backups[i].modTime.Before(backups[j].modTime)
+	})
+
+	// Remove files exceeding max backups
+	if w.config.MaxBackups > 0 && len(backups) > w.config.MaxBackups {
+		for i := 0; i < len(backups)-w.config.MaxBackups; i++ {
+			os.Remove(backups[i].path)
+		}
+	}
+
+	// Remove files exceeding max age
+	if w.config.MaxAge > 0 {
+		cutoff := time.Now().AddDate(0, 0, -w.config.MaxAge)
+		for _, b := range backups {
+			if b.modTime.Before(cutoff) {
+				os.Remove(b.path)
+			}
+		}
+	}
+}
 
 // LogLevel represents the severity of a log entry
 type LogLevel string
@@ -173,20 +369,23 @@ func (l *Logger) setupWriter() error {
 
 // createFileWriter creates a file writer with rotation support
 func (l *Logger) createFileWriter() (io.Writer, error) {
+	// Use rotating file writer if rotation is configured
+	if l.config.MaxSize > 0 || l.config.MaxBackups > 0 || l.config.MaxAge > 0 {
+		return NewRotatingFileWriter(l.config)
+	}
+
 	// Ensure directory exists
 	dir := filepath.Dir(l.config.File)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create log directory: %w", err)
 	}
 
-	// Open file
+	// Open file without rotation
 	file, err := os.OpenFile(l.config.File, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open log file: %w", err)
 	}
 
-	// For now, return the file directly
-	// TODO: Implement log rotation based on config
 	return file, nil
 }
 
