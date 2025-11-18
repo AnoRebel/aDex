@@ -2,6 +2,7 @@ package filesystem
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,6 +22,16 @@ type FileNavigator struct {
 	mutex        sync.RWMutex
 	config       *NavigationConfig
 	bookmarkPath string
+	bookmarks    map[string]*NavigationBookmark
+	cache        map[string]*NavigationCacheEntry
+	preferences  map[string]*NavigationPreferences
+}
+
+// BookmarkStore represents the persistent storage format for bookmarks
+type BookmarkStore struct {
+	Version   string                          `json:"version"`
+	UpdatedAt time.Time                       `json:"updated_at"`
+	Bookmarks map[string]*NavigationBookmark  `json:"bookmarks"`
 }
 
 // NavigationConfig contains configuration for file navigation
@@ -136,11 +147,22 @@ func NewFileNavigator(eventBus events.IEventBus) *FileNavigator {
 		history:      make(map[string]*models.FileNavigationHistory),
 		config:       config,
 		bookmarkPath: filepath.Join(os.Getenv("HOME"), config.BookmarkFile),
+		bookmarks:    make(map[string]*NavigationBookmark),
+		cache:        make(map[string]*NavigationCacheEntry),
+		preferences:  make(map[string]*NavigationPreferences),
 	}
 
 	// Load bookmarks if they exist
 	if config.AutoSaveBookmarks {
-		nav.loadBookmarks()
+		if err := nav.loadBookmarks(); err != nil {
+			// Log error but continue - bookmarks are not critical
+			if nav.eventBus != nil {
+				ctx := context.Background()
+				nav.eventBus.Publish(ctx, "navigation.bookmark_load_error", map[string]interface{}{
+					"error": err.Error(),
+				}, "file-navigator")
+			}
+		}
 	}
 
 	return nav
@@ -427,7 +449,15 @@ func (fn *FileNavigator) AddBookmark(sessionID string, name string, description 
 		Tags:        tags,
 	}
 
-	// TODO: Store bookmarks (this would need a bookmarks storage system)
+	// Store bookmark using path as key
+	fn.bookmarks[history.Current] = bookmark
+
+	// Auto-save if configured
+	if fn.config.AutoSaveBookmarks {
+		if err := fn.saveBookmarks(); err != nil {
+			return fmt.Errorf("failed to save bookmarks: %w", err)
+		}
+	}
 
 	// Publish event
 	if fn.eventBus != nil {
@@ -442,22 +472,175 @@ func (fn *FileNavigator) AddBookmark(sessionID string, name string, description 
 	return nil
 }
 
+// RemoveBookmark removes a bookmark by path
+func (fn *FileNavigator) RemoveBookmark(path string) error {
+	fn.mutex.Lock()
+	defer fn.mutex.Unlock()
+
+	if _, exists := fn.bookmarks[path]; !exists {
+		return fmt.Errorf("bookmark not found for path: %s", path)
+	}
+
+	delete(fn.bookmarks, path)
+
+	// Auto-save if configured
+	if fn.config.AutoSaveBookmarks {
+		if err := fn.saveBookmarks(); err != nil {
+			return fmt.Errorf("failed to save bookmarks: %w", err)
+		}
+	}
+
+	// Publish event
+	if fn.eventBus != nil {
+		ctx := context.Background()
+		fn.eventBus.Publish(ctx, "navigation.bookmark_removed", map[string]interface{}{
+			"path": path,
+		}, "file-navigator")
+	}
+
+	return nil
+}
+
+// UpdateBookmark updates an existing bookmark
+func (fn *FileNavigator) UpdateBookmark(path string, name string, description string, tags []string) error {
+	fn.mutex.Lock()
+	defer fn.mutex.Unlock()
+
+	bookmark, exists := fn.bookmarks[path]
+	if !exists {
+		return fmt.Errorf("bookmark not found for path: %s", path)
+	}
+
+	// Update bookmark fields
+	if name != "" {
+		bookmark.Name = name
+	}
+	bookmark.Description = description
+	if tags != nil {
+		bookmark.Tags = tags
+	}
+
+	// Auto-save if configured
+	if fn.config.AutoSaveBookmarks {
+		if err := fn.saveBookmarks(); err != nil {
+			return fmt.Errorf("failed to save bookmarks: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// NavigateToBookmark navigates to a bookmarked location
+func (fn *FileNavigator) NavigateToBookmark(sessionID string, path string) (*NavigationResult, error) {
+	fn.mutex.Lock()
+
+	bookmark, exists := fn.bookmarks[path]
+	if !exists {
+		fn.mutex.Unlock()
+		return nil, fmt.Errorf("bookmark not found for path: %s", path)
+	}
+
+	// Update usage statistics
+	bookmark.LastUsed = time.Now()
+	bookmark.UseCount++
+
+	// Auto-save if configured
+	if fn.config.AutoSaveBookmarks {
+		if err := fn.saveBookmarks(); err != nil {
+			fn.mutex.Unlock()
+			return nil, fmt.Errorf("failed to save bookmarks: %w", err)
+		}
+	}
+
+	fn.mutex.Unlock()
+
+	// Navigate to the bookmarked path
+	return fn.NavigateTo(sessionID, path)
+}
+
 // GetBookmarks returns all bookmarks
 func (fn *FileNavigator) GetBookmarks() ([]*NavigationBookmark, error) {
-	// TODO: Implement bookmarks retrieval
-	return []*NavigationBookmark{}, nil
+	fn.mutex.RLock()
+	defer fn.mutex.RUnlock()
+
+	bookmarks := make([]*NavigationBookmark, 0, len(fn.bookmarks))
+	for _, bookmark := range fn.bookmarks {
+		bookmarks = append(bookmarks, bookmark)
+	}
+
+	return bookmarks, nil
+}
+
+// GetBookmarkByPath returns a specific bookmark by path
+func (fn *FileNavigator) GetBookmarkByPath(path string) (*NavigationBookmark, error) {
+	fn.mutex.RLock()
+	defer fn.mutex.RUnlock()
+
+	bookmark, exists := fn.bookmarks[path]
+	if !exists {
+		return nil, fmt.Errorf("bookmark not found for path: %s", path)
+	}
+
+	return bookmark, nil
+}
+
+// IsBookmarked checks if a path is bookmarked
+func (fn *FileNavigator) IsBookmarked(path string) bool {
+	fn.mutex.RLock()
+	defer fn.mutex.RUnlock()
+
+	_, exists := fn.bookmarks[path]
+	return exists
 }
 
 // SetPreferences updates navigation preferences for a session
 func (fn *FileNavigator) SetPreferences(sessionID string, preferences *NavigationPreferences) error {
-	// TODO: Implement session preferences storage
+	fn.mutex.Lock()
+	defer fn.mutex.Unlock()
+
+	if preferences == nil {
+		return fmt.Errorf("preferences cannot be nil")
+	}
+
+	// Store preferences for the session
+	fn.preferences[sessionID] = preferences
+
+	// Publish event
+	if fn.eventBus != nil {
+		ctx := context.Background()
+		fn.eventBus.Publish(ctx, "navigation.preferences_updated", map[string]interface{}{
+			"session_id":  sessionID,
+			"preferences": preferences,
+		}, "file-navigator")
+	}
+
 	return nil
 }
 
 // GetPreferences returns navigation preferences for a session
 func (fn *FileNavigator) GetPreferences(sessionID string) (*NavigationPreferences, error) {
-	// TODO: Implement session preferences retrieval
-	return nil, nil
+	fn.mutex.RLock()
+	defer fn.mutex.RUnlock()
+
+	preferences, exists := fn.preferences[sessionID]
+	if !exists {
+		// Return default preferences if not set
+		return &NavigationPreferences{
+			ShowHidden:     fn.config.ShowHiddenFiles,
+			SortingMethod:  fn.config.SortingMethod,
+			GroupDirsFirst: fn.config.GroupDirectoriesFirst,
+			CaseSensitive:  fn.config.CaseSensitiveSort,
+			NaturalSort:    fn.config.NaturalSorting,
+			ViewMode:       ViewModeList,
+			ItemsPerPage:   100,
+			PreviewEnabled: true,
+			PreviewSize:    1024 * 1024, // 1MB
+		}, nil
+	}
+
+	// Return a copy
+	prefCopy := *preferences
+	return &prefCopy, nil
 }
 
 // validatePath validates and cleans a file system path
@@ -723,24 +906,169 @@ func (fn *FileNavigator) createNavigationResult(path string, entries []*models.F
 
 // getCachedEntries retrieves cached directory entries
 func (fn *FileNavigator) getCachedEntries(path string, sessionID string) []*models.FileSystemEntry {
-	// TODO: Implement cache retrieval
-	return nil
+	cacheKey := fmt.Sprintf("%s:%s", sessionID, path)
+	entry, exists := fn.cache[cacheKey]
+	if !exists {
+		return nil
+	}
+
+	// Check if cache has expired
+	if time.Since(entry.Timestamp) > fn.config.CacheTimeout {
+		delete(fn.cache, cacheKey)
+		return nil
+	}
+
+	return entry.Entries
 }
 
 // cacheEntries caches directory entries
 func (fn *FileNavigator) cacheEntries(path string, entries []*models.FileSystemEntry, sessionID string) {
-	// TODO: Implement cache storage
+	cacheKey := fmt.Sprintf("%s:%s", sessionID, path)
+	fn.cache[cacheKey] = &NavigationCacheEntry{
+		Path:      path,
+		Entries:   entries,
+		Timestamp: time.Now(),
+	}
+}
+
+// InvalidateCache invalidates cache for a specific path or all caches
+func (fn *FileNavigator) InvalidateCache(path string) {
+	fn.mutex.Lock()
+	defer fn.mutex.Unlock()
+
+	if path == "" {
+		// Clear all cache
+		fn.cache = make(map[string]*NavigationCacheEntry)
+		return
+	}
+
+	// Clear cache entries containing this path
+	for key := range fn.cache {
+		if strings.Contains(key, path) {
+			delete(fn.cache, key)
+		}
+	}
 }
 
 // loadBookmarks loads bookmarks from file
 func (fn *FileNavigator) loadBookmarks() error {
-	// TODO: Implement bookmark loading
+	// Check if bookmark file exists
+	if _, err := os.Stat(fn.bookmarkPath); os.IsNotExist(err) {
+		// No bookmark file yet, this is fine
+		return nil
+	}
+
+	// Read bookmark file
+	data, err := os.ReadFile(fn.bookmarkPath)
+	if err != nil {
+		return fmt.Errorf("failed to read bookmarks file: %w", err)
+	}
+
+	// Handle empty file
+	if len(data) == 0 {
+		return nil
+	}
+
+	// Parse bookmark store
+	var store BookmarkStore
+	if err := json.Unmarshal(data, &store); err != nil {
+		return fmt.Errorf("failed to parse bookmarks file: %w", err)
+	}
+
+	// Load bookmarks into memory
+	if store.Bookmarks != nil {
+		fn.bookmarks = store.Bookmarks
+	}
+
 	return nil
 }
 
 // saveBookmarks saves bookmarks to file
 func (fn *FileNavigator) saveBookmarks() error {
-	// TODO: Implement bookmark saving
+	// Create bookmark store
+	store := BookmarkStore{
+		Version:   "1.0.0",
+		UpdatedAt: time.Now(),
+		Bookmarks: fn.bookmarks,
+	}
+
+	// Marshal to JSON with indentation for readability
+	data, err := json.MarshalIndent(store, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal bookmarks: %w", err)
+	}
+
+	// Ensure directory exists
+	dir := filepath.Dir(fn.bookmarkPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create bookmarks directory: %w", err)
+	}
+
+	// Write to file with secure permissions
+	if err := os.WriteFile(fn.bookmarkPath, data, 0600); err != nil {
+		return fmt.Errorf("failed to write bookmarks file: %w", err)
+	}
+
+	return nil
+}
+
+// ExportBookmarks exports bookmarks to a specified file
+func (fn *FileNavigator) ExportBookmarks(exportPath string) error {
+	fn.mutex.RLock()
+	defer fn.mutex.RUnlock()
+
+	store := BookmarkStore{
+		Version:   "1.0.0",
+		UpdatedAt: time.Now(),
+		Bookmarks: fn.bookmarks,
+	}
+
+	data, err := json.MarshalIndent(store, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal bookmarks: %w", err)
+	}
+
+	if err := os.WriteFile(exportPath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write export file: %w", err)
+	}
+
+	return nil
+}
+
+// ImportBookmarks imports bookmarks from a file
+func (fn *FileNavigator) ImportBookmarks(importPath string, merge bool) error {
+	// Read import file
+	data, err := os.ReadFile(importPath)
+	if err != nil {
+		return fmt.Errorf("failed to read import file: %w", err)
+	}
+
+	// Parse bookmark store
+	var store BookmarkStore
+	if err := json.Unmarshal(data, &store); err != nil {
+		return fmt.Errorf("failed to parse import file: %w", err)
+	}
+
+	fn.mutex.Lock()
+	defer fn.mutex.Unlock()
+
+	if merge {
+		// Merge with existing bookmarks
+		for path, bookmark := range store.Bookmarks {
+			fn.bookmarks[path] = bookmark
+		}
+	} else {
+		// Replace all bookmarks
+		fn.bookmarks = store.Bookmarks
+	}
+
+	// Auto-save if configured
+	if fn.config.AutoSaveBookmarks {
+		if err := fn.saveBookmarks(); err != nil {
+			return fmt.Errorf("failed to save merged bookmarks: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -750,9 +1078,12 @@ func (fn *FileNavigator) GetStats() map[string]interface{} {
 	defer fn.mutex.RUnlock()
 
 	return map[string]interface{}{
-		"active_sessions": len(fn.history),
-		"config":          fn.config,
-		"bookmark_path":   fn.bookmarkPath,
+		"active_sessions":  len(fn.history),
+		"bookmark_count":   len(fn.bookmarks),
+		"cache_entries":    len(fn.cache),
+		"preferences_count": len(fn.preferences),
+		"config":           fn.config,
+		"bookmark_path":    fn.bookmarkPath,
 	}
 }
 

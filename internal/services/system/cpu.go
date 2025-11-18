@@ -3,6 +3,8 @@ package system
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -250,16 +252,203 @@ func getLoadAverage(ctx context.Context) ([]float64, error) {
 
 // GetCPUTemperature returns CPU temperature if available
 func (cm *CPUMonitor) GetCPUTemperature(ctx context.Context) (float64, error) {
-	// This would need platform-specific temperature monitoring
-	// For now, return 0 with an error indicating not implemented
-	return 0, fmt.Errorf("CPU temperature monitoring not implemented")
+	// Get sensor temperatures from the system
+	temps, err := host.SensorsTemperaturesWithContext(ctx)
+	if err != nil {
+		// Try platform-specific methods as fallback
+		return cm.getPlatformTemperature(ctx)
+	}
+
+	if len(temps) == 0 {
+		return cm.getPlatformTemperature(ctx)
+	}
+
+	// Find CPU temperature from sensors
+	// Common sensor names for CPU temperature
+	cpuSensorNames := []string{
+		"coretemp",
+		"k10temp",
+		"k8temp",
+		"cpu_thermal",
+		"cpu-thermal",
+		"cpu",
+		"Package id 0",
+		"Core 0",
+		"Tdie",
+		"Tctl",
+		"CPU",
+	}
+
+	var cpuTemp float64
+	var found bool
+
+	for _, temp := range temps {
+		// Check if this is a CPU temperature sensor
+		for _, name := range cpuSensorNames {
+			if strings.Contains(strings.ToLower(temp.SensorKey), strings.ToLower(name)) {
+				if temp.Temperature > cpuTemp {
+					cpuTemp = temp.Temperature
+					found = true
+				}
+				break
+			}
+		}
+	}
+
+	if !found {
+		// If no specific CPU sensor found, use highest temperature as approximation
+		for _, temp := range temps {
+			if temp.Temperature > cpuTemp && temp.Temperature < 150 { // Sanity check
+				cpuTemp = temp.Temperature
+				found = true
+			}
+		}
+	}
+
+	if !found {
+		return cm.getPlatformTemperature(ctx)
+	}
+
+	return cpuTemp, nil
+}
+
+// GetAllTemperatures returns all available temperature sensors
+func (cm *CPUMonitor) GetAllTemperatures(ctx context.Context) (map[string]float64, error) {
+	temps, err := host.SensorsTemperaturesWithContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get sensor temperatures: %w", err)
+	}
+
+	result := make(map[string]float64)
+	for _, temp := range temps {
+		result[temp.SensorKey] = temp.Temperature
+	}
+
+	return result, nil
 }
 
 // GetCPUThermalState returns thermal state information if available
 func (cm *CPUMonitor) GetCPUThermalState(ctx context.Context) (string, error) {
-	// This would need platform-specific thermal monitoring
-	// For now, return empty string with an error indicating not implemented
-	return "", fmt.Errorf("CPU thermal state monitoring not implemented")
+	temp, err := cm.GetCPUTemperature(ctx)
+	if err != nil {
+		return "unknown", err
+	}
+
+	// Determine thermal state based on temperature
+	// These thresholds are approximations for typical CPUs
+	switch {
+	case temp < 40:
+		return "idle", nil
+	case temp < 60:
+		return "normal", nil
+	case temp < 75:
+		return "warm", nil
+	case temp < 85:
+		return "hot", nil
+	case temp < 95:
+		return "critical", nil
+	default:
+		return "emergency", nil
+	}
+}
+
+// GetCPUTemperatureDetails returns detailed temperature information
+func (cm *CPUMonitor) GetCPUTemperatureDetails(ctx context.Context) (*models.TemperatureInfo, error) {
+	temp, err := cm.GetCPUTemperature(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	state, _ := cm.GetCPUThermalState(ctx)
+	allTemps, _ := cm.GetAllTemperatures(ctx)
+
+	// Find per-core temperatures if available
+	coreTemps := make(map[string]float64)
+	for key, val := range allTemps {
+		if strings.Contains(strings.ToLower(key), "core") {
+			coreTemps[key] = val
+		}
+	}
+
+	return &models.TemperatureInfo{
+		Current:         temp,
+		State:           state,
+		CoreTemperatures: coreTemps,
+		Timestamp:       time.Now(),
+	}, nil
+}
+
+// getPlatformTemperature attempts to get CPU temperature using platform-specific methods
+func (cm *CPUMonitor) getPlatformTemperature(ctx context.Context) (float64, error) {
+	switch runtime.GOOS {
+	case "linux":
+		return cm.getLinuxTemperature()
+	case "darwin":
+		return cm.getMacOSTemperature()
+	case "windows":
+		return cm.getWindowsTemperature()
+	default:
+		return 0, fmt.Errorf("temperature monitoring not supported on %s", runtime.GOOS)
+	}
+}
+
+// getLinuxTemperature reads CPU temperature from Linux sysfs
+func (cm *CPUMonitor) getLinuxTemperature() (float64, error) {
+	// Try common thermal zone paths
+	thermalPaths := []string{
+		"/sys/class/thermal/thermal_zone0/temp",
+		"/sys/class/hwmon/hwmon0/temp1_input",
+		"/sys/class/hwmon/hwmon1/temp1_input",
+		"/sys/devices/platform/coretemp.0/hwmon/hwmon*/temp1_input",
+	}
+
+	for _, path := range thermalPaths {
+		// Handle glob patterns
+		if strings.Contains(path, "*") {
+			matches, err := filepath.Glob(path)
+			if err != nil || len(matches) == 0 {
+				continue
+			}
+			path = matches[0]
+		}
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+
+		// Temperature is usually in millidegrees Celsius
+		tempStr := strings.TrimSpace(string(data))
+		temp, err := strconv.ParseFloat(tempStr, 64)
+		if err != nil {
+			continue
+		}
+
+		// Convert from millidegrees to degrees if necessary
+		if temp > 1000 {
+			temp = temp / 1000
+		}
+
+		return temp, nil
+	}
+
+	return 0, fmt.Errorf("no temperature sensor found on Linux")
+}
+
+// getMacOSTemperature reads CPU temperature on macOS
+func (cm *CPUMonitor) getMacOSTemperature() (float64, error) {
+	// On macOS, temperature reading requires SMC access
+	// which typically needs elevated permissions or a helper tool
+	// For now, return an error as this requires additional native code
+	return 0, fmt.Errorf("macOS temperature monitoring requires SMC access")
+}
+
+// getWindowsTemperature reads CPU temperature on Windows
+func (cm *CPUMonitor) getWindowsTemperature() (float64, error) {
+	// On Windows, temperature reading typically requires WMI or
+	// hardware-specific APIs. The gopsutil library should handle this,
+	// but if it fails, we return an error
+	return 0, fmt.Errorf("Windows temperature monitoring requires WMI access")
 }
 
 // ValidateCPUMetrics validates CPU metrics for consistency
