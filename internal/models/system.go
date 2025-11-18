@@ -142,6 +142,14 @@ type TemperatureMetrics struct {
 	Timestamp  time.Time           `json:"timestamp"`
 }
 
+// TemperatureInfo represents detailed CPU temperature information
+type TemperatureInfo struct {
+	Current          float64            `json:"current"`          // Current CPU temperature in Celsius
+	State            string             `json:"state"`            // Thermal state (idle, normal, warm, hot, critical, emergency)
+	CoreTemperatures map[string]float64 `json:"coreTemperatures"` // Per-core temperatures
+	Timestamp        time.Time          `json:"timestamp"`
+}
+
 // SystemInfo represents static system information
 type SystemInfo struct {
 	Hostname      string            `json:"hostname"`      // System hostname

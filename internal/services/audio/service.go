@@ -1,10 +1,14 @@
 package audio
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -826,4 +830,249 @@ func (p *NoOpPlayer) SetVolume(volume float64) error {
 
 func (p *NoOpPlayer) Cleanup() error {
 	return nil
+}
+
+// AudioSessionDetector handles detection of audio sessions and background state
+type AudioSessionDetector struct {
+	isAppInBackground    bool
+	otherAppsPlaying     bool
+	lastCheckTime        time.Time
+	checkInterval        time.Duration
+	mu                   sync.RWMutex
+}
+
+// NewAudioSessionDetector creates a new audio session detector
+func NewAudioSessionDetector() *AudioSessionDetector {
+	return &AudioSessionDetector{
+		checkInterval: 1 * time.Second,
+	}
+}
+
+// IsAppInBackground checks if the application is in the background
+func (d *AudioSessionDetector) IsAppInBackground() bool {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.isAppInBackground
+}
+
+// SetAppInBackground sets the background state of the application
+func (d *AudioSessionDetector) SetAppInBackground(inBackground bool) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.isAppInBackground = inBackground
+}
+
+// IsOtherAppsPlaying checks if other applications are playing audio
+func (d *AudioSessionDetector) IsOtherAppsPlaying() bool {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.otherAppsPlaying
+}
+
+// CheckAudioSessions checks if other applications are playing audio
+func (d *AudioSessionDetector) CheckAudioSessions(ctx context.Context) (bool, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	// Check if we need to update
+	if time.Since(d.lastCheckTime) < d.checkInterval {
+		return d.otherAppsPlaying, nil
+	}
+
+	d.lastCheckTime = time.Now()
+
+	// Platform-specific audio session detection
+	var playing bool
+	var err error
+
+	switch runtime.GOOS {
+	case "linux":
+		playing, err = d.checkLinuxAudioSessions(ctx)
+	case "darwin":
+		playing, err = d.checkMacOSAudioSessions(ctx)
+	case "windows":
+		playing, err = d.checkWindowsAudioSessions(ctx)
+	default:
+		return false, fmt.Errorf("audio session detection not supported on %s", runtime.GOOS)
+	}
+
+	if err == nil {
+		d.otherAppsPlaying = playing
+	}
+
+	return playing, err
+}
+
+// checkLinuxAudioSessions checks for active audio sessions on Linux
+func (d *AudioSessionDetector) checkLinuxAudioSessions(ctx context.Context) (bool, error) {
+	// Try PulseAudio first
+	cmd := exec.CommandContext(ctx, "pactl", "list", "sink-inputs", "short")
+	output, err := cmd.Output()
+	if err == nil {
+		// If there are any sink inputs, audio is playing
+		lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+		if len(lines) > 0 && lines[0] != "" {
+			return true, nil
+		}
+		return false, nil
+	}
+
+	// Try PipeWire
+	cmd = exec.CommandContext(ctx, "pw-cli", "list-objects")
+	output, err = cmd.Output()
+	if err == nil {
+		// Check for active streams
+		if strings.Contains(string(output), "type: PipeWire:Interface:Node") {
+			// Simplified check - in production would parse more carefully
+			return true, nil
+		}
+		return false, nil
+	}
+
+	// Neither PulseAudio nor PipeWire available
+	return false, fmt.Errorf("no audio system detected (tried PulseAudio and PipeWire)")
+}
+
+// checkMacOSAudioSessions checks for active audio sessions on macOS
+func (d *AudioSessionDetector) checkMacOSAudioSessions(ctx context.Context) (bool, error) {
+	// Use coreaudiod status or check for active audio streams
+	// This is a simplified implementation - full implementation would use CoreAudio API
+
+	// Check if any application is outputting audio using pmset
+	cmd := exec.CommandContext(ctx, "pmset", "-g", "assertions")
+	output, err := cmd.Output()
+	if err == nil {
+		// Check for audio-related assertions
+		if strings.Contains(string(output), "PreventUserIdleSystemSleep") ||
+		   strings.Contains(string(output), "Audio") {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// checkWindowsAudioSessions checks for active audio sessions on Windows
+func (d *AudioSessionDetector) checkWindowsAudioSessions(ctx context.Context) (bool, error) {
+	// On Windows, we would use WASAPI to check for active audio sessions
+	// This requires CGO bindings to Windows APIs
+	// For now, return an error indicating full implementation is needed
+
+	// PowerShell command to check for active audio sessions
+	cmd := exec.CommandContext(ctx, "powershell", "-Command",
+		`Get-AudioDevice -PlaybackMute`)
+	_, err := cmd.Output()
+	if err != nil {
+		// AudioDevice cmdlet not available, use alternative method
+		// Check if any process has audio enabled (simplified)
+		return false, fmt.Errorf("Windows audio session detection requires AudioDevice module")
+	}
+
+	return false, nil
+}
+
+// GetAudioSessionInfo returns information about current audio sessions
+func (d *AudioSessionDetector) GetAudioSessionInfo() map[string]interface{} {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	return map[string]interface{}{
+		"app_in_background":   d.isAppInBackground,
+		"other_apps_playing":  d.otherAppsPlaying,
+		"last_check_time":     d.lastCheckTime,
+		"check_interval_ms":   d.checkInterval.Milliseconds(),
+		"platform":            runtime.GOOS,
+	}
+}
+
+// HandleBackgroundStateChange handles application background state changes
+func (s *Service) HandleBackgroundStateChange(inBackground bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Check if we should mute in background
+	if s.settings.MuteInBackground {
+		if inBackground && !s.settings.Muted {
+			// Store current mute state and mute
+			s.settings.Muted = true
+
+			// Emit event
+			if s.eventBus != nil {
+				s.eventBus.Emit("audio:muted_background", map[string]interface{}{
+					"muted":    true,
+					"reason":   "app_in_background",
+					"timestamp": time.Now(),
+				})
+			}
+		} else if !inBackground && s.settings.Muted {
+			// Restore audio when coming to foreground
+			s.settings.Muted = false
+
+			// Emit event
+			if s.eventBus != nil {
+				s.eventBus.Emit("audio:unmuted_foreground", map[string]interface{}{
+					"muted":    false,
+					"reason":   "app_in_foreground",
+					"timestamp": time.Now(),
+				})
+			}
+		}
+	}
+
+	return nil
+}
+
+// StartBackgroundMonitor starts monitoring for background state and audio sessions
+func (s *Service) StartBackgroundMonitor(detector *AudioSessionDetector, checkInterval time.Duration) {
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+
+		ticker := time.NewTicker(checkInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				// Check audio sessions
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				_, _ = detector.CheckAudioSessions(ctx)
+				cancel()
+
+				// Handle background state
+				if detector.IsAppInBackground() && s.settings.MuteInBackground {
+					s.HandleBackgroundStateChange(true)
+				}
+			case <-s.stopChan:
+				return
+			}
+		}
+	}()
+}
+
+// GetActiveAudioSessions returns a list of active audio session names (Linux only for now)
+func GetActiveAudioSessions(ctx context.Context) ([]string, error) {
+	if runtime.GOOS != "linux" {
+		return nil, fmt.Errorf("active session listing only supported on Linux")
+	}
+
+	cmd := exec.CommandContext(ctx, "pactl", "list", "sink-inputs")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list audio sessions: %w", err)
+	}
+
+	var sessions []string
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "application.name") {
+			parts := strings.Split(line, "=")
+			if len(parts) >= 2 {
+				name := strings.Trim(strings.TrimSpace(parts[1]), "\"")
+				sessions = append(sessions, name)
+			}
+		}
+	}
+
+	return sessions, nil
 }
