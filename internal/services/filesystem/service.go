@@ -3,6 +3,7 @@ package filesystem
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sync"
@@ -845,14 +846,211 @@ func (fss *FileSystemService) executeOperation(ctx context.Context, operation *F
 
 // executeCopy executes a copy operation
 func (fss *FileSystemService) executeCopy(ctx context.Context, operation *FileOperation) error {
-	// TODO: Implement copy operation
-	return fmt.Errorf("copy operation not yet implemented")
+	if !fss.config.CopyEnabled {
+		return fmt.Errorf("copy operation is disabled")
+	}
+
+	src := filepath.Clean(operation.Source)
+	dst := filepath.Clean(operation.Destination)
+
+	if src == "" || dst == "" {
+		return fmt.Errorf("invalid source or destination path")
+	}
+
+	// Get source info
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return fmt.Errorf("failed to stat source %s: %w", src, err)
+	}
+
+	// Check context for cancellation
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	if srcInfo.IsDir() {
+		return fss.copyDir(ctx, src, dst, operation)
+	}
+	return fss.copyFile(ctx, src, dst, srcInfo.Mode(), operation)
+}
+
+// copyFile copies a single file from src to dst
+func (fss *FileSystemService) copyFile(ctx context.Context, src, dst string, mode os.FileMode, operation *FileOperation) error {
+	// Create destination directory if it doesn't exist
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return fmt.Errorf("failed to create destination directory: %w", err)
+	}
+
+	// Open source file
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("failed to open source file: %w", err)
+	}
+	defer srcFile.Close()
+
+	// Create destination file
+	dstFile, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
+	if err != nil {
+		return fmt.Errorf("failed to create destination file: %w", err)
+	}
+	defer dstFile.Close()
+
+	// Get file size for progress tracking
+	srcInfo, _ := srcFile.Stat()
+	totalSize := srcInfo.Size()
+	var copied int64
+
+	// Copy in chunks with progress tracking
+	buf := make([]byte, fss.config.ChunkSize)
+	if fss.config.ChunkSize == 0 {
+		buf = make([]byte, 32*1024) // Default 32KB chunks
+	}
+
+	for {
+		// Check for cancellation
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		n, err := srcFile.Read(buf)
+		if err != nil && err != io.EOF {
+			return fmt.Errorf("failed to read source file: %w", err)
+		}
+		if n == 0 {
+			break
+		}
+
+		if _, err := dstFile.Write(buf[:n]); err != nil {
+			return fmt.Errorf("failed to write to destination file: %w", err)
+		}
+
+		copied += int64(n)
+		if totalSize > 0 && operation != nil {
+			operation.Progress = float64(copied) / float64(totalSize)
+		}
+	}
+
+	return nil
+}
+
+// copyDir recursively copies a directory from src to dst
+func (fss *FileSystemService) copyDir(ctx context.Context, src, dst string, operation *FileOperation) error {
+	// Get source directory info
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return fmt.Errorf("failed to stat source directory: %w", err)
+	}
+
+	// Create destination directory
+	if err := os.MkdirAll(dst, srcInfo.Mode()); err != nil {
+		return fmt.Errorf("failed to create destination directory: %w", err)
+	}
+
+	// Read source directory contents
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return fmt.Errorf("failed to read source directory: %w", err)
+	}
+
+	// Copy each entry
+	for _, entry := range entries {
+		// Check for cancellation
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+
+		if entry.IsDir() {
+			if err := fss.copyDir(ctx, srcPath, dstPath, operation); err != nil {
+				return err
+			}
+		} else {
+			info, err := entry.Info()
+			if err != nil {
+				return fmt.Errorf("failed to get file info: %w", err)
+			}
+			if err := fss.copyFile(ctx, srcPath, dstPath, info.Mode(), operation); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 // executeMove executes a move operation
 func (fss *FileSystemService) executeMove(ctx context.Context, operation *FileOperation) error {
-	// TODO: Implement move operation
-	return fmt.Errorf("move operation not yet implemented")
+	if !fss.config.MoveEnabled {
+		return fmt.Errorf("move operation is disabled")
+	}
+
+	src := filepath.Clean(operation.Source)
+	dst := filepath.Clean(operation.Destination)
+
+	if src == "" || dst == "" {
+		return fmt.Errorf("invalid source or destination path")
+	}
+
+	// Check context for cancellation
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	// Create destination directory if it doesn't exist
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return fmt.Errorf("failed to create destination directory: %w", err)
+	}
+
+	// Try atomic rename first (works on same filesystem)
+	err := os.Rename(src, dst)
+	if err == nil {
+		operation.Progress = 1.0
+		return nil
+	}
+
+	// Check if it's a cross-device error - if so, copy then delete
+	// This handles moving files across different filesystems/partitions
+	if linkErr, ok := err.(*os.LinkError); ok {
+		// Cross-device link error typically indicates different filesystems
+		if linkErr.Err.Error() == "invalid cross-device link" ||
+		   linkErr.Err.Error() == "cross-device link" {
+			// Fall back to copy + delete
+			if err := fss.executeCopy(ctx, operation); err != nil {
+				return fmt.Errorf("failed to copy during cross-device move: %w", err)
+			}
+
+			// Delete source after successful copy
+			srcInfo, err := os.Stat(src)
+			if err != nil {
+				return fmt.Errorf("failed to stat source after copy: %w", err)
+			}
+
+			if srcInfo.IsDir() {
+				if err := os.RemoveAll(src); err != nil {
+					return fmt.Errorf("failed to remove source directory after move: %w", err)
+				}
+			} else {
+				if err := os.Remove(src); err != nil {
+					return fmt.Errorf("failed to remove source file after move: %w", err)
+				}
+			}
+
+			return nil
+		}
+	}
+
+	// Return the original rename error for other cases
+	return fmt.Errorf("failed to move %s to %s: %w", src, dst, err)
 }
 
 // executeDelete executes a delete operation
