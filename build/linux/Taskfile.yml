@@ -9,20 +9,11 @@ tasks:
     deps:
       - task: common:go:mod:tidy
       - task: common:build:frontend
-        vars:
-          BUILD_FLAGS:
-            ref: .BUILD_FLAGS
-          PRODUCTION:
-            ref: .PRODUCTION
       - task: common:generate:icons
-      - task: update:metadata
     cmds:
       - go build {{.BUILD_FLAGS}} -o {{.BIN_DIR}}/{{.APP_NAME}}
     vars:
-      BUILD_FLAGS: '{{if eq .PRODUCTION "true"}}-tags production -trimpath -buildvcs=false -ldflags="-w -s -X main.version={{.VERSION}} -X main.buildDate={{.BUILD_DATE}} -X main.commit={{.COMMIT}}"{{else}}-buildvcs=false -gcflags=all="-l" -X main.version=dev-{{.VERSION}}"{{end}}'
-      VERSION: '{{.VERSION | default "1.0.0"}}'
-      BUILD_DATE: '{{.BUILD_DATE | default (now | date "2006-01-02T15:04:05Z")}}'
-      COMMIT: '{{.COMMIT | default (shell "git rev-parse --short HEAD 2>/dev/null || echo unknown")}}'
+      BUILD_FLAGS: '{{if eq .PRODUCTION "true"}}-tags production -trimpath -buildvcs=false -ldflags="-w -s"{{else}}-buildvcs=false -gcflags=all="-l"{{end}}'
     env:
       GOOS: linux
       CGO_ENABLED: 1

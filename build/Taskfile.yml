@@ -32,9 +32,6 @@ tasks:
     deps:
       - task: install:frontend:deps
       - task: generate:bindings
-        vars:
-          BUILD_FLAGS:
-            ref: .BUILD_FLAGS
     cmds:
       - bun run {{.BUILD_COMMAND}} -q
     env:
