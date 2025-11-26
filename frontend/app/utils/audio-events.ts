@@ -597,13 +597,15 @@ export const triggerAudioEvent = async (
   }
 
   try {
-    // This would integrate with the audio composable
-    // For now, we'll just mark as played and return the event ID
+    // Mark as played in the event manager
     audioEventManager.markEventPlayed(uiEvent, mapping.audioEventId)
 
-    // TODO: Integrate with useAudio composable
-    // const audio = useAudio()
-    // await audio.playEvent(mapping.audioEventId)
+    // Integrate with useAudio composable
+    if (typeof window !== 'undefined') {
+      const { useAudio } = await import('~/composables/useAudio')
+      const audio = useAudio()
+      await audio.playEvent(mapping.audioEventId)
+    }
 
     return mapping.audioEventId
   } catch (error) {

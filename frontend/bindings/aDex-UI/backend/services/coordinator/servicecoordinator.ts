@@ -21,10 +21,31 @@ import * as utils$0 from "../../utils/models.js";
 import * as events$0 from "../../../internal/events/models.js";
 
 /**
+ * ClearNetworkAlerts clears all resolved network alerts
+ */
+export function ClearNetworkAlerts(): $CancellablePromise<void> {
+    return $Call.ByID(2117985540);
+}
+
+/**
  * CloseTerminal closes a terminal session
  */
 export function CloseTerminal(terminalID: string): $CancellablePromise<void> {
     return $Call.ByID(2919091542, terminalID);
+}
+
+/**
+ * CreateColorScheme creates a new color scheme
+ */
+export function CreateColorScheme(scheme: any): $CancellablePromise<void> {
+    return $Call.ByID(2308528662, scheme);
+}
+
+/**
+ * CreateFontConfiguration creates a new font configuration
+ */
+export function CreateFontConfiguration(config: any): $CancellablePromise<void> {
+    return $Call.ByID(1786455135, config);
 }
 
 /**
@@ -37,12 +58,151 @@ export function CreateTerminal(width: number, height: number): $CancellablePromi
 }
 
 /**
+ * DeleteColorScheme deletes a color scheme
+ */
+export function DeleteColorScheme(id: string): $CancellablePromise<void> {
+    return $Call.ByID(3045576591, id);
+}
+
+/**
+ * DeleteFontConfiguration deletes a font configuration
+ */
+export function DeleteFontConfiguration(id: string): $CancellablePromise<void> {
+    return $Call.ByID(4195883314, id);
+}
+
+/**
+ * GetBandwidthData returns bandwidth data for a specific interface
+ */
+export function GetBandwidthData(interfaceName: string): $CancellablePromise<any> {
+    return $Call.ByID(734613951, interfaceName);
+}
+
+/**
+ * GetColorScheme returns a specific color scheme by ID
+ */
+export function GetColorScheme(id: string): $CancellablePromise<any> {
+    return $Call.ByID(1495188030, id);
+}
+
+/**
+ * GetColorSchemeConfig returns the color scheme configuration
+ */
+export function GetColorSchemeConfig(): $CancellablePromise<any> {
+    return $Call.ByID(3881872840);
+}
+
+/**
+ * GetColorSchemePreview generates a preview for a color scheme
+ */
+export function GetColorSchemePreview(id: string): $CancellablePromise<any> {
+    return $Call.ByID(4063754130, id);
+}
+
+/**
+ * GetColorSchemes returns all available color schemes
+ */
+export function GetColorSchemes(): $CancellablePromise<{ [_: string]: any }> {
+    return $Call.ByID(2557206327).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
+ * GetDefaultColorScheme returns the default color scheme
+ */
+export function GetDefaultColorScheme(): $CancellablePromise<any> {
+    return $Call.ByID(923900393);
+}
+
+/**
+ * GetDefaultFontConfiguration returns the default font configuration
+ */
+export function GetDefaultFontConfiguration(): $CancellablePromise<any> {
+    return $Call.ByID(1887433904);
+}
+
+/**
  * GetEventBus returns the event bus
  */
 export function GetEventBus(): $CancellablePromise<events$0.EventBus | null> {
     return $Call.ByID(3784317956).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType4($result);
     });
+}
+
+/**
+ * GetFontConfiguration returns a specific font configuration by ID
+ */
+export function GetFontConfiguration(id: string): $CancellablePromise<any> {
+    return $Call.ByID(934207351, id);
+}
+
+/**
+ * GetFontConfigurations returns all font configurations
+ */
+export function GetFontConfigurations(): $CancellablePromise<{ [_: string]: any }> {
+    return $Call.ByID(2890470220).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
+ * GetFontMetrics returns metrics for a font
+ */
+export function GetFontMetrics(family: string, size: number): $CancellablePromise<any> {
+    return $Call.ByID(2550489256, family, size);
+}
+
+/**
+ * GetFontSettings returns current font settings
+ */
+export function GetFontSettings(): $CancellablePromise<any> {
+    return $Call.ByID(691116794);
+}
+
+/**
+ * GetMonospaceFonts returns monospace fonts suitable for terminal use
+ */
+export function GetMonospaceFonts(): $CancellablePromise<any[]> {
+    return $Call.ByID(1824599733).then(($result: any) => {
+        return $$createType5($result);
+    });
+}
+
+/**
+ * GetNetworkAlerts returns current network alerts
+ */
+export function GetNetworkAlerts(): $CancellablePromise<any> {
+    return $Call.ByID(3298438499);
+}
+
+/**
+ * GetNetworkConfig returns the current network service configuration
+ */
+export function GetNetworkConfig(): $CancellablePromise<any> {
+    return $Call.ByID(4140070562);
+}
+
+/**
+ * GetNetworkConnections returns current network connections
+ */
+export function GetNetworkConnections(): $CancellablePromise<any> {
+    return $Call.ByID(3471189381);
+}
+
+/**
+ * GetNetworkMetrics returns current network metrics
+ */
+export function GetNetworkMetrics(): $CancellablePromise<any> {
+    return $Call.ByID(972147689);
+}
+
+/**
+ * GetNetworkStatistics returns comprehensive network statistics
+ */
+export function GetNetworkStatistics(): $CancellablePromise<any> {
+    return $Call.ByID(3928878455);
 }
 
 /**
@@ -50,7 +210,7 @@ export function GetEventBus(): $CancellablePromise<events$0.EventBus | null> {
  */
 export function GetPlatform(): $CancellablePromise<utils$0.FeatureDetection | null> {
     return $Call.ByID(1459214277).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType7($result);
     });
 }
 
@@ -59,6 +219,15 @@ export function GetPlatform(): $CancellablePromise<utils$0.FeatureDetection | nu
  */
 export function GetService(serviceType: string): $CancellablePromise<any> {
     return $Call.ByID(2120592893, serviceType);
+}
+
+/**
+ * GetSystemFonts returns all detected system fonts
+ */
+export function GetSystemFonts(): $CancellablePromise<{ [_: string]: any }> {
+    return $Call.ByID(3265143207).then(($result: any) => {
+        return $$createType2($result);
+    });
 }
 
 /**
@@ -71,10 +240,24 @@ export function GetTerminalInfo(terminalID: string): $CancellablePromise<termina
 }
 
 /**
+ * ImportFont imports a font from a file or URL
+ */
+export function ImportFont(request: any): $CancellablePromise<any> {
+    return $Call.ByID(2576930878, request);
+}
+
+/**
  * Initialize initializes all services
  */
 export function Initialize(): $CancellablePromise<void> {
     return $Call.ByID(3410051216);
+}
+
+/**
+ * IsNetworkMonitoring returns whether network monitoring is currently active
+ */
+export function IsNetworkMonitoring(): $CancellablePromise<boolean> {
+    return $Call.ByID(2413087822);
 }
 
 /**
@@ -89,8 +272,15 @@ export function IsStarted(): $CancellablePromise<boolean> {
  */
 export function ListTerminals(): $CancellablePromise<string[]> {
     return $Call.ByID(1956517423).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
+}
+
+/**
+ * ResetNetworkService resets the network service
+ */
+export function ResetNetworkService(): $CancellablePromise<void> {
+    return $Call.ByID(459684076);
 }
 
 /**
@@ -98,6 +288,34 @@ export function ListTerminals(): $CancellablePromise<string[]> {
  */
 export function ResizeTerminal(terminalID: string, width: number, height: number): $CancellablePromise<void> {
     return $Call.ByID(3068103278, terminalID, width, height);
+}
+
+/**
+ * ResolveNetworkAlert resolves a network alert
+ */
+export function ResolveNetworkAlert(alertID: string): $CancellablePromise<void> {
+    return $Call.ByID(2277829046, alertID);
+}
+
+/**
+ * ScanSystemFonts scans the system for available fonts
+ */
+export function ScanSystemFonts(): $CancellablePromise<void> {
+    return $Call.ByID(4264580036);
+}
+
+/**
+ * SetDefaultColorScheme sets the default color scheme
+ */
+export function SetDefaultColorScheme(id: string): $CancellablePromise<void> {
+    return $Call.ByID(1254262477, id);
+}
+
+/**
+ * SetDefaultFontConfiguration sets the default font configuration
+ */
+export function SetDefaultFontConfiguration(id: string): $CancellablePromise<void> {
+    return $Call.ByID(3127102612, id);
 }
 
 /**
@@ -115,10 +333,73 @@ export function StartMonitoring(): $CancellablePromise<void> {
 }
 
 /**
+ * StartNetworkMonitoring starts network monitoring
+ */
+export function StartNetworkMonitoring(): $CancellablePromise<void> {
+    return $Call.ByID(653774186);
+}
+
+/**
  * StopMonitoring stops monitoring for all services
  */
 export function StopMonitoring(): $CancellablePromise<void> {
     return $Call.ByID(853345988);
+}
+
+/**
+ * StopNetworkMonitoring stops network monitoring
+ */
+export function StopNetworkMonitoring(): $CancellablePromise<void> {
+    return $Call.ByID(1240415658);
+}
+
+/**
+ * UpdateColorScheme updates an existing color scheme
+ */
+export function UpdateColorScheme(scheme: any): $CancellablePromise<void> {
+    return $Call.ByID(3076922913, scheme);
+}
+
+/**
+ * UpdateColorSchemeConfig updates the color scheme configuration
+ */
+export function UpdateColorSchemeConfig(config: any): $CancellablePromise<void> {
+    return $Call.ByID(2608350723, config);
+}
+
+/**
+ * UpdateFontConfiguration updates an existing font configuration
+ */
+export function UpdateFontConfiguration(config: any): $CancellablePromise<void> {
+    return $Call.ByID(2242746168, config);
+}
+
+/**
+ * UpdateFontSettings updates font settings
+ */
+export function UpdateFontSettings(settings: any): $CancellablePromise<void> {
+    return $Call.ByID(31984975, settings);
+}
+
+/**
+ * UpdateNetworkConfig updates the network service configuration
+ */
+export function UpdateNetworkConfig(config: any): $CancellablePromise<void> {
+    return $Call.ByID(255205561, config);
+}
+
+/**
+ * ValidateColorScheme validates a color scheme
+ */
+export function ValidateColorScheme(scheme: any): $CancellablePromise<any> {
+    return $Call.ByID(1340016912, scheme);
+}
+
+/**
+ * ValidateFont validates a font configuration
+ */
+export function ValidateFont(config: any): $CancellablePromise<any> {
+    return $Call.ByID(692200433, config);
 }
 
 /**
@@ -131,8 +412,10 @@ export function WriteToTerminal(terminalID: string, data: string): $CancellableP
 // Private type creation functions
 const $$createType0 = terminal$0.Terminal.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = events$0.EventBus.createFrom;
-const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = utils$0.FeatureDetection.createFrom;
-const $$createType5 = $Create.Nullable($$createType4);
-const $$createType6 = $Create.Array($Create.Any);
+const $$createType2 = $Create.Map($Create.Any, $Create.Any);
+const $$createType3 = events$0.EventBus.createFrom;
+const $$createType4 = $Create.Nullable($$createType3);
+const $$createType5 = $Create.Array($Create.Any);
+const $$createType6 = utils$0.FeatureDetection.createFrom;
+const $$createType7 = $Create.Nullable($$createType6);
+const $$createType8 = $Create.Array($Create.Any);

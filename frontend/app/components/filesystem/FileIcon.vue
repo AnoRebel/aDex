@@ -81,6 +81,8 @@ interface Props {
   color?: string
   theme?: 'light' | 'dark' | 'auto'
   style?: 'emoji' | 'svg' | 'mixed'
+  // Whether the icon is above the fold (affects loading strategy)
+  aboveFold?: boolean
   // Override global image config if needed
   overrideImageConfig?: {
     format?: 'auto' | 'avif' | 'webp' | 'jpg' | 'png'
@@ -97,7 +99,8 @@ const props = withDefaults(defineProps<Props>(), {
   showExtension: false,
   color: '',
   theme: 'auto',
-  style: 'mixed'
+  style: 'mixed',
+  aboveFold: false
 })
 
 // Reactive state
@@ -158,7 +161,7 @@ const imageAttributes = computed(() => {
       isImage: true
     },
     props.size,
-    false // TODO: Add prop for above-fold detection
+    props.aboveFold
   )
 })
 
