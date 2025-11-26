@@ -9,6 +9,8 @@ tasks:
     deps:
       - task: common:go:mod:tidy
       - task: common:build:frontend
+        vars:
+          PRODUCTION: '{{.PRODUCTION}}'
       - task: common:generate:icons
     cmds:
       - task: generate:syso
@@ -18,10 +20,7 @@ tasks:
       - cmd: rm -f *.syso
         platforms: [linux, darwin]
     vars:
-      BUILD_FLAGS: '{{if eq .PRODUCTION "true"}}-tags production -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui -X main.version={{.VERSION}} -X main.buildDate={{.BUILD_DATE}} -X main.commit={{.COMMIT}}"{{else}}-buildvcs=false -gcflags=all="-l" -X main.version=dev-{{.VERSION}}"{{end}}'
-      VERSION: '{{.VERSION | default "1.0.0"}}'
-      BUILD_DATE: '{{.BUILD_DATE | default (now | date "2006-01-02T15:04:05Z")}}'
-      COMMIT: '{{.COMMIT | default (shell "git rev-parse --short HEAD 2>/dev/null || echo unknown")}}'
+      BUILD_FLAGS: '{{if eq .PRODUCTION "true"}}-tags production -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui"{{else}}-buildvcs=false -gcflags=all="-l"{{end}}'
     env:
       GOOS: windows
       CGO_ENABLED: 0
@@ -29,16 +28,9 @@ tasks:
       PRODUCTION: '{{.PRODUCTION | default "false"}}'
 
   package:
-    summary: Packages a production build of the application
+    summary: Packages a production build of the application into a `.exe` bundle
     cmds:
-      - |-
-        if [ "{{.FORMAT | default "nsis"}}" = "msix" ]; then
-          task: create:msix:package
-        else
-          task: create:nsis:installer
-        fi
-    vars:
-      FORMAT: '{{.FORMAT | default "nsis"}}'
+      - task: create:nsis:installer
 
   generate:syso:
     summary: Generates Windows `.syso` file
@@ -57,161 +49,12 @@ tasks:
           PRODUCTION: "true"
     cmds:
       # Create the Microsoft WebView2 bootstrapper if it doesn't exist
-      - wails3 generate webview2bootstrapper -dir "{{.ROOT_DIR}}/build/windows/nsis"
-      - makensis -DARG_WAILS_{{.ARG_FLAG}}_BINARY="{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}.exe" project.nsi
+      - wails3 generate webview2bootstrapper -dir "{{.ROOT_DIR}}\build\windows\nsis"
+      - makensis -DARG_WAILS_{{.ARG_FLAG}}_BINARY="{{.ROOT_DIR}}\{{.BIN_DIR}}\{{.APP_NAME}}.exe" project.nsi
     vars:
       ARCH: '{{.ARCH | default ARCH}}'
       ARG_FLAG: '{{if eq .ARCH "amd64"}}AMD64{{else}}ARM64{{end}}'
 
-  create:msix:package:
-    summary: Creates an MSIX package
-    deps:
-      - task: build
-        vars:
-          PRODUCTION: "true"
-    cmds:
-      - |-
-        wails3 tool msix \
-          --config "{{.ROOT_DIR}}/build/config.yml" \
-          --name "{{.APP_NAME}}" \
-          --executable "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}.exe" \
-          --arch "{{.ARCH}}" \
-          --out "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}-{{.VERSION}}-{{.ARCH}}.msix" \
-          {{if .CERT_PATH}}--cert "{{.CERT_PATH}}"{{end}} \
-          {{if .PUBLISHER}}--publisher "{{.PUBLISHER}}"{{end}} \
-          {{if .USE_MSIX_TOOL}}--use-msix-tool{{else}}--use-makeappx{{end}}
-      - '{{if .CERT_PATH}}task: sign:msix{{end}}'
-    vars:
-      ARCH: '{{.ARCH | default ARCH}}'
-      VERSION: '{{.VERSION | default "1.0.0"}}'
-      CERT_PATH: '{{.CERT_PATH | default ""}}'
-      PUBLISHER: '{{.PUBLISHER | default "HackEAC"}}'
-      USE_MSIX_TOOL: '{{.USE_MSIX_TOOL | default "false"}}'
-
-  sign:binary:
-    summary: Code signs the Windows executable
-    deps:
-      - task: build
-        vars:
-          PRODUCTION: "true"
-    cmds:
-      - |-
-        if [ -z "{{.CERT_PATH}}" ] || [ -z "{{.CERT_PASSWORD}}" ]; then
-          echo "ERROR: CERT_PATH and CERT_PASSWORD environment variables are required for code signing"
-          echo "Usage: CERT_PATH=\"path/to/cert.pfx\" CERT_PASSWORD=\"password\" task windows:sign:binary"
-          exit 1
-        fi
-      - |-
-        # Sign the executable
-        signtool sign \
-          /f "{{.CERT_PATH}}" \
-          /p "{{.CERT_PASSWORD}}" \
-          /t http://timestamp.digicert.com \
-          /fd SHA256 \
-          "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}.exe"
-    vars:
-      CERT_PATH: '{{.CERT_PATH | default ""}}'
-      CERT_PASSWORD: '{{.CERT_PASSWORD | default ""}}'
-
-  sign:msix:
-    summary: Code signs the MSIX package
-    cmds:
-      - |-
-        if [ -z "{{.CERT_PATH}}" ] || [ -z "{{.CERT_PASSWORD}}" ]; then
-          echo "ERROR: CERT_PATH and CERT_PASSWORD environment variables are required for code signing"
-          echo "Usage: CERT_PATH=\"path/to/cert.pfx\" CERT_PASSWORD=\"password\" task windows:sign:msix"
-          exit 1
-        fi
-      - |-
-        # Sign the MSIX package
-        signtool sign \
-          /f "{{.CERT_PATH}}" \
-          /p "{{.CERT_PASSWORD}}" \
-          /t http://timestamp.digicert.com \
-          /fd SHA256 \
-          "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}-{{.VERSION}}-{{.ARCH}}.msix"
-    vars:
-      ARCH: '{{.ARCH | default ARCH}}'
-      VERSION: '{{.VERSION | default "1.0.0"}}'
-      CERT_PATH: '{{.CERT_PATH | default ""}}'
-      CERT_PASSWORD: '{{.CERT_PASSWORD | default ""}}'
-
-  create:portable:
-    summary: Creates a portable ZIP package
-    deps:
-      - task: build
-        vars:
-          PRODUCTION: "true"
-    cmds:
-      - |-
-        # Create portable package directory
-        mkdir -p {{.BIN_DIR}}/portable
-        cp "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}.exe" {{.BIN_DIR}}/portable/
-        cp build/windows/icon.ico {{.BIN_DIR}}/portable/
-
-        # Create README for portable version
-        echo 'aDex-UI Portable Version' > {{.BIN_DIR}}/portable/README.txt
-        echo '========================' >> {{.BIN_DIR}}/portable/README.txt
-        echo '' >> {{.BIN_DIR}}/portable/README.txt
-        echo 'This is a portable version of aDex-UI that requires no installation.' >> {{.BIN_DIR}}/portable/README.txt
-        echo '' >> {{.BIN_DIR}}/portable/README.txt
-        echo 'To run:' >> {{.BIN_DIR}}/portable/README.txt
-        echo '1. Double-click aDex-UI.exe' >> {{.BIN_DIR}}/portable/README.txt
-        echo '2. The application will start immediately' >> {{.BIN_DIR}}/portable/README.txt
-        echo '' >> {{.BIN_DIR}}/portable/README.txt
-        echo 'All settings and data will be stored in the same directory as the executable.' >> {{.BIN_DIR}}/portable/README.txt
-        echo '' >> {{.BIN_DIR}}/portable/README.txt
-        echo 'Requirements:' >> {{.BIN_DIR}}/portable/README.txt
-        echo '- Windows 10 version 1903 or later' >> {{.BIN_DIR}}/portable/README.txt
-        echo '- WebView2 Runtime (usually included with Windows 10/11)' >> {{.BIN_DIR}}/portable/README.txt
-        echo '' >> {{.BIN_DIR}}/portable/README.txt
-        echo 'For more information, visit: https://github.com/your-repo/adex-ui' >> {{.BIN_DIR}}/portable/README.txt
-
-        # Create ZIP package
-        cd {{.BIN_DIR}}
-        powershell Compress-Archive -Path portable/* -DestinationPath "{{.APP_NAME}}-{{.VERSION}}-portable.zip" -Force
-        rm -rf portable
-    vars:
-      VERSION: '{{.VERSION | default "1.0.0"}}'
-
-  update:metadata:
-    summary: Updates Windows metadata files with current build info
-    cmds:
-      - |-
-        # Update info.json with current version
-        jq --arg version "{{.VERSION}}" \
-          --arg company "{{.COMPANY_NAME | default "HackEAC"}}" \
-          --arg copyright "Copyright © {{shell "date +%Y"}} {{.COMPANY_NAME | default "HackEAC"}}" \
-          --arg description "{{.DESCRIPTION | default "A science fiction desktop running everywhere"}}" \
-          '.fixed.file_version = $version |
-           .info."0000".ProductVersion = $version |
-           .info."0000".CompanyName = $company |
-           .info."0000".LegalCopyright = $copyright |
-           .info."0000".FileDescription = $description' \
-          build/windows/info.json > build/windows/info.json.tmp && \
-          mv build/windows/info.json.tmp build/windows/info.json
-      - |-
-        # Update manifest with correct identity
-        sed -i 's/com\.wails\.adex-ui/com.hackeac.adex-ui/g' build/windows/wails.exe.manifest
-    vars:
-      VERSION: '{{.VERSION | default "1.0.0"}}'
-      COMPANY_NAME: '{{.COMPANY_NAME | default "HackEAC"}}'
-      DESCRIPTION: '{{.DESCRIPTION | default "A science fiction desktop running everywhere"}}'
-
-  clean:
-    summary: Clean Windows build artifacts
-    cmds:
-      - rm -f {{.BIN_DIR}}/{{.APP_NAME}}.exe
-      - rm -f {{.BIN_DIR}}/*.msix
-      - rm -f {{.BIN_DIR}}/*.zip
-      - rm -f {{.BIN_DIR}}/*-setup.exe
-      - rm -f *.syso
-
-  install:msix:tools:
-    summary: Installs tools required for MSIX packaging
-    cmds:
-      - wails3 tool msix-install-tools
-
   run:
     cmds:
-      - '{{.BIN_DIR}}/{{.APP_NAME}}.exe'
+      - '{{.BIN_DIR}}\\{{.APP_NAME}}.exe'
