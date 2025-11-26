@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"adx/internal/models"
+	"aDex-UI/internal/models"
 )
 
 // VariableGenerator handles CSS custom property generation from themes

@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"adx/internal/models"
+	"aDex-UI/internal/models"
 )
 
 // Service is the main theme service that coordinates all theme operations
