@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import * as ServiceCoordinator from '~/bindings/aDex-UI/backend/services/coordinator/servicecoordinator'
+import * as ServiceCoordinator from '~~/bindings/aDex-UI/backend/services/coordinator/servicecoordinator'
 import type { TerminalSession, TerminalCommand, TerminalOutput } from '~/types/terminal'
 
 // Import types from useTerminal composable for tab and theme support

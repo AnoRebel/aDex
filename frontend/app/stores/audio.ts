@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import * as ServiceCoordinator from '~/bindings/aDex-UI/backend/services/coordinator/servicecoordinator'
+import * as ServiceCoordinator from '~~/bindings/aDex-UI/backend/services/coordinator/servicecoordinator'
 import type {
   AudioEvent,
   AudioSettings,

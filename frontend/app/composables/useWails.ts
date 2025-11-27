@@ -1,5 +1,5 @@
 import { ref, computed, onMounted, onUnmounted, readonly } from 'vue'
-import * as ServiceCoordinator from '~/bindings/aDex-UI/backend/services/coordinator/servicecoordinator'
+import * as ServiceCoordinator from '~~/bindings/aDex-UI/backend/services/coordinator/servicecoordinator'
 
 // Type definitions for Wails integration
 export interface WailsService {

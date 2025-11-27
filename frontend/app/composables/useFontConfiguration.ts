@@ -13,7 +13,7 @@ const loadServiceCoordinator = async () => {
 
   try {
     // This import will work when bindings are regenerated with font service methods
-    const module = await import('~/bindings/aDex-UI/backend/services/coordinator')
+    const module = await import('~~/bindings/aDex-UI/backend/services/coordinator')
     ServiceCoordinator = module.ServiceCoordinator
     return true
   } catch (error) {

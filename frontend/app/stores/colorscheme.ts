@@ -163,7 +163,7 @@ export const useColorSchemeStore = defineStore('colorscheme', {
 
       try {
         // Call the Go backend
-        const { GetSchemes } = await import('~/bindings')
+        const { GetSchemes } = await import('~~/bindings')
         const schemes = await GetSchemes()
 
         this.schemes = schemes
@@ -186,7 +186,7 @@ export const useColorSchemeStore = defineStore('colorscheme', {
 
     async getScheme(id: string) {
       try {
-        const { GetScheme } = await import('~/bindings')
+        const { GetScheme } = await import('~~/bindings')
         return await GetScheme(id)
       } catch (error) {
         this.error = error instanceof Error ? error.message : 'Failed to get color scheme'
@@ -196,7 +196,7 @@ export const useColorSchemeStore = defineStore('colorscheme', {
 
     async createScheme(scheme: ColorScheme) {
       try {
-        const { CreateScheme } = await import('~/bindings')
+        const { CreateScheme } = await import('~~/bindings')
         return await CreateScheme(scheme)
       } catch (error) {
         this.error = error instanceof Error ? error.message : 'Failed to create color scheme'
@@ -206,7 +206,7 @@ export const useColorSchemeStore = defineStore('colorscheme', {
 
     async updateScheme(scheme: ColorScheme) {
       try {
-        const { UpdateScheme } = await import('~/bindings')
+        const { UpdateScheme } = await import('~~/bindings')
         return await UpdateScheme(scheme)
       } catch (error) {
         this.error = error instanceof Error ? error.message : 'Failed to update color scheme'
@@ -216,7 +216,7 @@ export const useColorSchemeStore = defineStore('colorscheme', {
 
     async deleteScheme(id: string) {
       try {
-        const { DeleteScheme } = await import('~/bindings')
+        const { DeleteScheme } = await import('~~/bindings')
         await DeleteScheme(id)
       } catch (error) {
         this.error = error instanceof Error ? error.message : 'Failed to delete color scheme'
@@ -226,7 +226,7 @@ export const useColorSchemeStore = defineStore('colorscheme', {
 
     async setDefaultScheme(id: string) {
       try {
-        const { SetDefaultScheme } = await import('~/bindings')
+        const { SetDefaultScheme } = await import('~~/bindings')
         await SetDefaultScheme(id)
 
         // Update local state
@@ -242,7 +242,7 @@ export const useColorSchemeStore = defineStore('colorscheme', {
 
     async getDefaultScheme() {
       try {
-        const { GetDefaultScheme } = await import('~/bindings')
+        const { GetDefaultScheme } = await import('~~/bindings')
         return await GetDefaultScheme()
       } catch (error) {
         this.error = error instanceof Error ? error.message : 'Failed to get default color scheme'
@@ -252,7 +252,7 @@ export const useColorSchemeStore = defineStore('colorscheme', {
 
     async getConfig() {
       try {
-        const { GetConfig } = await import('~/bindings')
+        const { GetConfig } = await import('~~/bindings')
         return await GetConfig()
       } catch (error) {
         this.error = error instanceof Error ? error.message : 'Failed to get color scheme configuration'
@@ -262,7 +262,7 @@ export const useColorSchemeStore = defineStore('colorscheme', {
 
     async updateConfig(config: Partial<ColorSchemeConfig>) {
       try {
-        const { UpdateConfig } = await import('~/bindings')
+        const { UpdateConfig } = await import('~~/bindings')
         const newConfig = { ...this.config, ...config } as ColorSchemeConfig
         await UpdateConfig(newConfig)
         this.config = newConfig
@@ -274,7 +274,7 @@ export const useColorSchemeStore = defineStore('colorscheme', {
 
     async getSchemePreview(id: string) {
       try {
-        const { GetSchemePreview } = await import('~/bindings')
+        const { GetSchemePreview } = await import('~~/bindings')
         return await GetSchemePreview(id)
       } catch (error) {
         this.error = error instanceof Error ? error.message : 'Failed to get color scheme preview'
@@ -284,7 +284,7 @@ export const useColorSchemeStore = defineStore('colorscheme', {
 
     async validateScheme(scheme: ColorScheme) {
       try {
-        const { ValidateScheme } = await import('~/bindings')
+        const { ValidateScheme } = await import('~~/bindings')
         return await ValidateScheme(scheme)
       } catch (error) {
         this.error = error instanceof Error ? error.message : 'Failed to validate color scheme'
