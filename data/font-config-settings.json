@@ -1,0 +1,20 @@
+{
+  "defaultFontId": "default-mono",
+  "fallbackFont": "monospace",
+  "fontSize": 14,
+  "lineHeight": 1.4,
+  "letterSpacing": 0,
+  "enableLigatures": true,
+  "enableAntialias": true,
+  "hinting": "slight",
+  "fontFeatureSettings": {},
+  "allowCustomFonts": false,
+  "fontDirectories": [
+    "/usr/share/fonts",
+    "/usr/local/share/fonts",
+    "~/.fonts",
+    "~/.local/share/fonts"
+  ],
+  "autoDetectFonts": true,
+  "lastScanTime": "2026-02-05T20:04:16.494514883+03:00"
+}
