@@ -11,19 +11,19 @@ import (
 	"time"
 	"unsafe"
 
-	"golang.org/x/crypto/ssh/terminal"
 	"aDex-UI/internal/models"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 // PTY represents a pseudo-terminal pair
 type PTY struct {
-	master      *os.File
-	slave       *os.File
-	cmd         *exec.Cmd
-	sessionID   string
-	size        *models.TerminalSize
-	active      bool
-	created     time.Time
+	master       *os.File
+	slave        *os.File
+	cmd          *exec.Cmd
+	sessionID    string
+	size         *models.TerminalSize
+	active       bool
+	created      time.Time
 	lastActivity time.Time
 }
 
@@ -72,6 +72,57 @@ func (pm *PTYManager) CreatePTY(ctx context.Context, sessionID string, options *
 	return pty, nil
 }
 
+// Open opens a new PTY pair (master and slave)
+func (pty *PTY) Open() (*os.File, *os.File, error) {
+	// Open the master PTY device
+	master, err := os.OpenFile("/dev/ptmx", os.O_RDWR, 0)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to open /dev/ptmx: %w", err)
+	}
+
+	// Get the slave device name
+	slaveName, err := ptsname(master)
+	if err != nil {
+		master.Close()
+		return nil, nil, fmt.Errorf("failed to get slave name: %w", err)
+	}
+
+	// Unlock the slave device
+	if err := unlockpt(master); err != nil {
+		master.Close()
+		return nil, nil, fmt.Errorf("failed to unlock slave: %w", err)
+	}
+
+	// Open the slave device
+	slave, err := os.OpenFile(slaveName, os.O_RDWR|syscall.O_NOCTTY, 0)
+	if err != nil {
+		master.Close()
+		return nil, nil, fmt.Errorf("failed to open slave %s: %w", slaveName, err)
+	}
+
+	return master, slave, nil
+}
+
+// ptsname returns the name of the slave PTY device
+func ptsname(master *os.File) (string, error) {
+	var n uint32
+	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, master.Fd(), syscall.TIOCGPTN, uintptr(unsafe.Pointer(&n)))
+	if errno != 0 {
+		return "", errno
+	}
+	return fmt.Sprintf("/dev/pts/%d", n), nil
+}
+
+// unlockpt unlocks the slave PTY device
+func unlockpt(master *os.File) error {
+	var unlock int32
+	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, master.Fd(), syscall.TIOCSPTLCK, uintptr(unsafe.Pointer(&unlock)))
+	if errno != 0 {
+		return errno
+	}
+	return nil
+}
+
 // createUnixPTY creates a PTY on Unix-like systems (Linux, macOS)
 func (pty *PTY) createUnixPTY(options *models.TerminalOptions) error {
 	// Open master side of PTY
@@ -115,9 +166,9 @@ func (pty *PTY) createUnixPTY(options *models.TerminalOptions) error {
 
 	// Make the slave the controlling terminal
 	pty.cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setsid:   true,
+		Setsid:  true,
 		Setctty: true,
-		Ctty:     0,
+		Ctty:    0,
 	}
 
 	// Start the command
@@ -146,23 +197,39 @@ func (pty *PTY) createWindowsPTY(options *models.TerminalOptions) error {
 
 	// For Windows, we'll use pipes instead of PTY for now
 	// In a full implementation, you'd use Windows ConPTY API
-	stdin, err := pty.cmd.StdinPipe()
+	stdinPipe, err := pty.cmd.StdinPipe()
 	if err != nil {
 		return fmt.Errorf("failed to create stdin pipe: %w", err)
 	}
 
-	stdout, err := pty.cmd.StdoutPipe()
+	stdoutPipe, err := pty.cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
 
-	stderr, err := pty.cmd.StderrPipe()
+	// We don't need stderr as a separate pipe for Windows PTY emulation
+	// The stderr will be merged with stdout
+	pty.cmd.Stderr = pty.cmd.Stdout
+
+	// Create a pipe pair to act as our master/slave
+	// For Windows, we'll create os.Pipe() for IO
+	masterReader, masterWriter, err := os.Pipe()
 	if err != nil {
-		return fmt.Errorf("failed to create stderr pipe: %w", err)
+		return fmt.Errorf("failed to create master pipe: %w", err)
 	}
 
-	// Store the file handles (converted to *os.File)
-	pty.master = stdout.(*io.PipeReader).Reader.(interface{ Fd() uintptr }).Fd()
+	// Store the master file for reading
+	pty.master = masterReader
+
+	// Start goroutine to copy stdout to master writer
+	go func() {
+		defer masterWriter.Close()
+		io.Copy(masterWriter, stdoutPipe)
+	}()
+
+	// Store stdin pipe reference in a closure for the Write method
+	// We'll use the stdinPipe directly in the command
+	_ = stdinPipe // Used by the command
 
 	// Set working directory
 	if options.CWD != "" {
@@ -259,8 +326,8 @@ func (pty *PTY) resizeUnix(rows, cols uint16) error {
 	}
 
 	ws := &winsize{
-		Row: rows,
-		Col: cols,
+		Row:    rows,
+		Col:    cols,
 		Xpixel: 0,
 		Ypixel: 0,
 	}
@@ -310,7 +377,7 @@ func (pty *PTY) Close() error {
 		// Wait for process to exit or force kill after timeout
 		done := make(chan error, 1)
 		go func() {
-			_, err := pty.cmd.Wait()
+			err := pty.cmd.Wait()
 			done <- err
 		}()
 

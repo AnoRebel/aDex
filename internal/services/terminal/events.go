@@ -137,23 +137,23 @@ func (ep *EventPublisher) PublishInput(ctx context.Context, sessionID string, da
 	// Don't publish sensitive input like passwords
 	if isSensitiveInput(dataStr) {
 		ep.logger.Debug("Skipping publication of sensitive input", map[string]interface{}{
-			"session_id": sessionID,
+			"session_id":  sessionID,
 			"data_length": len(data),
 		})
 		return
 	}
 
 	eventData := models.TerminalEventData{
-		SessionID: sessionID,
-		Data:      data,
+		SessionID:  sessionID,
+		Data:       data,
 		DataLength: len(data),
-		Timestamp: time.Now(),
+		Timestamp:  time.Now(),
 	}
 
 	err := (*ep.eventBus).Publish(ctx, models.TerminalInput, eventData, "terminal-service")
 	if err != nil {
 		ep.logger.Error("Failed to publish terminal input event", err, map[string]interface{}{
-			"session_id": sessionID,
+			"session_id":  sessionID,
 			"data_length": len(data),
 		})
 	}
@@ -174,7 +174,7 @@ func (ep *EventPublisher) PublishCommand(ctx context.Context, command *models.Te
 		Timestamp: time.Now(),
 	}
 
-	err := (*ep.eventBus).Publish(ctx, models.TerminalCommand, data, "terminal-service")
+	err := (*ep.eventBus).Publish(ctx, "terminal.command.started", data, "terminal-service")
 	if err != nil {
 		ep.logger.Error("Failed to publish terminal command event", err, map[string]interface{}{
 			"session_id": command.SessionID,
@@ -397,10 +397,10 @@ func (ep *EventPublisher) PublishNotification(ctx context.Context, notification 
 	}
 
 	data := models.TerminalEventData{
-		SessionID: notification.SessionID,
-		Type:      "notification",
+		SessionID:    notification.SessionID,
+		Type:         "notification",
 		Notification: notification,
-		Timestamp: time.Now(),
+		Timestamp:    time.Now(),
 	}
 
 	err := (*ep.eventBus).Publish(ctx, "terminal.notification", data, "terminal-service")
@@ -444,34 +444,34 @@ func isSensitiveInput(input string) bool {
 
 // TerminalEventData represents data for terminal events
 type TerminalEventData struct {
-	SessionID   string                     `json:"session_id"`
-	Type        string                     `json:"type,omitempty"`
-	Data        []byte                     `json:"data,omitempty"`
-	DataLength  int                        `json:"data_length,omitempty"`
-	ChunkIndex  int                        `json:"chunk_index,omitempty"`
-	IsLastChunk bool                       `json:"is_last_chunk,omitempty"`
-	Shell       string                     `json:"shell,omitempty"`
-	CWD         string                     `json:"cwd,omitempty"`
-	Size        *models.TerminalSize      `json:"size,omitempty"`
-	Command     string                     `json:"command,omitempty"`
-	Arguments   []string                   `json:"arguments,omitempty"`
-	StartTime   time.Time                  `json:"start_time,omitempty"`
-	EndTime     *time.Time                 `json:"end_time,omitempty"`
-	ExitCode    *int                       `json:"exit_code,omitempty"`
-	Duration   time.Duration              `json:"duration,omitempty"`
-	Process     *models.TerminalProcess    `json:"process,omitempty"`
-	PID         int                        `json:"pid,omitempty"`
-	Focused     *bool                      `json:"focused,omitempty"`
-	Title       string                     `json:"title,omitempty"`
-	Theme       string                     `json:"theme,omitempty"`
+	SessionID    string                       `json:"session_id"`
+	Type         string                       `json:"type,omitempty"`
+	Data         []byte                       `json:"data,omitempty"`
+	DataLength   int                          `json:"data_length,omitempty"`
+	ChunkIndex   int                          `json:"chunk_index,omitempty"`
+	IsLastChunk  bool                         `json:"is_last_chunk,omitempty"`
+	Shell        string                       `json:"shell,omitempty"`
+	CWD          string                       `json:"cwd,omitempty"`
+	Size         *models.TerminalSize         `json:"size,omitempty"`
+	Command      string                       `json:"command,omitempty"`
+	Arguments    []string                     `json:"arguments,omitempty"`
+	StartTime    time.Time                    `json:"start_time,omitempty"`
+	EndTime      *time.Time                   `json:"end_time,omitempty"`
+	ExitCode     *int                         `json:"exit_code,omitempty"`
+	Duration     time.Duration                `json:"duration,omitempty"`
+	Process      *models.TerminalProcess      `json:"process,omitempty"`
+	PID          int                          `json:"pid,omitempty"`
+	Focused      *bool                        `json:"focused,omitempty"`
+	Title        string                       `json:"title,omitempty"`
+	Theme        string                       `json:"theme,omitempty"`
 	Notification *models.TerminalNotification `json:"notification,omitempty"`
-	Error       string                     `json:"error,omitempty"`
-	Context     string                     `json:"context,omitempty"`
-	Reason      string                     `json:"reason,omitempty"`
-	Active      bool                       `json:"active,omitempty"`
-	User        string                     `json:"user,omitempty"`
-	CreatedAt   time.Time                  `json:"created_at,omitempty"`
-	ClosedAt    time.Time                  `json:"closed_at,omitempty"`
-	ResizedAt   time.Time                  `json:"resized_at,omitempty"`
-	Timestamp   time.Time                  `json:"timestamp"`
+	Error        string                       `json:"error,omitempty"`
+	Context      string                       `json:"context,omitempty"`
+	Reason       string                       `json:"reason,omitempty"`
+	Active       bool                         `json:"active,omitempty"`
+	User         string                       `json:"user,omitempty"`
+	CreatedAt    time.Time                    `json:"created_at,omitempty"`
+	ClosedAt     time.Time                    `json:"closed_at,omitempty"`
+	ResizedAt    time.Time                    `json:"resized_at,omitempty"`
+	Timestamp    time.Time                    `json:"timestamp"`
 }

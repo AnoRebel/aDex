@@ -20,20 +20,20 @@ type Migration struct {
 
 // LegacyConfig represents eDEX-UI configuration structure
 type LegacyConfig struct {
-	Version      string                 `json:"version"`
-	General      LegacyGeneralConfig    `json:"general"`
+	Version       string                  `json:"version"`
+	General       LegacyGeneralConfig     `json:"general"`
 	Terminal      LegacyTerminalConfig    `json:"terminal"`
 	Display       LegacyDisplayConfig     `json:"display"`
 	Network       LegacyNetworkConfig     `json:"network"`
 	FileBrowser   LegacyFileBrowserConfig `json:"filebrowser"`
-	Customization LegacyCustomization    `json:"customization"`
+	Customization LegacyCustomization     `json:"customization"`
 	Performance   LegacyPerformanceConfig `json:"performance"`
 	Audio         LegacyAudioConfig       `json:"audio"`
 }
 
 // LegacyGeneralConfig represents general settings from legacy config
 type LegacyGeneralConfig struct {
-	LastCWD       string `json:"lastCWD"`
+	LastCWD        string `json:"lastCWD"`
 	StartupCommand string `json:"startupCommand"`
 	ExitCommand    string `json:"exitCommand"`
 	ExitAction     string `json:"exitAction"`
@@ -41,91 +41,91 @@ type LegacyGeneralConfig struct {
 
 // LegacyTerminalConfig represents terminal settings from legacy config
 type LegacyTerminalConfig struct {
-	Shell           string   `json:"shell"`
-	ShellArgs       []string `json:"shellArgs"`
-	Profile         string   `json:"profile"`
-	WorkingDir      string   `json:"workingDir"`
-	CursorBlink     bool     `json:"cursorBlink"`
-	CursorStyle     string   `json:"cursorStyle"`
-	FontSize        int      `json:"fontSize"`
-	FontFamily      string   `json:"fontFamily"`
-	LineHeight      float64  `json:"lineHeight"`
-	LetterSpacing   float64  `json:"letterSpacing"`
-	WordSpacing     float64  `json:"wordSpacing"`
-	Opacity         float64  `json:"opacity"`
-	Background      string   `json:"background"`
-	BackgroundBlur  bool     `json:"backgroundBlur"`
+	Shell          string   `json:"shell"`
+	ShellArgs      []string `json:"shellArgs"`
+	Profile        string   `json:"profile"`
+	WorkingDir     string   `json:"workingDir"`
+	CursorBlink    bool     `json:"cursorBlink"`
+	CursorStyle    string   `json:"cursorStyle"`
+	FontSize       int      `json:"fontSize"`
+	FontFamily     string   `json:"fontFamily"`
+	LineHeight     float64  `json:"lineHeight"`
+	LetterSpacing  float64  `json:"letterSpacing"`
+	WordSpacing    float64  `json:"wordSpacing"`
+	Opacity        float64  `json:"opacity"`
+	Background     string   `json:"background"`
+	BackgroundBlur bool     `json:"backgroundBlur"`
 }
 
 // LegacyDisplayConfig represents display settings from legacy config
 type LegacyDisplayConfig struct {
-	WindowSize      [2]int  `json:"windowSize"`
-	WindowPosition  [2]int  `json:"windowPosition"`
-	WindowMaximized bool    `json:"windowMaximized"`
-	ScaleFactor     float64 `json:"scaleFactor"`
-	UseWindowFrame  bool    `json:"useWindowFrame"`
-	Fullscreen      bool    `json:"fullscreen"`
-	ShowFPS         bool    `json:"showFPS"`
-	ShowZoomControls bool    `json:"showZoomControls"`
-	NetworkGraph    bool    `json:"networkGraph"`
-	TransparentBackground bool `json:"transparentBackground"`
+	WindowSize            [2]int  `json:"windowSize"`
+	WindowPosition        [2]int  `json:"windowPosition"`
+	WindowMaximized       bool    `json:"windowMaximized"`
+	ScaleFactor           float64 `json:"scaleFactor"`
+	UseWindowFrame        bool    `json:"useWindowFrame"`
+	Fullscreen            bool    `json:"fullscreen"`
+	ShowFPS               bool    `json:"showFPS"`
+	ShowZoomControls      bool    `json:"showZoomControls"`
+	NetworkGraph          bool    `json:"networkGraph"`
+	TransparentBackground bool    `json:"transparentBackground"`
 }
 
 // LegacyNetworkConfig represents network settings from legacy config
 type LegacyNetworkConfig struct {
-	ShowIP          bool     `json:"showIP"`
-	ShowDownload    bool     `json:"showDownload"`
-	ShowUpload      bool     `json:"showUpload"`
-	DownloadUnit    string   `json:"downloadUnit"`
-	UploadUnit      string   `json:"uploadUnit"`
-	NetworkInterface string   `json:"networkInterface"`
+	ShowIP           bool   `json:"showIP"`
+	ShowDownload     bool   `json:"showDownload"`
+	ShowUpload       bool   `json:"showUpload"`
+	DownloadUnit     string `json:"downloadUnit"`
+	UploadUnit       string `json:"uploadUnit"`
+	NetworkInterface string `json:"networkInterface"`
 }
 
 // LegacyFileBrowserConfig represents file browser settings from legacy config
 type LegacyFileBrowserConfig struct {
-	ShowHiddenFiles bool     `json:"showHiddenFiles"`
-	LastLocation    string   `json:"lastLocation"`
-	ViewMode        string   `json:"viewMode"`
-	SortBy          string   `json:"sortBy"`
-	SortOrder       string   `json:"sortOrder"`
+	ShowHiddenFiles bool   `json:"showHiddenFiles"`
+	LastLocation    string `json:"lastLocation"`
+	ViewMode        string `json:"viewMode"`
+	SortBy          string `json:"sortBy"`
+	SortOrder       string `json:"sortOrder"`
 }
 
 // LegacyCustomization represents theme customization from legacy config
 type LegacyCustomization struct {
-	ThemeName           string            `json:"themeName"`
-	ThemeBackground     string            `json:"themeBackground"`
-	ThemeTransparency   float64           `json:"themeTransparency"`
-	ThemeBlurRadius     float64           `json:"themeBlurRadius"`
-	ThemeBorderColor    string            `json:"themeBorderColor"`
-	ThemeCursorColor    string            `json:"themeCursorColor"`
-	ThemeGridColor      string            `json:"themeGridColor"`
-	FontSmoothing       bool              `json:"fontSmoothing"`
-	CustomCSS           string            `json:"customCSS"`
-	CustomCSSModules    []string          `json:"customCSSModules"`
-	ThemeVariants       map[string]string `json:"themeVariants"`
+	ThemeName         string            `json:"themeName"`
+	ThemeBackground   string            `json:"themeBackground"`
+	ThemeTransparency float64           `json:"themeTransparency"`
+	ThemeBlurRadius   float64           `json:"themeBlurRadius"`
+	ThemeBorderColor  string            `json:"themeBorderColor"`
+	ThemeCursorColor  string            `json:"themeCursorColor"`
+	ThemeGridColor    string            `json:"themeGridColor"`
+	FontSmoothing     bool              `json:"fontSmoothing"`
+	CustomCSS         string            `json:"customCSS"`
+	CustomCSSModules  []string          `json:"customCSSModules"`
+	ThemeVariants     map[string]string `json:"themeVariants"`
 }
 
 // LegacyPerformanceConfig represents performance settings from legacy config
 type LegacyPerformanceConfig struct {
-	MaxCPULoad       int     `json:"maxCPULoad"`
-	NetworkThrottle   int     `json:"networkThrottle"`
-	TerminalFPS       int     `json:"terminalFPS"`
-	GPUAcceleration   bool    `json:"gpuAcceleration"`
-	WebGLRenderer     bool    `json:"webglRenderer"`
-	Animations        bool    `json:"animations"`
-	Transparency      bool    `json:"transparency"`
-	Vsync             bool    `json:"vsync"`
+	MaxCPULoad      int  `json:"maxCPULoad"`
+	NetworkThrottle int  `json:"networkThrottle"`
+	TerminalFPS     int  `json:"terminalFPS"`
+	GPUAcceleration bool `json:"gpuAcceleration"`
+	WebGLRenderer   bool `json:"webglRenderer"`
+	Animations      bool `json:"animations"`
+	Transparency    bool `json:"transparency"`
+	Vsync           bool `json:"vsync"`
 }
 
 // LegacyAudioConfig represents audio settings from legacy config
 type LegacyAudioConfig struct {
-	Enabled         bool     `json:"enabled"`
-	Volume          int      `json:"volume"`
-	StartupSound    bool     `json:"startupSound"`
-	BellSound       bool     `json:"bellSound"`
-	ErrorSound      bool     `json:"errorSound"`
-	SoundTheme      string   `json:"soundTheme"`
-	CustomSounds    map[string]string `json:"customSounds"`
+	Enabled      bool              `json:"enabled"`
+	Volume       int               `json:"volume"`
+	StartupSound bool              `json:"startupSound"`
+	BellSound    bool              `json:"bellSound"`
+	ErrorSound   bool              `json:"errorSound"`
+	SoundTheme   string            `json:"soundTheme"`
+	CustomSounds map[string]string `json:"customSounds"`
 }
 
 // NewMigration creates a new migration service
@@ -149,7 +149,7 @@ func (m *Migration) FindLegacyConfigs() ([]string, error) {
 	for _, path := range paths {
 		if _, err := os.Stat(path); err == nil {
 			configs = append(configs, path)
-			m.logger.Info("Found legacy eDEX-UI config", "path", path)
+			m.logger.Info("Found legacy eDEX-UI config", map[string]interface{}{"path": path})
 		}
 	}
 
@@ -158,7 +158,7 @@ func (m *Migration) FindLegacyConfigs() ([]string, error) {
 
 // ImportLegacyConfig imports settings from legacy configuration
 func (m *Migration) ImportLegacyConfig(configPath string) (*models.AppSettings, error) {
-	m.logger.Info("Importing legacy configuration", "path", configPath)
+	m.logger.Info("Importing legacy configuration", map[string]interface{}{"path": configPath})
 
 	// Load legacy configuration
 	legacy, err := m.loadLegacyConfig(configPath)
@@ -177,9 +177,10 @@ func (m *Migration) ImportLegacyConfig(configPath string) (*models.AppSettings, 
 		return nil, fmt.Errorf("invalid converted settings: %w", err)
 	}
 
-	m.logger.Info("Successfully imported legacy configuration",
-		"version", legacy.Version,
-		"themes", len(legacy.Customization.ThemeVariants))
+	m.logger.Info("Successfully imported legacy configuration", map[string]interface{}{
+		"version": legacy.Version,
+		"themes":  len(legacy.Customization.ThemeVariants),
+	})
 
 	return modern, nil
 }
@@ -204,9 +205,9 @@ func (m *Migration) loadLegacyConfig(configPath string) (*LegacyConfig, error) {
 // convertLegacySettings converts legacy configuration to modern settings
 func (m *Migration) convertLegacySettings(legacy *LegacyConfig) (*models.AppSettings, error) {
 	settings := &models.AppSettings{
-		Version:    "1.0.0",
-		UpdatedAt:  time.Now(),
-		CreatedAt:  time.Now(),
+		Version:   "1.0.0",
+		UpdatedAt: time.Now(),
+		CreatedAt: time.Now(),
 	}
 
 	// Terminal settings
@@ -235,11 +236,11 @@ func (m *Migration) convertLegacySettings(legacy *LegacyConfig) (*models.AppSett
 
 	// Mark as migrated from legacy
 	settings.Legacy = &models.LegacyInfo{
-		Version:     legacy.Version,
-		ImportedAt:  time.Now(),
+		Version:      legacy.Version,
+		ImportedAt:   time.Now(),
 		ImportedFrom: "eDEX-UI",
-		HasAudio:    legacy.Audio.Enabled,
-		HasTheme:    legacy.Customization.ThemeName != "",
+		HasAudio:     legacy.Audio.Enabled,
+		HasTheme:     legacy.Customization.ThemeName != "",
 	}
 
 	return settings, nil
@@ -248,26 +249,26 @@ func (m *Migration) convertLegacySettings(legacy *LegacyConfig) (*models.AppSett
 // convertTerminalSettings converts legacy terminal settings
 func convertTerminalSettings(legacy LegacyTerminalConfig) *models.TerminalSettings {
 	return &models.TerminalSettings{
-		Shell:         legacy.Shell,
-		ShellArgs:     legacy.ShellArgs,
-		Profile:       legacy.Profile,
-		WorkingDir:    legacy.WorkingDir,
-		FontSize:      legacy.FontSize,
-		FontFamily:    legacy.FontFamily,
-		LineHeight:    legacy.LineHeight,
-		LetterSpacing: legacy.LetterSpacing,
-		WordSpacing:   legacy.WordSpacing,
-		Opacity:       legacy.Opacity,
-		Background:    legacy.Background,
-		CursorBlink:   legacy.CursorBlink,
-		CursorStyle:   legacy.CursorStyle,
+		Shell:          legacy.Shell,
+		ShellArgs:      legacy.ShellArgs,
+		Profile:        legacy.Profile,
+		WorkingDir:     legacy.WorkingDir,
+		FontSize:       legacy.FontSize,
+		FontFamily:     legacy.FontFamily,
+		LineHeight:     legacy.LineHeight,
+		LetterSpacing:  legacy.LetterSpacing,
+		WordSpacing:    legacy.WordSpacing,
+		Opacity:        legacy.Opacity,
+		Background:     legacy.Background,
+		CursorBlink:    legacy.CursorBlink,
+		CursorStyle:    legacy.CursorStyle,
 		BackgroundBlur: legacy.BackgroundBlur,
 		// Modern additions
-		MaxLines:      1000,
-		Scrollback:    10000,
-		ColorScheme:   "default",
-		BellEnabled:   true,
-		CopyOnSelect:  false,
+		MaxLines:           1000,
+		Scrollback:         10000,
+		ColorScheme:        "default",
+		BellEnabled:        true,
+		CopyOnSelect:       false,
 		PasteOnMiddleClick: false,
 	}
 }
@@ -275,29 +276,29 @@ func convertTerminalSettings(legacy LegacyTerminalConfig) *models.TerminalSettin
 // convertDisplaySettings converts legacy display settings
 func convertDisplaySettings(legacy LegacyDisplayConfig) *models.DisplaySettings {
 	return &models.DisplaySettings{
-		WindowSize:           legacy.WindowSize,
-		WindowPosition:       legacy.WindowPosition,
-		WindowMaximized:      legacy.WindowMaximized,
-		ScaleFactor:          legacy.ScaleFactor,
-		UseWindowFrame:       legacy.UseWindowFrame,
-		Fullscreen:           legacy.Fullscreen,
-		ShowFPS:              legacy.ShowFPS,
-		ShowZoomControls:     legacy.ShowZoomControls,
+		WindowSize:            legacy.WindowSize,
+		WindowPosition:        legacy.WindowPosition,
+		WindowMaximized:       legacy.WindowMaximized,
+		ScaleFactor:           legacy.ScaleFactor,
+		UseWindowFrame:        legacy.UseWindowFrame,
+		Fullscreen:            legacy.Fullscreen,
+		ShowFPS:               legacy.ShowFPS,
+		ShowZoomControls:      legacy.ShowZoomControls,
 		TransparentBackground: legacy.TransparentBackground,
 		// Modern additions
-		ShowMenuBar:          true,
-		ShowStatusBar:        true,
-		ShowTabBar:           true,
-		ShowNetworkGraph:     legacy.NetworkGraph,
-		Animations:           true,
-		Theme:               legacy.Customization.ThemeName,
-		Language:            "en",
+		ShowMenuBar:      true,
+		ShowStatusBar:    true,
+		ShowTabBar:       true,
+		ShowNetworkGraph: legacy.NetworkGraph,
+		Animations:       true,
+		Theme:            "",
+		Language:         "en",
 	}
 }
 
 // convertAudioSettings converts legacy audio settings
-func convertAudioSettings(legacy LegacyAudioConfig) *models.AudioSettings {
-	return &models.AudioSettings{
+func convertAudioSettings(legacy LegacyAudioConfig) *models.AppAudioSettings {
+	return &models.AppAudioSettings{
 		Enabled:      legacy.Enabled,
 		Volume:       legacy.Volume,
 		StartupSound: legacy.StartupSound,
@@ -306,11 +307,11 @@ func convertAudioSettings(legacy LegacyAudioConfig) *models.AudioSettings {
 		SoundTheme:   legacy.SoundTheme,
 		CustomSounds: legacy.CustomSounds,
 		// Modern additions
-		MasterVolume:     float64(legacy.Volume) / 100.0,
-		EffectsVolume:    0.7,
+		MasterVolume:       float64(legacy.Volume) / 100.0,
+		EffectsVolume:      0.7,
 		NotificationVolume: 0.5,
-		MuteInBackground:  false,
-		Soundpack:         "default",
+		MuteInBackground:   false,
+		Soundpack:          "default",
 	}
 }
 
@@ -332,7 +333,7 @@ func convertSystemSettings(legacy LegacyNetworkConfig) *models.SystemSettings {
 		UpdateInterval:   1000,
 		HistoryLength:    60,
 		EnableGraphs:     true,
-		ShowNetworkGraph: legacy.NetworkGraph,
+		ShowNetworkGraph: false,
 	}
 }
 
@@ -347,36 +348,36 @@ func convertFileBrowserSettings(legacy LegacyFileBrowserConfig) *models.Filesyst
 		// Modern additions
 		FollowTerminalCWD: true,
 		PathInjection:     true,
-		ShowFileIcons:    true,
-		ShowFileSize:     true,
-		ShowModifiedDate: true,
-		ShowPermissions:  false,
+		ShowFileIcons:     true,
+		ShowFileSize:      true,
+		ShowModifiedDate:  true,
+		ShowPermissions:   false,
 		DoubleClickAction: "open",
 		MaxHistoryItems:   50,
 	}
 }
 
 // convertThemeSettings converts legacy theme settings
-func convertThemeSettings(legacy LegacyCustomization) *models.ThemeSettings {
-	themeSettings := &models.ThemeSettings{
-		Name:               legacy.ThemeName,
-		Background:         legacy.ThemeBackground,
-		Transparency:       legacy.ThemeTransparency,
-		BlurRadius:         legacy.ThemeBlurRadius,
-		BorderColor:        legacy.ThemeBorderColor,
-		CursorColor:        legacy.ThemeCursorColor,
-		GridColor:          legacy.ThemeGridColor,
-		FontSmoothing:      legacy.FontSmoothing,
-		CustomCSS:          legacy.CustomCSS,
-		CustomCSSModules:   legacy.CustomCSSModules,
+func convertThemeSettings(legacy LegacyCustomization) *models.AppThemeSettings {
+	themeSettings := &models.AppThemeSettings{
+		Name:             legacy.ThemeName,
+		Background:       legacy.ThemeBackground,
+		Transparency:     legacy.ThemeTransparency,
+		BlurRadius:       legacy.ThemeBlurRadius,
+		BorderColor:      legacy.ThemeBorderColor,
+		CursorColor:      legacy.ThemeCursorColor,
+		GridColor:        legacy.ThemeGridColor,
+		FontSmoothing:    legacy.FontSmoothing,
+		CustomCSS:        legacy.CustomCSS,
+		CustomCSSModules: legacy.CustomCSSModules,
 		// Modern additions
-		AutoTheme:          false,
-		DarkMode:           true,
-		HighContrast:       false,
-		ReducedMotion:      false,
-		ColorBlindMode:     "none",
-		IconTheme:          "default",
-		WindowDecorations:  "native",
+		AutoTheme:         false,
+		DarkMode:          true,
+		HighContrast:      false,
+		ReducedMotion:     false,
+		ColorBlindMode:    "none",
+		IconTheme:         "default",
+		WindowDecorations: "native",
 	}
 
 	// Convert theme variants to color scheme
@@ -395,43 +396,43 @@ func convertThemeSettings(legacy LegacyCustomization) *models.ThemeSettings {
 // convertPerformanceSettings converts legacy performance settings
 func convertPerformanceSettings(legacy LegacyPerformanceConfig) *models.PerformanceSettings {
 	return &models.PerformanceSettings{
-		MaxCPULoad:       legacy.MaxCPULoad,
-		NetworkThrottle:   legacy.NetworkThrottle,
-		TerminalFPS:       legacy.TerminalFPS,
-		GPUAcceleration:   legacy.GPUAcceleration,
-		WebGLRenderer:     legacy.WebGLRenderer,
-		Animations:        legacy.Animations,
-		Transparency:      legacy.Transparency,
-		Vsync:             legacy.Vsync,
+		MaxCPULoad:      legacy.MaxCPULoad,
+		NetworkThrottle: legacy.NetworkThrottle,
+		TerminalFPS:     legacy.TerminalFPS,
+		GPUAcceleration: legacy.GPUAcceleration,
+		WebGLRenderer:   legacy.WebGLRenderer,
+		Animations:      legacy.Animations,
+		Transparency:    legacy.Transparency,
+		Vsync:           legacy.Vsync,
 		// Modern additions
-		MaxMemory:         512 * 1024 * 1024, // 512MB
-		CacheEnabled:      true,
-		CacheSize:         100 * 1024 * 1024, // 100MB
+		MaxMemory:          512 * 1024 * 1024, // 512MB
+		CacheEnabled:       true,
+		CacheSize:          100 * 1024 * 1024, // 100MB
 		OptimizeForBattery: false,
 		BackgroundThrottle: true,
-		ReduceMotion:      false,
+		ReduceMotion:       false,
 	}
 }
 
 // convertGeneralSettings converts legacy general settings
 func convertGeneralSettings(legacy LegacyGeneralConfig) *models.GeneralSettings {
 	return &models.GeneralSettings{
-		LastCWD:         legacy.LastCWD,
-		StartupCommand:  legacy.StartupCommand,
-		ExitCommand:     legacy.ExitCommand,
-		ExitAction:      legacy.ExitAction,
+		LastCWD:        legacy.LastCWD,
+		StartupCommand: legacy.StartupCommand,
+		ExitCommand:    legacy.ExitCommand,
+		ExitAction:     legacy.ExitAction,
 		// Modern additions
-		AutoSaveSettings:    true,
-		CheckUpdates:        false,
-		TelemetryEnabled:    false,
-		Language:            "en",
-		Timezone:            "auto",
-		DateFormat:          "YYYY-MM-DD",
-		TimeFormat:          "24h",
-		AutoStart:           false,
-		MinimizeToTray:      true,
-		ShowInTaskbar:       true,
-		RememberWindowSize:  true,
+		AutoSaveSettings:   true,
+		CheckUpdates:       false,
+		TelemetryEnabled:   false,
+		Language:           "en",
+		Timezone:           "auto",
+		DateFormat:         "YYYY-MM-DD",
+		TimeFormat:         "24h",
+		AutoStart:          false,
+		MinimizeToTray:     true,
+		ShowInTaskbar:      true,
+		RememberWindowSize: true,
 	}
 }
 
@@ -443,43 +444,43 @@ func (m *Migration) ExportLegacyData(settings *models.AppSettings) (*LegacyConfi
 
 	// Convert back to legacy format
 	legacy.Terminal = LegacyTerminalConfig{
-		Shell:         settings.Terminal.Shell,
-		ShellArgs:     settings.Terminal.ShellArgs,
-		Profile:       settings.Terminal.Profile,
-		WorkingDir:    settings.Terminal.WorkingDir,
-		FontSize:      settings.Terminal.FontSize,
-		FontFamily:    settings.Terminal.FontFamily,
-		LineHeight:    settings.Terminal.LineHeight,
-		LetterSpacing: settings.Terminal.LetterSpacing,
-		WordSpacing:   settings.Terminal.WordSpacing,
-		Opacity:       settings.Terminal.Opacity,
-		Background:    settings.Terminal.Background,
-		CursorBlink:   settings.Terminal.CursorBlink,
-		CursorStyle:   settings.Terminal.CursorStyle,
+		Shell:          settings.Terminal.Shell,
+		ShellArgs:      settings.Terminal.ShellArgs,
+		Profile:        settings.Terminal.Profile,
+		WorkingDir:     settings.Terminal.WorkingDir,
+		FontSize:       settings.Terminal.FontSize,
+		FontFamily:     settings.Terminal.FontFamily,
+		LineHeight:     settings.Terminal.LineHeight,
+		LetterSpacing:  settings.Terminal.LetterSpacing,
+		WordSpacing:    settings.Terminal.WordSpacing,
+		Opacity:        settings.Terminal.Opacity,
+		Background:     settings.Terminal.Background,
+		CursorBlink:    settings.Terminal.CursorBlink,
+		CursorStyle:    settings.Terminal.CursorStyle,
 		BackgroundBlur: settings.Terminal.BackgroundBlur,
 	}
 
 	legacy.Display = LegacyDisplayConfig{
-		WindowSize:         settings.Display.WindowSize,
-		WindowPosition:     settings.Display.WindowPosition,
-		WindowMaximized:    settings.Display.WindowMaximized,
-		ScaleFactor:        settings.Display.ScaleFactor,
-		UseWindowFrame:     settings.Display.UseWindowFrame,
-		Fullscreen:         settings.Display.Fullscreen,
-		ShowFPS:            settings.Display.ShowFPS,
-		ShowZoomControls:   settings.Display.ShowZoomControls,
-		NetworkGraph:       settings.Display.ShowNetworkGraph,
+		WindowSize:            settings.Display.WindowSize,
+		WindowPosition:        settings.Display.WindowPosition,
+		WindowMaximized:       settings.Display.WindowMaximized,
+		ScaleFactor:           settings.Display.ScaleFactor,
+		UseWindowFrame:        settings.Display.UseWindowFrame,
+		Fullscreen:            settings.Display.Fullscreen,
+		ShowFPS:               settings.Display.ShowFPS,
+		ShowZoomControls:      settings.Display.ShowZoomControls,
+		NetworkGraph:          settings.Display.ShowNetworkGraph,
 		TransparentBackground: settings.Display.TransparentBackground,
 	}
 
 	legacy.Audio = LegacyAudioConfig{
-		Enabled:       settings.Audio.Enabled,
-		Volume:        settings.Audio.Volume,
-		StartupSound:  settings.Audio.StartupSound,
-		BellSound:     settings.Audio.BellSound,
-		ErrorSound:    settings.Audio.ErrorSound,
-		SoundTheme:    settings.Audio.SoundTheme,
-		CustomSounds:  settings.Audio.CustomSounds,
+		Enabled:      settings.Audio.Enabled,
+		Volume:       settings.Audio.Volume,
+		StartupSound: settings.Audio.StartupSound,
+		BellSound:    settings.Audio.BellSound,
+		ErrorSound:   settings.Audio.ErrorSound,
+		SoundTheme:   settings.Audio.SoundTheme,
+		CustomSounds: settings.Audio.CustomSounds,
 	}
 
 	legacy.Network = LegacyNetworkConfig{
@@ -519,7 +520,7 @@ func (m *Migration) ExportLegacyData(settings *models.AppSettings) (*LegacyConfi
 	}
 
 	legacy.Performance = LegacyPerformanceConfig{
-		MaxCPULoad:     settings.Performance.MaxCPULoad,
+		MaxCPULoad:      settings.Performance.MaxCPULoad,
 		NetworkThrottle: settings.Performance.NetworkThrottle,
 		TerminalFPS:     settings.Performance.TerminalFPS,
 		GPUAcceleration: settings.Performance.GPUAcceleration,
@@ -571,8 +572,8 @@ func (m *Migration) ValidateLegacyConfig(config *LegacyConfig) error {
 // CleanLegacyFiles removes legacy configuration files after successful migration
 func (m *Migration) CleanLegacyFiles(configPath string) error {
 	// Don't actually remove files by default, just log what would be cleaned
-	m.logger.Info("Legacy migration complete", "config", configPath)
-	m.logger.Info("To clean legacy files, manually remove the configuration directory")
+	m.logger.Info("Legacy migration complete", map[string]interface{}{"config": configPath})
+	m.logger.Info("To clean legacy files, manually remove the configuration directory", nil)
 
 	return nil
 }

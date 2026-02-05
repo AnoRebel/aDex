@@ -3,93 +3,107 @@ package main
 import (
 	"context"
 	"embed"
-	_ "embed"
 	"log"
-	"time"
 
-	"github.com/wailsapp/wails/v3/pkg/application"
 	"aDex-UI/backend/services/coordinator"
+	"github.com/wailsapp/wails/v2"
+	"github.com/wailsapp/wails/v2/pkg/options"
+	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/linux"
+	"github.com/wailsapp/wails/v2/pkg/options/mac"
+	"github.com/wailsapp/wails/v2/pkg/options/windows"
 )
 
 // Wails uses Go's `embed` package to embed the frontend files into the binary.
-// Any files in the frontend/dist folder will be embedded into the binary and
+// Any files in the frontend/.output/public folder will be embedded into the binary and
 // made available to the frontend.
-// See https://pkg.go.dev/embed for more information.
-
+//
 //go:embed all:frontend/.output/public
 var assets embed.FS
 
-// main function serves as the application's entry point. It initializes the service coordinator,
-// creates a window, and starts the application with proper service management.
+// App represents the Wails application with all services
+type App struct {
+	ctx         context.Context
+	coordinator *coordinator.ServiceCoordinator
+}
+
+// NewApp creates a new App application struct
+func NewApp() *App {
+	return &App{
+		coordinator: coordinator.NewServiceCoordinator(),
+	}
+}
+
+// OnStartup is called when the app starts. The context is saved
+// so we can call the runtime methods
+func (a *App) OnStartup(ctx context.Context) {
+	a.ctx = ctx
+
+	// Initialize service coordinator
+	if err := a.coordinator.Initialize(ctx); err != nil {
+		log.Fatal("Failed to initialize coordinator:", err)
+	}
+
+	// Start monitoring
+	if err := a.coordinator.StartMonitoring(ctx); err != nil {
+		log.Println("Warning: Failed to start monitoring:", err)
+	}
+}
+
+// OnShutdown is called when the app is shutting down
+func (a *App) OnShutdown(ctx context.Context) {
+	if a.coordinator != nil {
+		a.coordinator.Shutdown()
+	}
+}
+
+// Greet returns a greeting for the given name
+func (a *App) Greet(name string) string {
+	return "Hello " + name + "!"
+}
+
+// main function serves as the application's entry point.
 func main() {
-	// Create application context for service initialization
-	ctx := context.Background()
+	// Create an instance of the app structure
+	app := NewApp()
 
-	// Create and initialize the service coordinator
-	serviceCoordinator := coordinator.NewServiceCoordinator()
-	if err := serviceCoordinator.Initialize(ctx); err != nil {
-		log.Fatalf("Failed to initialize service coordinator: %v", err)
-	}
-
-	// Start monitoring for system and audio services
-	if err := serviceCoordinator.StartMonitoring(ctx); err != nil {
-		log.Printf("Warning: Failed to start monitoring: %v", err)
-	}
-
-	// Create a new Wails application by providing the necessary options.
-	// Variables 'Name' and 'Description' are for application metadata.
-	// 'Assets' configures the asset server with the 'FS' variable pointing to the frontend files.
-	// 'Services' exposes the service coordinator to the frontend.
-	// 'Mac' options tailor the application when running on macOS.
-	app := application.New(application.Options{
-		Name:        "aDex-UI",
-		Description: "A modern science fiction desktop environment terminal application",
-		Services: []application.Service{
-			application.NewService(serviceCoordinator),
+	// Create application with options
+	err := wails.Run(&options.App{
+		Title:      "aDex-UI",
+		Width:      1920,
+		Height:     1080,
+		Fullscreen: true,
+		AssetServer: &assetserver.Options{
+			Assets: assets,
 		},
-		Assets: application.AssetOptions{
-			Handler: application.AssetFileServerFS(assets),
+		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
+		OnStartup:        app.OnStartup,
+		OnShutdown:       app.OnShutdown,
+		Bind: []interface{}{
+			app,
+			app.coordinator, // This exposes all coordinator methods to frontend
 		},
-		Mac: application.MacOptions{
-			ApplicationShouldTerminateAfterLastWindowClosed: true,
+		Mac: &mac.Options{
+			TitleBar: &mac.TitleBar{
+				TitlebarAppearsTransparent: false,
+				HideTitle:                  false,
+				HideTitleBar:               false,
+				FullSizeContent:            false,
+			},
+			Appearance:           mac.DefaultAppearance,
+			WebviewIsTransparent: false,
+			WindowIsTranslucent:  false,
 		},
-		})
-
-	// Create a new window with the necessary options.
-	// 'Title' is the title of the window.
-	// 'Mac' options tailor the window when running on macOS.
-	// 'BackgroundColour' is the background colour of the window.
-	// 'URL' is the URL that will be loaded into the webview.
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title: "aDex-UI",
-		Mac: application.MacWindow{
-			InvisibleTitleBarHeight: 50,
-			Backdrop:                application.MacBackdropTranslucent,
-			TitleBar:                application.MacTitleBarHiddenInset,
+		Windows: &windows.Options{
+			WebviewIsTransparent: false,
+			WindowIsTranslucent:  false,
+			DisableWindowIcon:    false,
 		},
-		BackgroundColour: application.NewRGB(27, 38, 54),
-		URL:              "/",
+		Linux: &linux.Options{
+			WindowIsTranslucent: false,
+		},
 	})
 
-	// Create a goroutine that emits a time-based event every second through the service coordinator's event bus.
-	// The frontend can listen to this event and update the UI accordingly.
-	go func() {
-		eventBus := serviceCoordinator.GetEventBus()
-		for {
-			now := time.Now().Format(time.RFC1123)
-			// Publish time event through the service coordinator's event bus
-			eventBus.Publish(ctx, "time.updated", map[string]interface{}{
-				"time": now,
-				"unix": time.Now().Unix(),
-			}, "system")
-			time.Sleep(time.Second)
-		}
-	}()
-
-	// Run the application. This blocks until the application has been exited.
-	err := app.Run()
-
-	// If an error occurred while running the application, log it and exit.
 	if err != nil {
 		log.Fatal(err)
 	}

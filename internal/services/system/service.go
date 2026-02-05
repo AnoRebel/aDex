@@ -8,8 +8,8 @@ import (
 	"runtime"
 	"time"
 
-	"aDex-UI/internal/models"
 	"aDex-UI/internal/events"
+	"aDex-UI/internal/models"
 	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/shirou/gopsutil/v3/host"
 	"github.com/shirou/gopsutil/v3/net"
@@ -75,10 +75,10 @@ func (s *SystemService) GetCPUMetrics(ctx context.Context) (*models.CPUMetrics, 
 
 	// Emit event if event bus is available
 	if s.eventBus != nil {
-		s.eventBus.Publish("system.cpu.updated", map[string]interface{}{
+		s.eventBus.Publish(ctx, "system.cpu.updated", map[string]interface{}{
 			"metrics":   metrics,
 			"timestamp": time.Now(),
-		})
+		}, "system-service")
 	}
 
 	return metrics, nil
@@ -93,10 +93,10 @@ func (s *SystemService) GetMemoryMetrics(ctx context.Context) (*models.MemoryMet
 
 	// Emit event if event bus is available
 	if s.eventBus != nil {
-		s.eventBus.Publish("system.memory.updated", map[string]interface{}{
+		s.eventBus.Publish(ctx, "system.memory.updated", map[string]interface{}{
 			"metrics":   metrics,
 			"timestamp": time.Now(),
-		})
+		}, "system-service")
 	}
 
 	return metrics, nil
@@ -115,10 +115,10 @@ func (s *SystemService) GetProcessMetrics(ctx context.Context, limit int) (*mode
 
 	// Emit event if event bus is available
 	if s.eventBus != nil {
-		s.eventBus.Publish("system.processes.updated", map[string]interface{}{
+		s.eventBus.Publish(ctx, "system.processes.updated", map[string]interface{}{
 			"metrics":   metrics,
 			"timestamp": time.Now(),
-		})
+		}, "system-service")
 	}
 
 	return metrics, nil
@@ -151,17 +151,17 @@ func (s *SystemService) GetDiskMetrics(ctx context.Context) (*models.DiskMetrics
 		}
 
 		diskInfo := models.DiskInfo{
-			Device:      partition.Device,
-			Mountpoint:  partition.Mountpoint,
-			FSType:      partition.Fstype,
-			Total:       usage.Total,
-			Used:        usage.Used,
-			Free:        usage.Free,
+			Device:       partition.Device,
+			Mountpoint:   partition.Mountpoint,
+			FSType:       partition.Fstype,
+			Total:        usage.Total,
+			Used:         usage.Used,
+			Free:         usage.Free,
 			UsagePercent: usage.UsedPercent,
-			InodesTotal: usage.InodesTotal,
-			InodesUsed:  usage.InodesUsed,
-			InodesFree:  usage.InodesFree,
-			ReadOnly:    partition.Opts != nil && contains(partition.Opts, "ro"),
+			InodesTotal:  usage.InodesTotal,
+			InodesUsed:   usage.InodesUsed,
+			InodesFree:   usage.InodesFree,
+			ReadOnly:     partition.Opts != nil && contains(partition.Opts, "ro"),
 		}
 
 		diskInfos = append(diskInfos, diskInfo)
@@ -179,10 +179,10 @@ func (s *SystemService) GetDiskMetrics(ctx context.Context) (*models.DiskMetrics
 
 	// Emit event if event bus is available
 	if s.eventBus != nil {
-		s.eventBus.Publish("system.disk.updated", map[string]interface{}{
+		s.eventBus.Publish(ctx, "system.disk.updated", map[string]interface{}{
 			"metrics":   metrics,
 			"timestamp": time.Now(),
-		})
+		}, "system-service")
 	}
 
 	return metrics, nil
@@ -194,9 +194,22 @@ func (s *SystemService) GetNetworkMetrics(ctx context.Context) (*models.NetworkM
 		return nil, fmt.Errorf("network monitoring is disabled")
 	}
 
+	// Get interface info
 	interfaces, err := net.InterfacesWithContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get network interfaces: %w", err)
+	}
+
+	// Get IO counters
+	ioCounters, err := net.IOCountersWithContext(ctx, true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get network IO counters: %w", err)
+	}
+
+	// Create a map for quick lookup of IO counters by interface name
+	ioMap := make(map[string]net.IOCountersStat)
+	for _, io := range ioCounters {
+		ioMap[io.Name] = io
 	}
 
 	var networkInterfaces []models.NetworkInterface
@@ -208,26 +221,35 @@ func (s *SystemService) GetNetworkMetrics(ctx context.Context) (*models.NetworkM
 			continue
 		}
 
+		// Get addresses as strings
+		var addrs []string
+		for _, addr := range iface.Addrs {
+			addrs = append(addrs, addr.Addr)
+		}
+
 		networkIface := models.NetworkInterface{
 			Name:        iface.Name,
-			IsUp:        iface.Flags&net.FlagUp != 0,
-			BytesSent:   iface.BytesSent,
-			BytesRecv:   iface.BytesRecv,
-			PacketsSent: iface.PacketsSent,
-			PacketsRecv: iface.PacketsRecv,
-			Errin:       iface.Errin,
-			Errout:      iface.Errout,
-			Dropin:      iface.Dropin,
-			Dropout:     iface.Dropout,
-			IPAddresses: iface.Addrs,
+			IsUp:        len(iface.Flags) > 0, // Simplified check
+			IPAddresses: addrs,
 			MAC:         iface.HardwareAddr,
-			Speed:       iface.Speed,
 			MTU:         uint64(iface.MTU),
 		}
 
+		// Add IO stats if available
+		if io, ok := ioMap[iface.Name]; ok {
+			networkIface.BytesSent = io.BytesSent
+			networkIface.BytesRecv = io.BytesRecv
+			networkIface.PacketsSent = io.PacketsSent
+			networkIface.PacketsRecv = io.PacketsRecv
+			networkIface.Errin = io.Errin
+			networkIface.Errout = io.Errout
+			networkIface.Dropin = io.Dropin
+			networkIface.Dropout = io.Dropout
+			totalSent += io.BytesSent
+			totalRecv += io.BytesRecv
+		}
+
 		networkInterfaces = append(networkInterfaces, networkIface)
-		totalSent += iface.BytesSent
-		totalRecv += iface.BytesRecv
 	}
 
 	metrics := &models.NetworkMetrics{
@@ -239,10 +261,10 @@ func (s *SystemService) GetNetworkMetrics(ctx context.Context) (*models.NetworkM
 
 	// Emit event if event bus is available
 	if s.eventBus != nil {
-		s.eventBus.Publish("system.network.updated", map[string]interface{}{
+		s.eventBus.Publish(ctx, "system.network.updated", map[string]interface{}{
 			"metrics":   metrics,
 			"timestamp": time.Now(),
-		})
+		}, "system-service")
 	}
 
 	return metrics, nil
@@ -263,10 +285,10 @@ func (s *SystemService) GetTemperatureMetrics(ctx context.Context) (*models.Temp
 
 	// Emit event if event bus is available
 	if s.eventBus != nil {
-		s.eventBus.Publish("system.temperature.updated", map[string]interface{}{
+		s.eventBus.Publish(ctx, "system.temperature.updated", map[string]interface{}{
 			"metrics":   metrics,
 			"timestamp": time.Now(),
-		})
+		}, "system-service")
 	}
 
 	return metrics, nil
@@ -331,10 +353,10 @@ func (s *SystemService) GetAllMetrics(ctx context.Context) (*models.SystemMetric
 
 	// Emit comprehensive update event
 	if s.eventBus != nil {
-		s.eventBus.Publish("system.metrics.updated", map[string]interface{}{
+		s.eventBus.Publish(ctx, "system.metrics.updated", map[string]interface{}{
 			"metrics":   metrics,
 			"timestamp": time.Now(),
-		})
+		}, "system-service")
 	}
 
 	return metrics, nil
@@ -367,7 +389,7 @@ func (s *SystemService) GetSystemInfo(ctx context.Context) (*models.SystemInfo, 
 		KernelVersion: hostInfo.KernelVersion,
 		Architecture:  hostInfo.KernelArch,
 		Uptime:        time.Duration(hostInfo.Uptime) * time.Second,
-		BootTime:      time.Unix(hostInfo.BootTime, 0),
+		BootTime:      time.Unix(int64(hostInfo.BootTime), 0),
 		ProcessID:     pid,
 		Username:      username,
 		HomeDir:       homeDir,
@@ -415,12 +437,12 @@ func (s *SystemService) GetSystemStatistics(ctx context.Context) (map[string]int
 
 	// System info
 	stats["runtime"] = map[string]interface{}{
-		"go_version":      runtime.Version(),
-		"go_os":           runtime.GOOS,
-		"go_arch":         runtime.GOARCH,
-		"num_cpu":         runtime.NumCPU(),
-		"num_goroutine":   runtime.NumGoroutine(),
-		"num_cgo_call":    runtime.NumCgoCall(),
+		"go_version":    runtime.Version(),
+		"go_os":         runtime.GOOS,
+		"go_arch":       runtime.GOARCH,
+		"num_cpu":       runtime.NumCPU(),
+		"num_goroutine": runtime.NumGoroutine(),
+		"num_cgo_call":  runtime.NumCgoCall(),
 	}
 
 	// Add timestamp
@@ -450,10 +472,10 @@ func (s *SystemService) StartMonitoring(ctx context.Context) error {
 			// Check for warnings
 			warnings := s.checkWarnings(metrics)
 			if len(warnings) > 0 && s.eventBus != nil {
-				s.eventBus.Publish("system.warnings", map[string]interface{}{
+				s.eventBus.Publish(ctx, "system.warnings", map[string]interface{}{
 					"warnings":  warnings,
 					"timestamp": time.Now(),
-				})
+				}, "system-service")
 			}
 		}
 	}

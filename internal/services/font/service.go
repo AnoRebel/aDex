@@ -21,7 +21,7 @@ type Service struct {
 	configurations map[string]*models.FontConfiguration
 	systemFonts    map[string]*models.SystemFont
 	settings       *models.FontSettings
-	eventBus       *events.EventBus
+	eventBus       events.IEventBus
 	logger         *logger.Logger
 	mu             sync.RWMutex
 	ctx            context.Context
@@ -93,6 +93,9 @@ func (s *Service) SetEventBus(bus events.IEventBus) {
 
 // GetEventBus returns the event bus
 func (s *Service) GetEventBus() events.IEventBus {
+	if s.eventBus == nil {
+		return nil
+	}
 	return s.eventBus
 }
 
@@ -392,10 +395,10 @@ func (s *Service) ImportFont(req *models.FontImportRequest) (*models.FontImportR
 
 	// Publish event
 	s.publishEvent("font.imported", map[string]interface{}{
-		"font_family": systemFont.Family,
+		"font_family":  systemFont.Family,
 		"display_name": systemFont.DisplayName,
-		"source":      req.Source,
-		"timestamp":   time.Now(),
+		"source":       req.Source,
+		"timestamp":    time.Now(),
 	})
 
 	s.logger.Info("Font imported successfully", map[string]interface{}{
@@ -611,8 +614,8 @@ func (s *Service) initializeBuiltinConfigurations() {
 			},
 			IsBuiltIn: true,
 			IsDefault: true,
-			CreatedAt:  time.Now(),
-			UpdatedAt:  time.Now(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
 		},
 		{
 			ID:          "fira-code",
@@ -631,8 +634,8 @@ func (s *Service) initializeBuiltinConfigurations() {
 				"zero": true,
 			},
 			IsBuiltIn: true,
-			CreatedAt:  time.Now(),
-			UpdatedAt:  time.Now(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
 		},
 		{
 			ID:          "source-code-pro",
@@ -645,9 +648,9 @@ func (s *Service) initializeBuiltinConfigurations() {
 			Ligatures:   false,
 			Antialias:   true,
 			Hinting:     models.FontHintingSlight,
-			IsBuiltIn: true,
-			CreatedAt:  time.Now(),
-			UpdatedAt:  time.Now(),
+			IsBuiltIn:   true,
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
 		},
 		{
 			ID:          "cascadia-code",
@@ -666,8 +669,8 @@ func (s *Service) initializeBuiltinConfigurations() {
 				"zero": true,
 			},
 			IsBuiltIn: true,
-			CreatedAt:  time.Now(),
-			UpdatedAt:  time.Now(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
 		},
 	}
 

@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strings"
 
-	"golang.org/x/crypto/argon2"
 	"aDex-UI/internal/logger"
+	"golang.org/x/crypto/argon2"
 )
 
 // AuthService handles user authentication with argon2id password hashing
@@ -40,10 +40,10 @@ type AuthConfig struct {
 
 // LoginAttempt tracks login attempts for rate limiting
 type LoginAttempt struct {
-	Username     string
-	Attempts     int
-	LastAttempt  int64
-	LockedUntil  int64
+	Username    string
+	Attempts    int
+	LastAttempt int64
+	LockedUntil int64
 }
 
 // NewAuthService creates a new authentication service with argon2id
@@ -178,35 +178,35 @@ func (a *AuthService) Authenticate(username, password string) (*User, error) {
 	// Get user by username
 	user, err := a.userStore.GetUserByUsername(username)
 	if err != nil {
-		a.logger.Warn("Authentication failed: user not found", "username", username)
+		a.logger.Warn("Authentication failed: user not found", map[string]interface{}{"username": username})
 		return nil, fmt.Errorf("invalid credentials")
 	}
 
 	// Check if user is enabled
 	if !user.Enabled {
-		a.logger.Warn("Authentication failed: user disabled", "username", username)
+		a.logger.Warn("Authentication failed: user disabled", map[string]interface{}{"username": username})
 		return nil, fmt.Errorf("user account is disabled")
 	}
 
 	// Verify password
 	valid, err := a.VerifyPassword(password, user.PasswordHash)
 	if err != nil {
-		a.logger.Error("Password verification error", err, "username", username)
+		a.logger.Error("Password verification error", err, map[string]interface{}{"username": username})
 		return nil, fmt.Errorf("authentication failed")
 	}
 
 	if !valid {
-		a.logger.Warn("Authentication failed: invalid password", "username", username)
+		a.logger.Warn("Authentication failed: invalid password", map[string]interface{}{"username": username})
 		return nil, fmt.Errorf("invalid credentials")
 	}
 
 	// Update last login
 	if err := a.userStore.UpdateLastLogin(user.ID); err != nil {
-		a.logger.Warn("Failed to update last login", "error", err, "user_id", user.ID)
+		a.logger.Warn("Failed to update last login", map[string]interface{}{"error": err.Error(), "user_id": user.ID})
 		// Don't fail authentication if we can't update login time
 	}
 
-	a.logger.Info("User authenticated successfully", "username", username, "user_id", user.ID)
+	a.logger.Info("User authenticated successfully", map[string]interface{}{"username": username, "user_id": user.ID})
 	return user, nil
 }
 
@@ -243,7 +243,7 @@ func (a *AuthService) ChangePassword(userID, oldPassword, newPassword string) er
 		return fmt.Errorf("failed to update password: %w", err)
 	}
 
-	a.logger.Info("Password changed successfully", "user_id", userID)
+	a.logger.Info("Password changed successfully", map[string]interface{}{"user_id": userID})
 	return nil
 }
 
@@ -274,7 +274,7 @@ func (a *AuthService) ResetPassword(userID, newPassword string) error {
 		return fmt.Errorf("failed to reset password: %w", err)
 	}
 
-	a.logger.Info("Password reset successfully", "user_id", userID)
+	a.logger.Info("Password reset successfully", map[string]interface{}{"user_id": userID})
 	return nil
 }
 

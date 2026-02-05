@@ -8,11 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"aDex-UI/internal/services/colorscheme"
-	"aDex-UI/internal/events"
-	"aDex-UI/internal/models"
-	"aDex-UI/internal/services/font"
-	"aDex-UI/internal/services/network"
 	"aDex-UI/backend/services/audio"
 	"aDex-UI/backend/services/config"
 	"aDex-UI/backend/services/filesystem"
@@ -20,6 +15,11 @@ import (
 	"aDex-UI/backend/services/terminal"
 	"aDex-UI/backend/services/theme"
 	"aDex-UI/backend/utils"
+	"aDex-UI/internal/events"
+	"aDex-UI/internal/models"
+	"aDex-UI/internal/services/colorscheme"
+	"aDex-UI/internal/services/font"
+	"aDex-UI/internal/services/network"
 )
 
 // convertToStruct converts an interface{} to a specific struct using JSON marshaling
@@ -41,25 +41,25 @@ func convertToStruct(source interface{}, dest interface{}) error {
 
 // ServiceCoordinator manages all application services
 type ServiceCoordinator struct {
-	platform      *utils.FeatureDetection
-	eventBus     *events.EventBus
+	platform *utils.FeatureDetection
+	eventBus *events.EventBus
 
 	// Services
-	filesystem   *filesystem.Service
-	system       *system.Service
-	terminal     *terminal.Service
-	audio        *audio.Service
-	network      *network.NetworkService
-	config       *config.Service
-	theme        *theme.Service
-	colorScheme  *colorscheme.Service
-	font         *font.Service
+	filesystem  *filesystem.Service
+	system      *system.Service
+	terminal    *terminal.Service
+	audio       *audio.Service
+	network     *network.NetworkService
+	config      *config.Service
+	theme       *theme.Service
+	colorScheme *colorscheme.Service
+	font        *font.Service
 
 	// Service state
-	isStarted    bool
-	mu           sync.RWMutex
-	ctx          context.Context
-	cancel       context.CancelFunc
+	isStarted bool
+	mu        sync.RWMutex
+	ctx       context.Context
+	cancel    context.CancelFunc
 }
 
 // NewServiceCoordinator creates a new service coordinator
@@ -67,8 +67,8 @@ func NewServiceCoordinator() *ServiceCoordinator {
 	platform := utils.DetectPlatform()
 
 	return &ServiceCoordinator{
-		platform:  platform,
-		eventBus:  events.GetEventBus(),
+		platform: platform,
+		eventBus: events.GetEventBus(),
 	}
 }
 
@@ -114,6 +114,10 @@ func (sc *ServiceCoordinator) Initialize(ctx context.Context) error {
 	// Set event bus for network service
 	sc.network.SetEventBus(sc.eventBus)
 
+	// Set event bus and Wails context for terminal service
+	sc.terminal.SetEventBus(sc.eventBus)
+	sc.terminal.SetWailsContext(ctx)
+
 	// Set up event listeners
 	if err := sc.setupEventListeners(); err != nil {
 		return fmt.Errorf("failed to setup event listeners: %w", err)
@@ -158,12 +162,12 @@ func (sc *ServiceCoordinator) handleSystemEvent(ctx context.Context, event event
 			// Check for alerts
 			if data.CPUUsage > 90 {
 				alertData := events.SystemAlertData{
-					Type:       "cpu",
-					Resource:   "CPU",
-					Threshold:  90,
-					Current:    data.CPUUsage,
-					Message:    "High CPU usage detected",
-					Severity:   "warning",
+					Type:      "cpu",
+					Resource:  "CPU",
+					Threshold: 90,
+					Current:   data.CPUUsage,
+					Message:   "High CPU usage detected",
+					Severity:  "warning",
 				}
 				sc.eventBus.Publish(ctx, events.SystemAlert, alertData, "system-monitor")
 			}
@@ -476,7 +480,13 @@ func (sc *ServiceCoordinator) GetColorSchemes() (map[string]interface{}, error) 
 		return nil, fmt.Errorf("color scheme service not available")
 	}
 
-	return sc.colorScheme.GetSchemes(), nil
+	// Convert map[string]*models.ColorScheme to map[string]interface{}
+	schemes := sc.colorScheme.GetSchemes()
+	result := make(map[string]interface{})
+	for id, scheme := range schemes {
+		result[id] = scheme
+	}
+	return result, nil
 }
 
 // GetColorScheme returns a specific color scheme by ID
@@ -505,7 +515,13 @@ func (sc *ServiceCoordinator) CreateColorScheme(scheme interface{}) error {
 		return fmt.Errorf("color scheme service not available")
 	}
 
-	return sc.colorScheme.CreateScheme(scheme)
+	// Convert interface{} to *models.ColorScheme
+	var colorScheme models.ColorScheme
+	if err := convertToStruct(scheme, &colorScheme); err != nil {
+		return fmt.Errorf("invalid color scheme: %w", err)
+	}
+
+	return sc.colorScheme.CreateScheme(&colorScheme)
 }
 
 // UpdateColorScheme updates an existing color scheme
@@ -517,7 +533,13 @@ func (sc *ServiceCoordinator) UpdateColorScheme(scheme interface{}) error {
 		return fmt.Errorf("color scheme service not available")
 	}
 
-	return sc.colorScheme.UpdateScheme(scheme)
+	// Convert interface{} to *models.ColorScheme
+	var colorScheme models.ColorScheme
+	if err := convertToStruct(scheme, &colorScheme); err != nil {
+		return fmt.Errorf("invalid color scheme: %w", err)
+	}
+
+	return sc.colorScheme.UpdateScheme(&colorScheme)
 }
 
 // DeleteColorScheme deletes a color scheme
@@ -582,7 +604,13 @@ func (sc *ServiceCoordinator) UpdateColorSchemeConfig(config interface{}) error 
 		return fmt.Errorf("color scheme service not available")
 	}
 
-	return sc.colorScheme.UpdateConfig(config)
+	// Convert interface{} to *models.ColorSchemeConfig
+	var schemeConfig models.ColorSchemeConfig
+	if err := convertToStruct(config, &schemeConfig); err != nil {
+		return fmt.Errorf("invalid color scheme config: %w", err)
+	}
+
+	return sc.colorScheme.UpdateConfig(&schemeConfig)
 }
 
 // GetColorSchemePreview generates a preview for a color scheme
@@ -606,7 +634,13 @@ func (sc *ServiceCoordinator) ValidateColorScheme(scheme interface{}) (interface
 		return nil, fmt.Errorf("color scheme service not available")
 	}
 
-	return sc.colorScheme.ValidateScheme(scheme), nil
+	// Convert interface{} to *models.ColorScheme
+	var colorScheme models.ColorScheme
+	if err := convertToStruct(scheme, &colorScheme); err != nil {
+		return nil, fmt.Errorf("invalid color scheme: %w", err)
+	}
+
+	return sc.colorScheme.ValidateScheme(&colorScheme), nil
 }
 
 // Font service methods
@@ -777,11 +811,7 @@ func (sc *ServiceCoordinator) ValidateFont(config interface{}) (interface{}, err
 		return nil, fmt.Errorf("invalid font configuration: %w", err)
 	}
 
-	result, err := sc.font.ValidateFont(&fontConfig)
-	if err != nil {
-		return nil, err
-	}
-
+	result := sc.font.ValidateFont(&fontConfig)
 	return result, nil
 }
 
@@ -1042,4 +1072,157 @@ func (sc *ServiceCoordinator) IsNetworkMonitoring() bool {
 	}
 
 	return sc.network.IsMonitoring()
+}
+
+// System service methods - exposed for frontend consumption
+
+// GetSystemInfo returns comprehensive system information
+func (sc *ServiceCoordinator) GetSystemInfo() (interface{}, error) {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.system == nil {
+		return nil, fmt.Errorf("system service not available")
+	}
+
+	info, err := sc.system.GetSystemInfo(sc.ctx)
+	if err != nil {
+		return nil, err
+	}
+	return info, nil
+}
+
+// GetCPUUsage returns current CPU usage with per-core data
+func (sc *ServiceCoordinator) GetCPUUsage() (interface{}, error) {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.system == nil {
+		return nil, fmt.Errorf("system service not available")
+	}
+
+	cpuInfo, err := sc.system.GetCPUInfo(sc.ctx)
+	if err != nil {
+		// Fallback to simple usage if detailed info fails
+		usage, simpleErr := sc.system.GetCPUUsage(sc.ctx)
+		if simpleErr != nil {
+			return nil, err
+		}
+		return map[string]interface{}{
+			"usage":     usage,
+			"cores":     []float64{},
+			"coreCount": 0,
+			"modelName": "",
+			"frequency": 0.0,
+		}, nil
+	}
+
+	return map[string]interface{}{
+		"usage":     cpuInfo.Usage,
+		"cores":     cpuInfo.Cores,
+		"coreCount": cpuInfo.CoreCount,
+		"modelName": cpuInfo.ModelName,
+		"frequency": cpuInfo.Frequency,
+	}, nil
+}
+
+// GetMemoryUsage returns current memory usage information
+func (sc *ServiceCoordinator) GetMemoryUsage() (interface{}, error) {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.system == nil {
+		return nil, fmt.Errorf("system service not available")
+	}
+
+	memInfo, err := sc.system.GetMemoryUsage(sc.ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"total": memInfo.Total,
+		"used":  memInfo.Used,
+		"free":  memInfo.Available,
+		"usage": memInfo.Percent,
+	}, nil
+}
+
+// GetDiskUsage returns disk usage information for all partitions
+func (sc *ServiceCoordinator) GetDiskUsage() (interface{}, error) {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.system == nil {
+		return nil, fmt.Errorf("system service not available")
+	}
+
+	diskInfo, err := sc.system.GetDiskUsage(sc.ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to interface slice for JSON serialization
+	result := make([]interface{}, len(diskInfo))
+	for i, disk := range diskInfo {
+		result[i] = map[string]interface{}{
+			"mountpoint": disk.Mountpoint,
+			"total":      disk.Total,
+			"used":       disk.Used,
+			"free":       disk.Free,
+			"usage":      disk.Percent,
+		}
+	}
+
+	return result, nil
+}
+
+// GetNetworkInfo returns network interface information
+func (sc *ServiceCoordinator) GetNetworkInfo() (interface{}, error) {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.system == nil {
+		return nil, fmt.Errorf("system service not available")
+	}
+
+	netInfo, err := sc.system.GetNetworkInfo(sc.ctx)
+	if err != nil {
+		return nil, err
+	}
+	return netInfo, nil
+}
+
+// GetTopProcesses returns top processes by CPU or memory usage
+func (sc *ServiceCoordinator) GetTopProcesses(metric string, limit int) (interface{}, error) {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.system == nil {
+		return nil, fmt.Errorf("system service not available")
+	}
+
+	processes, err := sc.system.GetTopProcesses(sc.ctx, metric, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get top processes: %w", err)
+	}
+
+	return processes, nil
+}
+
+// ReadDirectory reads the contents of a directory
+func (sc *ServiceCoordinator) ReadDirectory(path string) (interface{}, error) {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.filesystem == nil {
+		return nil, fmt.Errorf("filesystem service not available")
+	}
+
+	entries, err := sc.filesystem.ReadDirectory(sc.ctx, path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read directory: %w", err)
+	}
+
+	return entries, nil
 }

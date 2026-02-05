@@ -138,9 +138,9 @@ func (s *GeoIPService) Enable() error {
 
 	// Emit event
 	if s.eventBus != nil {
-		s.eventBus.Emit("geoip:enabled", map[string]interface{}{
+		s.eventBus.Publish(context.Background(), "geoip:enabled", map[string]interface{}{
 			"timestamp": time.Now(),
-		})
+		}, "geoip")
 	}
 
 	return nil
@@ -157,9 +157,9 @@ func (s *GeoIPService) Disable() error {
 
 	// Emit event
 	if s.eventBus != nil {
-		s.eventBus.Emit("geoip:disabled", map[string]interface{}{
+		s.eventBus.Publish(context.Background(), "geoip:disabled", map[string]interface{}{
 			"timestamp": time.Now(),
-		})
+		}, "geoip")
 	}
 
 	return nil
@@ -208,11 +208,11 @@ func (s *GeoIPService) GetGeoIPData(ctx context.Context, ip string) (*GeoIPData,
 
 	// Emit event
 	if s.eventBus != nil {
-		s.eventBus.Emit("geoip:data-updated", map[string]interface{}{
+		s.eventBus.Publish(context.Background(), "geoip:data-updated", map[string]interface{}{
 			"ip":        ip,
 			"data":      data,
 			"timestamp": time.Now(),
-		})
+		}, "geoip")
 	}
 
 	return data, nil
@@ -248,9 +248,9 @@ func (s *GeoIPService) ClearCache() error {
 
 	// Emit event
 	if s.eventBus != nil {
-		s.eventBus.Emit("geoip:cache-cleared", map[string]interface{}{
+		s.eventBus.Publish(context.Background(), "geoip:cache-cleared", map[string]interface{}{
 			"timestamp": time.Now(),
-		})
+		}, "geoip")
 	}
 
 	return nil

@@ -14,7 +14,7 @@ import (
 // MemoryMonitor handles memory metrics collection
 type MemoryMonitor struct {
 	lastVirtualMemory *mem.VirtualMemoryStat
-	lastSwapMemory    *mem.VirtualMemoryStat
+	lastSwapMemory    *mem.SwapMemoryStat
 	isInitialized     bool
 }
 
@@ -37,30 +37,29 @@ func (mm *MemoryMonitor) GetMemoryMetrics(ctx context.Context) (*models.MemoryMe
 	swapMem, err := mem.SwapMemoryWithContext(ctx)
 	if err != nil {
 		// Swap memory might not be available on all systems
-		swapMem = &mem.VirtualMemoryStat{}
+		swapMem = &mem.SwapMemoryStat{}
 	}
 
 	// Get host info for additional memory details
-	hostInfo, err := host.InfoWithContext(ctx)
+	_, err = host.InfoWithContext(ctx)
 	if err != nil {
 		// Host info is not critical, continue without it
-		hostInfo = &host.InfoStat{}
 	}
 
 	// Build metrics
 	metrics := &models.MemoryMetrics{
-		Total:       virtualMem.Total,
-		Available:   virtualMem.Available,
-		Used:        virtualMem.Used,
-		Free:        virtualMem.Free,
+		Total:        virtualMem.Total,
+		Available:    virtualMem.Available,
+		Used:         virtualMem.Used,
+		Free:         virtualMem.Free,
 		UsagePercent: virtualMem.UsedPercent,
-		Cached:      virtualMem.Cached,
-		Buffers:     virtualMem.Buffers,
-		SwapTotal:   swapMem.Total,
-		SwapUsed:    swapMem.Used,
-		SwapFree:    swapMem.Free,
-		SwapPercent: swapMem.UsedPercent,
-		Timestamp:   time.Now(),
+		Cached:       virtualMem.Cached,
+		Buffers:      virtualMem.Buffers,
+		SwapTotal:    swapMem.Total,
+		SwapUsed:     swapMem.Used,
+		SwapFree:     swapMem.Free,
+		SwapPercent:  swapMem.UsedPercent,
+		Timestamp:    time.Now(),
 	}
 
 	// Store for next calculation
@@ -81,7 +80,7 @@ func (mm *MemoryMonitor) GetVirtualMemory(ctx context.Context) (*mem.VirtualMemo
 }
 
 // GetSwapMemory returns detailed swap memory information
-func (mm *MemoryMonitor) GetSwapMemory(ctx context.Context) (*mem.VirtualMemoryStat, error) {
+func (mm *MemoryMonitor) GetSwapMemory(ctx context.Context) (*mem.SwapMemoryStat, error) {
 	swapMem, err := mem.SwapMemoryWithContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get swap memory: %w", err)
@@ -99,12 +98,12 @@ func (mm *MemoryMonitor) GetMemoryDevices(ctx context.Context) (map[string]inter
 	}
 
 	devices := map[string]interface{}{
-		"total_memory":    virtualMem.Total,
+		"total_memory":     virtualMem.Total,
 		"available_memory": virtualMem.Available,
-		"used_memory":     virtualMem.Used,
-		"free_memory":     virtualMem.Free,
-		"memory_type":     "unknown",
-		"speed":           "unknown",
+		"used_memory":      virtualMem.Used,
+		"free_memory":      virtualMem.Free,
+		"memory_type":      "unknown",
+		"speed":            "unknown",
 	}
 
 	return devices, nil
@@ -152,18 +151,18 @@ func (mm *MemoryMonitor) GetMemoryPressure(ctx context.Context) (map[string]inte
 
 	swapMem, err := mem.SwapMemoryWithContext(ctx)
 	if err != nil {
-		swapMem = &mem.VirtualMemoryStat{}
+		swapMem = &mem.SwapMemoryStat{}
 	}
 
 	// Calculate memory pressure indicators
 	pressure := map[string]interface{}{
-		"memory_usage_percent":    virtualMem.UsedPercent,
-		"available_memory_mb":    virtualMem.Available / 1024 / 1024,
-		"swap_usage_percent":      swapMem.UsedPercent,
-		"cache_mb":              virtualMem.Cached / 1024 / 1024,
-		"buffers_mb":            virtualMem.Buffers / 1024 / 1024,
-		"pressure_level":        mm.calculatePressureLevel(virtualMem.UsedPercent, swapMem.UsedPercent),
-		"recommendation":        mm.getMemoryRecommendation(virtualMem.UsedPercent, swapMem.UsedPercent),
+		"memory_usage_percent": virtualMem.UsedPercent,
+		"available_memory_mb":  virtualMem.Available / 1024 / 1024,
+		"swap_usage_percent":   swapMem.UsedPercent,
+		"cache_mb":             virtualMem.Cached / 1024 / 1024,
+		"buffers_mb":           virtualMem.Buffers / 1024 / 1024,
+		"pressure_level":       mm.calculatePressureLevel(virtualMem.UsedPercent, swapMem.UsedPercent),
+		"recommendation":       mm.getMemoryRecommendation(virtualMem.UsedPercent, swapMem.UsedPercent),
 	}
 
 	return pressure, nil
@@ -224,7 +223,7 @@ func (mm *MemoryMonitor) GetMemoryStatistics(ctx context.Context) (map[string]in
 
 	swapMem, err := mem.SwapMemoryWithContext(ctx)
 	if err != nil {
-		swapMem = &mem.VirtualMemoryStat{}
+		swapMem = &mem.SwapMemoryStat{}
 	}
 
 	// Basic statistics
@@ -335,7 +334,7 @@ func (mm *MemoryMonitor) GetMemoryInfo(ctx context.Context) (map[string]interfac
 	// Get swap memory
 	swapMem, err := mem.SwapMemoryWithContext(ctx)
 	if err != nil {
-		swapMem = &mem.VirtualMemoryStat{}
+		swapMem = &mem.SwapMemoryStat{}
 	}
 
 	// Basic memory information
@@ -357,7 +356,7 @@ func (mm *MemoryMonitor) GetMemoryInfo(ctx context.Context) (map[string]interfac
 	info["swap_percent"] = swapMem.UsedPercent
 
 	// Memory type information
-	info["memory_type"] = "unknown" // Would need platform-specific detection
+	info["memory_type"] = "unknown"  // Would need platform-specific detection
 	info["memory_speed"] = "unknown" // Would need platform-specific detection
 
 	// Additional platform-specific info
@@ -374,10 +373,10 @@ func (mm *MemoryMonitor) GetMemoryInfo(ctx context.Context) (map[string]interfac
 // GetMemoryWarningThresholds returns memory warning thresholds
 func (mm *MemoryMonitor) GetMemoryWarningThresholds() map[string]float64 {
 	return map[string]float64{
-		"memory_warning":  75.0,  // Memory usage warning threshold
-		"memory_critical": 90.0,  // Memory usage critical threshold
-		"swap_warning":    25.0,  // Swap usage warning threshold
-		"swap_critical":   50.0,  // Swap usage critical threshold
+		"memory_warning":  75.0, // Memory usage warning threshold
+		"memory_critical": 90.0, // Memory usage critical threshold
+		"swap_warning":    25.0, // Swap usage warning threshold
+		"swap_critical":   50.0, // Swap usage critical threshold
 	}
 }
 
@@ -390,13 +389,13 @@ func (mm *MemoryMonitor) CheckMemoryWarnings(ctx context.Context) (map[string]in
 
 	swapMem, err := mem.SwapMemoryWithContext(ctx)
 	if err != nil {
-		swapMem = &mem.VirtualMemoryStat{}
+		swapMem = &mem.SwapMemoryStat{}
 	}
 
 	thresholds := mm.GetMemoryWarningThresholds()
 	warnings := map[string]interface{}{
 		"has_warnings": false,
-		"warnings":    []string{},
+		"warnings":     []string{},
 	}
 
 	// Check memory warnings
@@ -456,8 +455,8 @@ func (mm *MemoryMonitor) GetMemoryBreakdown(ctx context.Context) (map[string]int
 			"human": mm.FormatBytes(virtualMem.Total),
 		},
 		"used": map[string]interface{}{
-			"bytes": virtualMem.Used,
-			"human": mm.FormatBytes(virtualMem.Used),
+			"bytes":   virtualMem.Used,
+			"human":   mm.FormatBytes(virtualMem.Used),
 			"percent": virtualMem.UsedPercent,
 		},
 		"free": map[string]interface{}{

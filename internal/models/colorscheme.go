@@ -8,117 +8,117 @@ import (
 
 // ColorScheme represents a terminal color theme
 type ColorScheme struct {
-	ID          string                `json:"id"`
-	Name        string                `json:"name"`
-	DisplayName string                `json:"display_name"`
-	Description string                `json:"description"`
-	Colors      ColorSchemeColors     `json:"colors"`
-	Font        ColorSchemeFont       `json:"font"`
-	Cursor      ColorSchemeCursor     `json:"cursor"`
-	Background  ColorSchemeBackground `json:"background"`
-	Author      string                `json:"author"`
-	Version     string                `json:"version"`
-	IsBuiltIn   bool                  `json:"is_built_in"`
-	IsDark      bool                  `json:"is_dark"`
-	CreatedAt   time.Time             `json:"created_at"`
-	UpdatedAt   time.Time             `json:"updated_at"`
+	ID          string                 `json:"id"`
+	Name        string                 `json:"name"`
+	DisplayName string                 `json:"display_name"`
+	Description string                 `json:"description"`
+	Colors      ColorSchemeColors      `json:"colors"`
+	Font        ColorSchemeFont        `json:"font"`
+	Cursor      ColorSchemeCursor      `json:"cursor"`
+	Background  ColorSchemeBackground  `json:"background"`
+	Author      string                 `json:"author"`
+	Version     string                 `json:"version"`
+	IsBuiltIn   bool                   `json:"is_built_in"`
+	IsDark      bool                   `json:"is_dark"`
+	CreatedAt   time.Time              `json:"created_at"`
+	UpdatedAt   time.Time              `json:"updated_at"`
 	Extensions  map[string]interface{} `json:"extensions,omitempty"`
 }
 
 // ColorSchemeColors defines the color palette for a terminal theme
 type ColorSchemeColors struct {
-	Background        string            `json:"background"`
-	Foreground        string            `json:"foreground"`
-	Cursor            string            `json:"cursor"`
-	CursorAccent      string            `json:"cursor_accent,omitempty"`
-	Selection         string            `json:"selection"`
-	SelectionForeground string          `json:"selection_foreground,omitempty"`
-	Black             string            `json:"black"`
-	Red               string            `json:"red"`
-	Green             string            `json:"green"`
-	Yellow            string            `json:"yellow"`
-	Blue              string            `json:"blue"`
-	Magenta           string            `json:"magenta"`
-	Cyan              string            `json:"cyan"`
-	White             string            `json:"white"`
-	BrightBlack       string            `json:"bright_black"`
-	BrightRed         string            `json:"bright_red"`
-	BrightGreen       string            `json:"bright_green"`
-	BrightYellow      string            `json:"bright_yellow"`
-	BrightBlue        string            `json:"bright_blue"`
-	BrightMagenta     string            `json:"bright_magenta"`
-	BrightCyan        string            `json:"bright_cyan"`
-	BrightWhite       string            `json:"bright_white"`
-	ANSI              map[int]string    `json:"ansi,omitempty"`
+	Background          string         `json:"background"`
+	Foreground          string         `json:"foreground"`
+	Cursor              string         `json:"cursor"`
+	CursorAccent        string         `json:"cursor_accent,omitempty"`
+	Selection           string         `json:"selection"`
+	SelectionForeground string         `json:"selection_foreground,omitempty"`
+	Black               string         `json:"black"`
+	Red                 string         `json:"red"`
+	Green               string         `json:"green"`
+	Yellow              string         `json:"yellow"`
+	Blue                string         `json:"blue"`
+	Magenta             string         `json:"magenta"`
+	Cyan                string         `json:"cyan"`
+	White               string         `json:"white"`
+	BrightBlack         string         `json:"bright_black"`
+	BrightRed           string         `json:"bright_red"`
+	BrightGreen         string         `json:"bright_green"`
+	BrightYellow        string         `json:"bright_yellow"`
+	BrightBlue          string         `json:"bright_blue"`
+	BrightMagenta       string         `json:"bright_magenta"`
+	BrightCyan          string         `json:"bright_cyan"`
+	BrightWhite         string         `json:"bright_white"`
+	ANSI                map[int]string `json:"ansi,omitempty"`
 }
 
 // ColorSchemeFont defines font settings for a color scheme
 type ColorSchemeFont struct {
-	Family      string  `json:"family"`
-	Size        int     `json:"size"`
-	Weight      string  `json:"weight"`
-	LineHeight  float64 `json:"line_height"`
-	LetterSpacing *int  `json:"letter_spacing,omitempty"`
-	Ligatures   bool    `json:"ligatures"`
-	Antialias   bool    `json:"antialias"`
-	Hinting     string  `json:"hinting"`
+	Family        string  `json:"family"`
+	Size          int     `json:"size"`
+	Weight        string  `json:"weight"`
+	LineHeight    float64 `json:"line_height"`
+	LetterSpacing *int    `json:"letter_spacing,omitempty"`
+	Ligatures     bool    `json:"ligatures"`
+	Antialias     bool    `json:"antialias"`
+	Hinting       string  `json:"hinting"`
 }
 
 // ColorSchemeCursor defines cursor appearance for a color scheme
 type ColorSchemeCursor struct {
-	Style         string  `json:"style"`         // block, underline, bar
-	Blink         bool    `json:"blink"`
-	BlinkInterval *int    `json:"blink_interval,omitempty"`
-	Width         *int    `json:"width,omitempty"`
-	Color         string  `json:"color,omitempty"`
-	Accent        string  `json:"accent,omitempty"`
+	Style         string `json:"style"` // block, underline, bar
+	Blink         bool   `json:"blink"`
+	BlinkInterval *int   `json:"blink_interval,omitempty"`
+	Width         *int   `json:"width,omitempty"`
+	Color         string `json:"color,omitempty"`
+	Accent        string `json:"accent,omitempty"`
 }
 
 // ColorSchemeBackground defines background settings for a color scheme
 type ColorSchemeBackground struct {
-	Type     string  `json:"type"`     // solid, gradient, image
-	Value    string  `json:"value,omitempty"`
-	Opacity  *int    `json:"opacity,omitempty"`    // 0-100
-	Blur     *int    `json:"blur,omitempty"`      // 0-100
-	Size     string  `json:"size,omitempty"`      // cover, contain, auto
-	Position string  `json:"position,omitempty"`
+	Type     string `json:"type"` // solid, gradient, image
+	Value    string `json:"value,omitempty"`
+	Opacity  *int   `json:"opacity,omitempty"` // 0-100
+	Blur     *int   `json:"blur,omitempty"`    // 0-100
+	Size     string `json:"size,omitempty"`    // cover, contain, auto
+	Position string `json:"position,omitempty"`
 }
 
 // ColorSchemeConfig holds configuration for color scheme management
 type ColorSchemeConfig struct {
-	DefaultScheme string                   `json:"default_scheme"`
-	UserSchemes   map[string]*ColorScheme   `json:"user_schemes"`
+	DefaultScheme  string                  `json:"default_scheme"`
+	UserSchemes    map[string]*ColorScheme `json:"user_schemes"`
 	EnabledSchemes []string                `json:"enabled_schemes"`
-	AutoSwitch    bool                     `json:"auto_switch"`     // Switch based on system theme
-	ImportPath    string                   `json:"import_path"`     // Path to import custom schemes
-	ExportPath    string                   `json:"export_path"`     // Path to export schemes
+	AutoSwitch     bool                    `json:"auto_switch"` // Switch based on system theme
+	ImportPath     string                  `json:"import_path"` // Path to import custom schemes
+	ExportPath     string                  `json:"export_path"` // Path to export schemes
 }
 
 // ColorSchemeImport represents a color scheme import configuration
 type ColorSchemeImport struct {
-	Source      string                 `json:"source"`        // file, url, clipboard
-	Format      string                 `json:"format"`        // json, yaml, toml, ini
-	Content     map[string]interface{} `json:"content"`
-	Metadata    map[string]string      `json:"metadata"`
-	Preview     bool                   `json:"preview"`       // Show preview before importing
-	Overwrite   bool                   `json:"overwrite"`     // Overwrite existing scheme
+	Source    string                 `json:"source"` // file, url, clipboard
+	Format    string                 `json:"format"` // json, yaml, toml, ini
+	Content   map[string]interface{} `json:"content"`
+	Metadata  map[string]string      `json:"metadata"`
+	Preview   bool                   `json:"preview"`   // Show preview before importing
+	Overwrite bool                   `json:"overwrite"` // Overwrite existing scheme
 }
 
 // ColorSchemeExport represents a color scheme export configuration
 type ColorSchemeExport struct {
-	SchemeIDs   []string `json:"scheme_ids"`   // IDs of schemes to export
-	Format      string   `json:"format"`       // json, yaml, toml, ini
-	IncludeBuiltIn bool  `json:"include_built_in"`
-	Compress    bool     `json:"compress"`     // Compress output file
-	Preview     bool     `json:"preview"`      // Show preview before export
+	SchemeIDs      []string `json:"scheme_ids"` // IDs of schemes to export
+	Format         string   `json:"format"`     // json, yaml, toml, ini
+	IncludeBuiltIn bool     `json:"include_built_in"`
+	Compress       bool     `json:"compress"` // Compress output file
+	Preview        bool     `json:"preview"`  // Show preview before export
 }
 
 // ColorSchemeValidationResult represents the result of color scheme validation
 type ColorSchemeValidationResult struct {
-	Valid   bool                   `json:"valid"`
-	Errors  []ColorSchemeError     `json:"errors"`
-	Warnings []ColorSchemeWarning  `json:"warnings"`
-	Scheme  *ColorScheme           `json:"scheme,omitempty"`
+	Valid    bool                 `json:"valid"`
+	Errors   []ColorSchemeError   `json:"errors"`
+	Warnings []ColorSchemeWarning `json:"warnings"`
+	Scheme   *ColorScheme         `json:"scheme,omitempty"`
 }
 
 // ColorSchemeError represents an error in color scheme validation
@@ -137,12 +137,12 @@ type ColorSchemeWarning struct {
 
 // ColorSchemePreview represents a preview of a color scheme
 type ColorSchemePreview struct {
-	SchemeID  string                 `json:"scheme_id"`
-	Name      string                 `json:"name"`
-	Colors    map[string]string      `json:"colors"`
-	Preview   string                 `json:"preview"`     // Base64 encoded preview image
-	Sample    string                 `json:"sample"`      // Sample terminal output
-	CreatedAt time.Time              `json:"created_at"`
+	SchemeID  string            `json:"scheme_id"`
+	Name      string            `json:"name"`
+	Colors    map[string]string `json:"colors"`
+	Preview   string            `json:"preview"` // Base64 encoded preview image
+	Sample    string            `json:"sample"`  // Sample terminal output
+	CreatedAt time.Time         `json:"created_at"`
 }
 
 // NewColorScheme creates a new color scheme with default values
@@ -154,26 +154,26 @@ func NewColorScheme(id, name string) *ColorScheme {
 		DisplayName: name,
 		Description: "",
 		Colors: ColorSchemeColors{
-			Background:  "#1e1e1e",
-			Foreground:  "#f0f0f0",
-			Cursor:      "#ffffff",
-			Selection:   "rgba(255, 255, 255, 0.3)",
-			Black:       "#000000",
-			Red:         "#ff5555",
-			Green:       "#50fa7b",
-			Yellow:      "#f1fa8c",
-			Blue:        "#bd93f9",
-			Magenta:     "#ff79c6",
-			Cyan:        "#8be9fd",
-			White:       "#f8f8f2",
-			BrightBlack: "#6272a4",
-			BrightRed:   "#ff6e6e",
-			BrightGreen: "#69ff94",
-			BrightYellow:"#ffffa5",
-			BrightBlue:  "#d6acff",
-			BrightMagenta:"#ff92df",
-			BrightCyan:  "#a4ffff",
-			BrightWhite: "#ffffff",
+			Background:    "#1e1e1e",
+			Foreground:    "#f0f0f0",
+			Cursor:        "#ffffff",
+			Selection:     "rgba(255, 255, 255, 0.3)",
+			Black:         "#000000",
+			Red:           "#ff5555",
+			Green:         "#50fa7b",
+			Yellow:        "#f1fa8c",
+			Blue:          "#bd93f9",
+			Magenta:       "#ff79c6",
+			Cyan:          "#8be9fd",
+			White:         "#f8f8f2",
+			BrightBlack:   "#6272a4",
+			BrightRed:     "#ff6e6e",
+			BrightGreen:   "#69ff94",
+			BrightYellow:  "#ffffa5",
+			BrightBlue:    "#d6acff",
+			BrightMagenta: "#ff92df",
+			BrightCyan:    "#a4ffff",
+			BrightWhite:   "#ffffff",
 		},
 		Font: ColorSchemeFont{
 			Family:     "JetBrains Mono",
@@ -192,10 +192,10 @@ func NewColorScheme(id, name string) *ColorScheme {
 			Type:    "solid",
 			Opacity: intPtr(100),
 		},
-		IsBuiltIn: false,
-		IsDark:    true,
-		CreatedAt: now,
-		UpdatedAt: now,
+		IsBuiltIn:  false,
+		IsDark:     true,
+		CreatedAt:  now,
+		UpdatedAt:  now,
 		Extensions: make(map[string]interface{}),
 	}
 }
@@ -237,7 +237,7 @@ func (cs *ColorScheme) Validate() *ColorSchemeValidationResult {
 				Code:    "required",
 			})
 			result.Valid = false
-		} else if !isValidColor(color) {
+		} else if !isValidColorSimple(color) {
 			result.Errors = append(result.Errors, ColorSchemeError{
 				Field:   field,
 				Message: "Invalid color format",
@@ -308,26 +308,26 @@ func (cs *ColorScheme) Validate() *ColorSchemeValidationResult {
 // ToXtermTheme converts the color scheme to xterm.js theme format
 func (cs *ColorScheme) ToXtermTheme() map[string]interface{} {
 	theme := map[string]interface{}{
-		"background": cs.Colors.Background,
-		"foreground": cs.Colors.Foreground,
-		"cursor":     cs.Colors.Cursor,
-		"selection":  cs.Colors.Selection,
-		"black":      cs.Colors.Black,
-		"red":        cs.Colors.Red,
-		"green":      cs.Colors.Green,
-		"yellow":     cs.Colors.Yellow,
-		"blue":       cs.Colors.Blue,
-		"magenta":    cs.Colors.Magenta,
-		"cyan":       cs.Colors.Cyan,
-		"white":      cs.Colors.White,
-		"brightBlack":    cs.Colors.BrightBlack,
-		"brightRed":      cs.Colors.BrightRed,
-		"brightGreen":    cs.Colors.BrightGreen,
-		"brightYellow":   cs.Colors.BrightYellow,
-		"brightBlue":     cs.Colors.BrightBlue,
-		"brightMagenta":  cs.Colors.BrightMagenta,
-		"brightCyan":     cs.Colors.BrightCyan,
-		"brightWhite":    cs.Colors.BrightWhite,
+		"background":    cs.Colors.Background,
+		"foreground":    cs.Colors.Foreground,
+		"cursor":        cs.Colors.Cursor,
+		"selection":     cs.Colors.Selection,
+		"black":         cs.Colors.Black,
+		"red":           cs.Colors.Red,
+		"green":         cs.Colors.Green,
+		"yellow":        cs.Colors.Yellow,
+		"blue":          cs.Colors.Blue,
+		"magenta":       cs.Colors.Magenta,
+		"cyan":          cs.Colors.Cyan,
+		"white":         cs.Colors.White,
+		"brightBlack":   cs.Colors.BrightBlack,
+		"brightRed":     cs.Colors.BrightRed,
+		"brightGreen":   cs.Colors.BrightGreen,
+		"brightYellow":  cs.Colors.BrightYellow,
+		"brightBlue":    cs.Colors.BrightBlue,
+		"brightMagenta": cs.Colors.BrightMagenta,
+		"brightCyan":    cs.Colors.BrightCyan,
+		"brightWhite":   cs.Colors.BrightWhite,
 	}
 
 	// Add optional colors
@@ -390,7 +390,7 @@ func intPtr(i int) *int {
 	return &i
 }
 
-func isValidColor(color string) bool {
+func isValidColorSimple(color string) bool {
 	// Simple validation for hex colors and rgba colors
 	if len(color) == 7 && color[0] == '#' {
 		return true

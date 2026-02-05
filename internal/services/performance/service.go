@@ -1,7 +1,7 @@
 package performance
 
 import (
-	"context"
+	"encoding/json"
 	"fmt"
 	"runtime"
 	"sort"
@@ -16,32 +16,32 @@ type Service struct {
 	logger    *logger.Logger
 	profiles  map[string]*Profile
 	mutex     sync.RWMutex
-	profiling  bool
+	profiling bool
 	startTime time.Time
 }
 
 // Profile represents a performance profile for a specific component
 type Profile struct {
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Enabled     bool              `json:"enabled"`
-	StartTime   time.Time         `json:"startTime"`
-	EndTime     time.Time         `json:"endTime,omitempty"`
-	Duration    time.Duration     `json:"duration"`
-	Samples    []Sample          `json:"samples"`
+	Name        string             `json:"name"`
+	Description string             `json:"description"`
+	Enabled     bool               `json:"enabled"`
+	StartTime   time.Time          `json:"startTime"`
+	EndTime     time.Time          `json:"endTime,omitempty"`
+	Duration    time.Duration      `json:"duration"`
+	Samples     []Sample           `json:"samples"`
 	Metrics     map[string]float64 `json:"metrics"`
 	Hotspots    []Hotspot          `json:"hotspots"`
 	Summary     *ProfileSummary    `json:"summary"`
-	mutex       sync.Mutex        `json:"-"`
+	mutex       sync.Mutex         `json:"-"`
 }
 
 // Sample represents a single performance measurement
 type Sample struct {
-	Timestamp   time.Time         `json:"timestamp"`
-	Metric      string            `json:"metric"`
-	Value       float64           `json:"value"`
-	Labels      map[string]string  `json:"labels"`
-	CallStack   []Frame            `json:"callStack,omitempty"`
+	Timestamp time.Time         `json:"timestamp"`
+	Metric    string            `json:"metric"`
+	Value     float64           `json:"value"`
+	Labels    map[string]string `json:"labels"`
+	CallStack []Frame           `json:"callStack,omitempty"`
 }
 
 // Frame represents a stack frame in call stack
@@ -54,49 +54,49 @@ type Frame struct {
 
 // Hotspot represents a performance bottleneck
 type Hotspot struct {
-	Location      string    `json:"location"`
-	Function      string    `json:"function"`
-	Impact        float64   `json:"impact"`
-	TotalCalls     int       `json:"totalCalls"`
-	AverageTime    float64   `json:"averageTime"`
-	MaxTime        float64   `json:"maxTime"`
-	Recommendation string    `json:"recommendation"`
+	Location       string  `json:"location"`
+	Function       string  `json:"function"`
+	Impact         float64 `json:"impact"`
+	TotalCalls     int     `json:"totalCalls"`
+	AverageTime    float64 `json:"averageTime"`
+	MaxTime        float64 `json:"maxTime"`
+	Recommendation string  `json:"recommendation"`
 }
 
 // ProfileSummary provides aggregated performance statistics
 type ProfileSummary struct {
-	TotalSamples     int64                    `json:"totalSamples"`
-	TotalDuration    time.Duration            `json:"totalDuration"`
-	AverageLatency  time.Duration            `json:"averageLatency"`
-	P95Latency      time.Duration            `json:"p95Latency"`
-	P99Latency      time.Duration            `json:"p99Latency"`
-	MinLatency      time.Duration            `json:"minLatency"`
-	MaxLatency      time.Duration            `json:"maxLatency"`
-	MemoryUsage     int64                    `json:"memoryUsage"`
-	GoroutineCount  int                      `json:"goroutineCount"`
-	CPUUsage        float64                  `json:"cpuUsage"`
-	TopMetrics      map[string]float64     `json:"topMetrics"`
-	Issues          []string                 `json:"issues"`
-	Recommendations []string                 `json:"recommendations"`
+	TotalSamples    int64              `json:"totalSamples"`
+	TotalDuration   time.Duration      `json:"totalDuration"`
+	AverageLatency  time.Duration      `json:"averageLatency"`
+	P95Latency      time.Duration      `json:"p95Latency"`
+	P99Latency      time.Duration      `json:"p99Latency"`
+	MinLatency      time.Duration      `json:"minLatency"`
+	MaxLatency      time.Duration      `json:"maxLatency"`
+	MemoryUsage     int64              `json:"memoryUsage"`
+	GoroutineCount  int                `json:"goroutineCount"`
+	CPUUsage        float64            `json:"cpuUsage"`
+	TopMetrics      map[string]float64 `json:"topMetrics"`
+	Issues          []string           `json:"issues"`
+	Recommendations []string           `json:"recommendations"`
 }
 
 // PerformanceIssue represents a detected performance problem
 type PerformanceIssue struct {
-	Type        string    `json:"type"`
-	Severity    string    `json:"severity"`
-	Description string    `json:"description"`
-	Location   string    `json:"location"`
-	Metric     string    `json:"metric"`
-	Value      float64   `json:"value"`
-	Threshold  float64   `json:"threshold"`
-	Resolution string    `json:"resolution"`
+	Type        string  `json:"type"`
+	Severity    string  `json:"severity"`
+	Description string  `json:"description"`
+	Location    string  `json:"location"`
+	Metric      string  `json:"metric"`
+	Value       float64 `json:"value"`
+	Threshold   float64 `json:"threshold"`
+	Resolution  string  `json:"resolution"`
 }
 
 // NewService creates a new performance service
 func NewService(logger *logger.Logger) *Service {
 	service := &Service{
-		logger:   logger,
-		profiles: make(map[string]*Profile),
+		logger:    logger,
+		profiles:  make(map[string]*Profile),
 		profiling: false,
 	}
 
@@ -131,7 +131,7 @@ func (s *Service) StopProfiling() {
 
 	s.profiling = false
 
-	s.logger.Info("Performance profiling stopped", "duration", time.Since(s.startTime))
+	s.logger.Info("Performance profiling stopped", map[string]interface{}{"duration": time.Since(s.startTime).String()})
 }
 
 // IsProfiling returns true if profiling is currently active
@@ -152,18 +152,18 @@ func (s *Service) CreateProfile(name, description string) *Profile {
 		Description: description,
 		Enabled:     true,
 		StartTime:   time.Now(),
-		Samples:    make([]Sample, 0),
+		Samples:     make([]Sample, 0),
 		Metrics:     make(map[string]float64),
 		Hotspots:    make([]Hotspot, 0),
-		Summary:     &ProfileSummary{
-			TopMetrics: make(map[string]float64),
-			Issues:      make([]string, 0),
+		Summary: &ProfileSummary{
+			TopMetrics:      make(map[string]float64),
+			Issues:          make([]string, 0),
 			Recommendations: make([]string, 0),
 		},
 	}
 
 	s.profiles[name] = profile
-	s.logger.Info("Created performance profile", "name", name)
+	s.logger.Info("Created performance profile", map[string]interface{}{"name": name})
 
 	return profile
 }
@@ -206,7 +206,7 @@ func (s *Service) EnableProfile(name string) error {
 	profile.Enabled = true
 	profile.StartTime = time.Now()
 
-	s.logger.Info("Enabled performance profile", "name", name)
+	s.logger.Info("Enabled performance profile", map[string]interface{}{"name": name})
 	return nil
 }
 
@@ -224,7 +224,7 @@ func (s *Service) DisableProfile(name string) error {
 	profile.EndTime = time.Now()
 	profile.Duration = profile.EndTime.Sub(profile.StartTime)
 
-	s.logger.Info("Disabled performance profile", "name", name)
+	s.logger.Info("Disabled performance profile", map[string]interface{}{"name": name})
 	return nil
 }
 
@@ -252,7 +252,7 @@ func (s *Service) RecordSample(profileName, metric string, value float64, labels
 	}
 
 	profile.mutex.Lock()
-	defer profile.MutexUnlock()
+	defer profile.mutex.Unlock()
 
 	profile.Samples = append(profile.Samples, sample)
 	profile.Metrics[metric] += value
@@ -293,7 +293,7 @@ func (s *Service) RecordMemoryUsage(profileName string) error {
 
 	for _, metric := range metrics {
 		if err := s.RecordSample(profileName, metric.name, metric.value, metric.labels); err != nil {
-			s.logger.Warn("Failed to record memory sample", "metric", metric.name, "error", err)
+			s.logger.Warn("Failed to record memory sample", map[string]interface{}{"metric": metric.name, "error": err.Error()})
 		}
 	}
 
@@ -307,7 +307,7 @@ func (s *Service) RecordSystemMetrics(profileName string) error {
 
 	// Record goroutine count
 	if err := s.RecordSample(profileName, "goroutine_count", float64(goroutines), nil); err != nil {
-		s.logger.Warn("Failed to record goroutine count", "error", err)
+		s.logger.Warn("Failed to record goroutine count", map[string]interface{}{"error": err.Error()})
 	}
 
 	// This would be extended to collect system metrics
@@ -323,7 +323,7 @@ func (s *Service) GetProfileSummary(name string) (*ProfileSummary, error) {
 	}
 
 	profile.mutex.Lock()
-	defer profile.Mutex.Unlock()
+	defer profile.mutex.Unlock()
 
 	summary := profile.Summary
 
@@ -350,12 +350,12 @@ func (s *Service) GetProfileSummary(name string) (*ProfileSummary, error) {
 			summary.MaxLatency = time.Duration(latencies[len(latencies)-1]) * time.Nanosecond
 
 			// Calculate percentiles
-			index := int(float64(len(latencies)) * 0.95
+			index := int(float64(len(latencies)) * 0.95)
 			if index < len(latencies) {
 				summary.P95Latency = time.Duration(latencies[index]) * time.Nanosecond
 			}
 
-			index = int(float64(len(latencies)) * 0.99
+			index = int(float64(len(latencies)) * 0.99)
 			if index < len(latencies) {
 				summary.P99Latency = time.Duration(latencies[index]) * time.Nanosecond
 			}
@@ -391,7 +391,7 @@ func (s *Service) DetectPerformanceIssues() []PerformanceIssue {
 
 		profile.mutex.Lock()
 		profileIssues := s.analyzeProfile(profile)
-		profile.MutexUnlock()
+		profile.mutex.Unlock()
 
 		issues = append(issues, profileIssues...)
 	}
@@ -407,7 +407,7 @@ func (s *Service) OptimizeBasedOnProfile(profileName string) ([]string, error) {
 	}
 
 	profile.mutex.Lock()
-	defer profile.Mutex.Unlock()
+	defer profile.mutex.Unlock()
 
 	var recommendations []string
 
@@ -455,26 +455,30 @@ func (s *Service) GetPerformanceReport() map[string]interface{} {
 	report["profiling_active"] = s.profiling
 	report["profiles"] = make(map[string]interface{})
 
+	profiles := make(map[string]interface{})
 	for name, profile := range s.profiles {
 		profile.mutex.Lock()
 		summary, _ := s.GetProfileSummary(name)
-		profile.MutexUnlock()
+		profile.mutex.Unlock()
 
-		report["profiles"].(name) = map[string]interface{}{
-			"enabled":    profile.Enabled,
-			"duration":  profile.Duration,
-			"samples":   len(profile.Samples),
-			"summary":   summary,
-			"hotspots":  len(profile.Hotspots),
+		profiles[name] = map[string]interface{}{
+			"enabled":  profile.Enabled,
+			"duration": profile.Duration,
+			"samples":  len(profile.Samples),
+			"summary":  summary,
+			"hotspots": len(profile.Hotspots),
 		}
 	}
+	report["profiles"] = profiles
 
 	// Add system-wide metrics
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
 	report["system"] = map[string]interface{}{
 		"goroutines": runtime.NumGoroutine(),
-		"heap_alloc": runtime.MemStats.HeapAlloc,
-		"heap_inuse": runtime.MemStats.HeapInuse,
-		"heap_sys":    runtime.MemStats.HeapSys,
+		"heap_alloc": memStats.HeapAlloc,
+		"heap_inuse": memStats.HeapInuse,
+		"heap_sys":   memStats.HeapSys,
 	}
 
 	return report
@@ -488,7 +492,7 @@ func (s *Service) ClearProfile(name string) error {
 	}
 
 	profile.mutex.Lock()
-	defer profile.MutexUnlock()
+	defer profile.mutex.Unlock()
 
 	profile.Samples = make([]Sample, 0)
 	profile.Metrics = make(map[string]float64)
@@ -496,7 +500,7 @@ func (s *Service) ClearProfile(name string) error {
 	profile.StartTime = time.Now()
 	profile.EndTime = time.Time{}
 
-	s.logger.Info("Cleared performance profile", "name", name)
+	s.logger.Info("Cleared performance profile", map[string]interface{}{"name": name})
 	return nil
 }
 
@@ -507,7 +511,7 @@ func (s *Service) DeleteProfile(name string) error {
 
 	if _, exists := s.profiles[name]; exists {
 		delete(s.profiles, name)
-		s.logger.Info("Deleted performance profile", "name", name)
+		s.logger.Info("Deleted performance profile", map[string]interface{}{"name": name})
 		return nil
 	}
 
@@ -522,7 +526,7 @@ func (s *Service) ExportProfile(name string) ([]byte, error) {
 	}
 
 	profile.mutex.Lock()
-	defer profile.Mutex.Unlock()
+	defer profile.mutex.Unlock()
 
 	data, err := json.MarshalIndent(profile, "", "  ")
 	if err != nil {
@@ -543,7 +547,7 @@ func (s *Service) ImportProfile(data []byte) error {
 	defer s.mutex.Unlock()
 
 	s.profiles[profile.Name] = &profile
-	s.logger.Info("Imported performance profile", "name", profile.Name)
+	s.logger.Info("Imported performance profile", map[string]interface{}{"name": profile.Name})
 
 	return nil
 }
@@ -596,7 +600,7 @@ func (s *Service) backgroundProfiler() {
 }
 
 // cleanupInactiveProfiles disables profiles that haven't been updated recently
-func (s *Profile) cleanupInactiveProfiles() {
+func (s *Service) cleanupInactiveProfiles() {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -610,7 +614,7 @@ func (s *Profile) cleanupInactiveProfiles() {
 		if lastActivity.IsZero() {
 			lastActivity = profile.StartTime
 		}
-		profile.MutexUnlock()
+		profile.mutex.Unlock()
 
 		// Disable if inactive for more than 5 minutes
 		if time.Since(lastActivity) > 5*time.Minute {
@@ -621,7 +625,7 @@ func (s *Profile) cleanupInactiveProfiles() {
 
 // updateHotspots updates performance hotspots based on samples
 func (s *Service) updateHotspots(profile *Profile, sample Sample) {
-	if sample.Metric != "function_call_time" || sample.Metric != "api_response_time" {
+	if sample.Metric != "function_call_time" && sample.Metric != "api_response_time" {
 		return
 	}
 
@@ -647,10 +651,10 @@ func (s *Service) updateHotspots(profile *Profile, sample Sample) {
 	if hotspot == nil {
 		// Create new hotspot
 		hotspot = &Hotspot{
-			Location:   location,
-			Function:   function,
-			Impact:     0,
-			TotalCalls: 0,
+			Location:    location,
+			Function:    function,
+			Impact:      0,
+			TotalCalls:  0,
 			AverageTime: sample.Value,
 			MaxTime:     sample.Value,
 		}
@@ -677,15 +681,15 @@ func (s *Service) analyzeProfile(profile *Profile) []PerformanceIssue {
 
 	// Check for high memory usage
 	if heapInuse, ok := profile.Metrics["heap_inuse"]; ok && heapInuse > 200*1024*1024 {
-	issues = append(issues, PerformanceIssue{
+		issues = append(issues, PerformanceIssue{
 			Type:        "memory",
 			Severity:    "warning",
 			Description: "High memory usage detected",
-			Location:   profile.Name,
-			Metric:     "heap_inuse",
-			Value:      heapInuse,
-			Threshold:  200 * 1024 * 1024,
-			Resolution: "Consider optimizing memory allocation patterns",
+			Location:    profile.Name,
+			Metric:      "heap_inuse",
+			Value:       heapInuse,
+			Threshold:   200 * 1024 * 1024,
+			Resolution:  "Consider optimizing memory allocation patterns",
 		})
 	}
 
@@ -695,11 +699,11 @@ func (s *Service) analyzeProfile(profile *Profile) []PerformanceIssue {
 			Type:        "concurrency",
 			Severity:    "warning",
 			Description: "High goroutine count detected",
-			Location:   profile.Name,
-			Metric:     "goroutine_count",
-			Value:      goroutineCount,
-			Threshold:  500,
-			Resolution: "Check for goroutine leaks",
+			Location:    profile.Name,
+			Metric:      "goroutine_count",
+			Value:       goroutineCount,
+			Threshold:   500,
+			Resolution:  "Check for goroutine leaks",
 		})
 	}
 
@@ -713,22 +717,49 @@ func (s *Service) captureCallStack() []Frame {
 	pc = pc[:n]
 
 	frames := make([]Frame, 0, n)
-	for _, pc := range pc {
-		fn := runtime.FuncForPC(pc)
+	for _, pcVal := range pc {
+		fn := runtime.FuncForPC(pcVal)
 		if fn == nil {
 			continue
 		}
 
-		file, line := fn.FileLine()
+		file, line := fn.FileLine(pcVal)
 		frames = append(frames, Frame{
 			Function: fn.Name(),
 			File:     file,
 			Line:     line,
-			Package:  runtime.FuncForPC(pc).PkgPath(),
+			Package:  extractPkgName(fn.Name()),
 		})
 	}
 
 	return frames
+}
+
+// extractPkgName extracts the package name from a fully qualified function name
+func extractPkgName(funcName string) string {
+	// funcName is like "github.com/user/repo/pkg/subpkg.FuncName"
+	lastSlash := -1
+	for i := len(funcName) - 1; i >= 0; i-- {
+		if funcName[i] == '/' {
+			lastSlash = i
+			break
+		}
+	}
+	if lastSlash == -1 {
+		return ""
+	}
+	afterSlash := funcName[lastSlash+1:]
+	dotIndex := -1
+	for i, c := range afterSlash {
+		if c == '.' {
+			dotIndex = i
+			break
+		}
+	}
+	if dotIndex == -1 {
+		return funcName[:lastSlash+1+len(afterSlash)]
+	}
+	return funcName[:lastSlash+1+dotIndex]
 }
 
 // max returns the maximum of two values

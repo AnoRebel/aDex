@@ -8,16 +8,20 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/creack/pty"
 	"aDex-UI/backend/utils"
+	"aDex-UI/internal/events"
+	"github.com/creack/pty"
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // Service handles terminal operations and emulation
 type Service struct {
-	platform    *utils.FeatureDetection
-	terminals   map[string]*Terminal
-	termLock    sync.RWMutex
-	nextID      int
+	platform  *utils.FeatureDetection
+	terminals map[string]*Terminal
+	termLock  sync.RWMutex
+	nextID    int
+	eventBus  events.IEventBus
+	wailsCtx  context.Context // Wails context for emitting frontend events
 }
 
 // NewService creates a new terminal service instance
@@ -29,18 +33,28 @@ func NewService() *Service {
 	}
 }
 
+// SetEventBus sets the event bus for the service
+func (s *Service) SetEventBus(eventBus events.IEventBus) {
+	s.eventBus = eventBus
+}
+
+// SetWailsContext sets the Wails context for emitting frontend events
+func (s *Service) SetWailsContext(ctx context.Context) {
+	s.wailsCtx = ctx
+}
+
 // Terminal represents a terminal session
 type Terminal struct {
-	ID       string
-	Width    int
-	Height   int
-	Command  *exec.Cmd
-	PTY      *os.File
-	Output   chan []byte
-	Input    chan []byte
-	Done     chan struct{}
+	ID         string
+	Width      int
+	Height     int
+	Command    *exec.Cmd
+	PTY        *os.File
+	Output     chan []byte
+	Input      chan []byte
+	Done       chan struct{}
 	WorkingDir string
-	mu       sync.RWMutex
+	mu         sync.RWMutex
 }
 
 // CreateTerminal creates a new terminal session
@@ -215,10 +229,21 @@ func (s *Service) readTerminalOutput(terminal *Terminal) {
 			data := make([]byte, n)
 			copy(data, buf[:n])
 
+			// Emit Wails event directly to frontend FIRST (non-blocking)
+			if s.wailsCtx != nil {
+				wailsRuntime.EventsEmit(s.wailsCtx, "terminal.output", map[string]interface{}{
+					"terminalId": terminal.ID,
+					"data":       data,
+				})
+			}
+
+			// Send to Go channel (may block if channel is full)
 			select {
 			case terminal.Output <- data:
 			case <-terminal.Done:
 				return
+			default:
+				// Channel full, skip Go-side delivery but Wails event was already sent
 			}
 		}
 	}

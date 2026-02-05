@@ -1,3 +1,6 @@
+//go:build windows
+// +build windows
+
 package terminal
 
 import (
@@ -6,12 +9,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 	"syscall"
+	"time"
 
 	"aDex-UI/internal/events"
 	"aDex-UI/internal/logger"
@@ -139,8 +141,9 @@ try {
 `
 
 	if err := os.WriteFile(t.commandFile, []byte(psScript), 0644); err != nil {
-		t.logger.Warn("Failed to create PowerShell helper script", err, map[string]interface{}{
-			"file": t.commandFile,
+		t.logger.Warn("Failed to create PowerShell helper script", map[string]interface{}{
+			"file":  t.commandFile,
+			"error": err.Error(),
 		})
 	}
 
@@ -151,8 +154,9 @@ powershell -ExecutionPolicy Bypass -File "%s" -ProcessId %%1
 `, t.commandFile)
 
 	if err := os.WriteFile(t.batchFile, []byte(batchScript), 0644); err != nil {
-		t.logger.Warn("Failed to create batch helper script", err, map[string]interface{}{
-			"file": t.batchFile,
+		t.logger.Warn("Failed to create batch helper script", map[string]interface{}{
+			"file":  t.batchFile,
+			"error": err.Error(),
 		})
 	}
 }
@@ -232,7 +236,7 @@ func (t *WindowsCWDTracker) RemoveSession(sessionID string) {
 		if session.MonitorProcess != nil {
 			if err := session.MonitorProcess.Kill(); err != nil {
 				t.logger.Warn("Failed to terminate monitor process", err, map[string]interface{}{
-					"session_id": sessionID,
+					"session_id":  sessionID,
 					"monitor_pid": session.MonitorProcess.Pid,
 				})
 			}
@@ -329,9 +333,9 @@ func (t *WindowsCWDTracker) createMonitorProcess(pid int, sessionID string) (*os
 				session.LastUpdate = time.Now()
 
 				t.logger.Info("Working directory changed (Windows)", map[string]interface{}{
-					"session_id":    sessionID,
-					"previous_cwd":  session.PreviousCWD,
-					"new_cwd":       cwd,
+					"session_id":   sessionID,
+					"previous_cwd": session.PreviousCWD,
+					"new_cwd":      cwd,
 				})
 
 				// Publish directory change event
@@ -565,10 +569,10 @@ func (t *WindowsCWDTracker) publishDirectoryChanged(sessionID, newCWD, previousC
 	err := t.eventBus.Publish(context.Background(), "terminal.directory.changed", data, "windows-cwd-tracker")
 	if err != nil {
 		t.logger.Error("Failed to publish directory changed event", err, map[string]interface{}{
-			"session_id":    sessionID,
-			"new_cwd":       newCWD,
-			"previous_cwd":  previousCWD,
-			"method":        method,
+			"session_id":   sessionID,
+			"new_cwd":      newCWD,
+			"previous_cwd": previousCWD,
+			"method":       method,
 		})
 	}
 }
@@ -586,7 +590,7 @@ func (t *WindowsCWDTracker) GetStats() map[string]interface{} {
 		"method":          "windows_detached",
 		"helper_files": map[string]interface{}{
 			"powershell_script": t.commandFile,
-			"batch_script":     t.batchFile,
+			"batch_script":      t.batchFile,
 		},
 	}
 
@@ -677,8 +681,8 @@ func (t *WindowsCWDTracker) Shutdown(ctx context.Context) error {
 		if session.MonitorProcess != nil {
 			if err := session.MonitorProcess.Kill(); err != nil {
 				t.logger.Warn("Failed to terminate monitor process", err, map[string]interface{}{
-					"session_id":   sessionID,
-					"monitor_pid":  session.MonitorProcess.Pid,
+					"session_id":  sessionID,
+					"monitor_pid": session.MonitorProcess.Pid,
 				})
 			}
 		}

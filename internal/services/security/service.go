@@ -3,7 +3,6 @@ package security
 import (
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"html"
 	"net/url"
@@ -32,26 +31,26 @@ const (
 
 // SecurityConfig holds security configuration
 type SecurityConfig struct {
-	MaxInputLength       int                `json:"maxInputLength"`
-	SanitizationLevel    SanitizationLevel  `json:"sanitizationLevel"`
-	AllowHTMLTags        bool               `json:"allowHTMLTags"`
-	AllowedTags          []string           `json:"allowedTags"`
-	AllowedAttributes    []string           `json:"allowedAttributes"`
-	BlockXSS             bool               `json:"blockXSS"`
-	BlockSQLInjection    bool               `json:"blockSQLInjection"`
-	BlockCSRF            bool               `json:"blockCSRF"`
-	RateLimitEnabled     bool               `json:"rateLimitEnabled"`
-	MaxRequestsPerMinute int                `json:"maxRequestsPerMinute"`
-	InputValidation      ValidationConfig   `json:"inputValidation"`
+	MaxInputLength       int               `json:"maxInputLength"`
+	SanitizationLevel    SanitizationLevel `json:"sanitizationLevel"`
+	AllowHTMLTags        bool              `json:"allowHTMLTags"`
+	AllowedTags          []string          `json:"allowedTags"`
+	AllowedAttributes    []string          `json:"allowedAttributes"`
+	BlockXSS             bool              `json:"blockXSS"`
+	BlockSQLInjection    bool              `json:"blockSQLInjection"`
+	BlockCSRF            bool              `json:"blockCSRF"`
+	RateLimitEnabled     bool              `json:"rateLimitEnabled"`
+	MaxRequestsPerMinute int               `json:"maxRequestsPerMinute"`
+	InputValidation      ValidationConfig  `json:"inputValidation"`
 }
 
 // ValidationConfig holds input validation settings
 type ValidationConfig struct {
 	RequireSecureHeaders bool     `json:"requireSecureHeaders"`
-	MaxURLLength        int      `json:"maxURLLength"`
-	AllowedProtocols    []string `json:"allowedProtocols"`
-	BlockReservedIPs    bool     `json:"blockReservedIPs"`
-	MaxFilenameLength   int      `json:"maxFilenameLength"`
+	MaxURLLength         int      `json:"maxURLLength"`
+	AllowedProtocols     []string `json:"allowedProtocols"`
+	BlockReservedIPs     bool     `json:"blockReservedIPs"`
+	MaxFilenameLength    int      `json:"maxFilenameLength"`
 }
 
 // ValidationResult contains the result of input validation
@@ -60,7 +59,7 @@ type ValidationResult struct {
 	Sanitized string   `json:"sanitized"`
 	Warnings  []string `json:"warnings"`
 	Errors    []string `json:"errors"`
-	RiskLevel int     `json:"riskLevel"` // 0-10
+	RiskLevel int      `json:"riskLevel"` // 0-10
 }
 
 // SecurityIssue represents a detected security issue
@@ -101,10 +100,10 @@ func (s *Service) GetDefaultConfig() *SecurityConfig {
 		MaxRequestsPerMinute: 60,
 		InputValidation: ValidationConfig{
 			RequireSecureHeaders: true,
-			MaxURLLength:        2048,
-			AllowedProtocols:    []string{"http", "https", "ws", "wss"},
-			BlockReservedIPs:    true,
-			MaxFilenameLength:   255,
+			MaxURLLength:         2048,
+			AllowedProtocols:     []string{"http", "https", "ws", "wss"},
+			BlockReservedIPs:     true,
+			MaxFilenameLength:    255,
 		},
 	}
 }
@@ -148,14 +147,14 @@ func (s *Service) SanitizeInput(input string, config *SecurityConfig) *Validatio
 		result.IsValid = false
 		result.Errors = append(result.Errors, "Potential XSS attack detected")
 		result.RiskLevel += 5
-		s.logger.Warn("XSS attempt blocked", "input", input[:min(len(input), 100)])
+		s.logger.Warn("XSS attempt blocked", map[string]interface{}{"input": input[:min(len(input), 100)]})
 	}
 
 	if config.BlockSQLInjection && s.detectSQLInjection(input) {
 		result.IsValid = false
 		result.Errors = append(result.Errors, "Potential SQL injection detected")
 		result.RiskLevel += 5
-		s.logger.Warn("SQL injection attempt blocked", "input", input[:min(len(input), 100)])
+		s.logger.Warn("SQL injection attempt blocked", map[string]interface{}{"input": input[:min(len(input), 100)]})
 	}
 
 	// Path traversal detection
@@ -163,7 +162,7 @@ func (s *Service) SanitizeInput(input string, config *SecurityConfig) *Validatio
 		result.IsValid = false
 		result.Errors = append(result.Errors, "Path traversal attempt detected")
 		result.RiskLevel += 4
-		s.logger.Warn("Path traversal attempt blocked", "input", input[:min(len(input), 100)])
+		s.logger.Warn("Path traversal attempt blocked", map[string]interface{}{"input": input[:min(len(input), 100)]})
 	}
 
 	// Command injection detection
@@ -171,7 +170,7 @@ func (s *Service) SanitizeInput(input string, config *SecurityConfig) *Validatio
 		result.IsValid = false
 		result.Errors = append(result.Errors, "Command injection attempt detected")
 		result.RiskLevel += 5
-		s.logger.Warn("Command injection attempt blocked", "input", input[:min(len(input), 100)])
+		s.logger.Warn("Command injection attempt blocked", map[string]interface{}{"input": input[:min(len(input), 100)]})
 	}
 
 	return result
@@ -229,7 +228,7 @@ func (s *Service) ValidateURL(rawURL string, config *SecurityConfig) *Validation
 		result.IsValid = false
 		result.Errors = append(result.Errors, "Suspicious URL pattern detected")
 		result.RiskLevel += 4
-		s.logger.Warn("Suspicious URL blocked", "url", rawURL)
+		s.logger.Warn("Suspicious URL blocked", map[string]interface{}{"url": rawURL})
 	}
 
 	result.Sanitized = parsedURL.String()
@@ -277,7 +276,7 @@ func (s *Service) ValidateFilename(filename string, config *SecurityConfig) *Val
 			result.IsValid = false
 			result.Errors = append(result.Errors, fmt.Sprintf("Dangerous character in filename: %s", char))
 			result.RiskLevel += 3
-			s.logger.Warn("Dangerous filename blocked", "filename", filename)
+			s.logger.Warn("Dangerous filename blocked", map[string]interface{}{"filename": filename})
 		}
 	}
 
@@ -452,7 +451,7 @@ func (s *Service) sanitizeStrict(input string, config *SecurityConfig) string {
 // sanitizeParanoid applies paranoid-level sanitization
 func (s *Service) sanitizeParanoid(input string, config *SecurityConfig) string {
 	// Allow only alphanumeric and basic punctuation
-	sanitized := regexp.MustCompile(`[^a-zA-Z0-9\s.,!?()@#$%^&*\-_=+\[\]{}'"` + "`]`).ReplaceAllString(input, "")
+	sanitized := regexp.MustCompile("[^a-zA-Z0-9\\s.,!?()@#$%^&*\\-_=+\\[\\]{}'\"`]").ReplaceAllString(input, "")
 	return html.EscapeString(sanitized)
 }
 

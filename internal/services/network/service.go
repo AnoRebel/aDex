@@ -3,126 +3,126 @@ package network
 import (
 	"context"
 	"fmt"
+	"net"
 	"sort"
 	"strings"
 	"sync"
-	"net"
 	"time"
 
-	"aDex-UI/internal/models"
 	"aDex-UI/internal/events"
+	"aDex-UI/internal/models"
 	"aDex-UI/internal/services/geoip"
 	networkLib "github.com/shirou/gopsutil/v3/net"
 )
 
 // NetworkService provides comprehensive network monitoring functionality
 type NetworkService struct {
-	eventBus       events.IEventBus
-	config         *NetworkServiceConfig
-	connections    map[string]*NetworkConnection
-	bandwidthData  map[string]*BandwidthData
-	alerts         []NetworkAlert
-	mutex          sync.RWMutex
-	isMonitoring   bool
-	lastUpdate     time.Time
-	geoipService   *geoip.GeoIPService
+	eventBus      events.IEventBus
+	config        *NetworkServiceConfig
+	connections   map[string]*NetworkConnection
+	bandwidthData map[string]*BandwidthData
+	alerts        []NetworkAlert
+	mutex         sync.RWMutex
+	isMonitoring  bool
+	lastUpdate    time.Time
+	geoipService  *geoip.GeoIPService
 }
 
 // NetworkServiceConfig contains configuration for the network service
 type NetworkServiceConfig struct {
-	RefreshInterval     time.Duration `json:"refreshInterval"`
-	EnableConnectionTracking bool     `json:"enableConnectionTracking"`
-	EnableBandwidthMonitoring bool    `json:"enableBandwidthMonitoring"`
-	EnableAlerts       bool          `json:"enableAlerts"`
-	MaxConnections      int           `json:"maxConnections"`
-	BandwidthHistorySize int          `json:"bandwidthHistorySize"`
-	AlertThresholds     *AlertThresholds `json:"alertThresholds"`
+	RefreshInterval           time.Duration    `json:"refreshInterval"`
+	EnableConnectionTracking  bool             `json:"enableConnectionTracking"`
+	EnableBandwidthMonitoring bool             `json:"enableBandwidthMonitoring"`
+	EnableAlerts              bool             `json:"enableAlerts"`
+	MaxConnections            int              `json:"maxConnections"`
+	BandwidthHistorySize      int              `json:"bandwidthHistorySize"`
+	AlertThresholds           *AlertThresholds `json:"alertThresholds"`
 }
 
 // AlertThresholds defines thresholds for network alerts
 type AlertThresholds struct {
-	BandwidthUsageMBps   float64 `json:"bandwidthUsageMBps"`   // MB/s
-	ConnectionCount      int     `json:"connectionCount"`
-	PacketLossPercent    float64 `json:"packetLossPercent"`
-	ErrorRatePercent     float64 `json:"errorRatePercent"`
-	HighLatencyMs        int     `json:"highLatencyMs"`
+	BandwidthUsageMBps float64 `json:"bandwidthUsageMBps"` // MB/s
+	ConnectionCount    int     `json:"connectionCount"`
+	PacketLossPercent  float64 `json:"packetLossPercent"`
+	ErrorRatePercent   float64 `json:"errorRatePercent"`
+	HighLatencyMs      int     `json:"highLatencyMs"`
 }
 
 // NetworkConnection represents an active network connection
 type NetworkConnection struct {
-	LocalAddr     string    `json:"localAddr"`
-	RemoteAddr    string    `json:"remoteAddr"`
-	State         string    `json:"state"`
-	PID           int       `json:"pid"`
-	ProcessName   string    `json:"processName"`
-	Protocol      string    `json:"protocol"`
-	BytesSent     uint64    `json:"bytesSent"`
-	BytesRecv     uint64    `json:"bytesRecv"`
-	Established   time.Time `json:"established"`
-	LastActivity  time.Time `json:"lastActivity"`
+	LocalAddr    string    `json:"localAddr"`
+	RemoteAddr   string    `json:"remoteAddr"`
+	State        string    `json:"state"`
+	PID          int       `json:"pid"`
+	ProcessName  string    `json:"processName"`
+	Protocol     string    `json:"protocol"`
+	BytesSent    uint64    `json:"bytesSent"`
+	BytesRecv    uint64    `json:"bytesRecv"`
+	Established  time.Time `json:"established"`
+	LastActivity time.Time `json:"lastActivity"`
 }
 
 // BandwidthData tracks bandwidth usage over time
 type BandwidthData struct {
-	InterfaceName string                 `json:"interfaceName"`
-	Timestamps    []time.Time            `json:"timestamps"`
-	BytesSent     []uint64               `json:"bytesSent"`
-	BytesRecv     []uint64               `json:"bytesRecv"`
-	PacketsSent   []uint64               `json:"packetsSent"`
-	PacketsRecv   []uint64               `json:"packetsRecv"`
-	CurrentRate   *BandwidthRate         `json:"currentRate"`
-	AverageRate   *BandwidthRate         `json:"averageRate"`
-	PeakRate      *BandwidthRate         `json:"peakRate"`
+	InterfaceName string         `json:"interfaceName"`
+	Timestamps    []time.Time    `json:"timestamps"`
+	BytesSent     []uint64       `json:"bytesSent"`
+	BytesRecv     []uint64       `json:"bytesRecv"`
+	PacketsSent   []uint64       `json:"packetsSent"`
+	PacketsRecv   []uint64       `json:"packetsRecv"`
+	CurrentRate   *BandwidthRate `json:"currentRate"`
+	AverageRate   *BandwidthRate `json:"averageRate"`
+	PeakRate      *BandwidthRate `json:"peakRate"`
 }
 
 // BandwidthRate represents bandwidth usage rate
 type BandwidthRate struct {
-	UploadBps   float64 `json:"uploadBps"`   // Bytes per second
-	DownloadBps float64 `json:"downloadBps"` // Bytes per second
-	UploadMbps  float64 `json:"uploadMbps"`  // Megabits per second
+	UploadBps    float64 `json:"uploadBps"`    // Bytes per second
+	DownloadBps  float64 `json:"downloadBps"`  // Bytes per second
+	UploadMbps   float64 `json:"uploadMbps"`   // Megabits per second
 	DownloadMbps float64 `json:"downloadMbps"` // Megabits per second
 }
 
 // NetworkAlert represents a network-related alert
 type NetworkAlert struct {
-	ID          string                 `json:"id"`
-	Type        string                 `json:"type"`
-	Severity    string                 `json:"severity"`
-	Message     string                 `json:"message"`
-	Interface   string                 `json:"interface"`
-	Threshold   float64                `json:"threshold"`
-	Current     float64                `json:"current"`
-	Timestamp   time.Time              `json:"timestamp"`
-	Resolved    bool                   `json:"resolved"`
-	ResolvedAt  *time.Time             `json:"resolvedAt,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	ID         string                 `json:"id"`
+	Type       string                 `json:"type"`
+	Severity   string                 `json:"severity"`
+	Message    string                 `json:"message"`
+	Interface  string                 `json:"interface"`
+	Threshold  float64                `json:"threshold"`
+	Current    float64                `json:"current"`
+	Timestamp  time.Time              `json:"timestamp"`
+	Resolved   bool                   `json:"resolved"`
+	ResolvedAt *time.Time             `json:"resolvedAt,omitempty"`
+	Metadata   map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // NetworkStatistics represents comprehensive network statistics
 type NetworkStatistics struct {
-	TotalConnections    int                    `json:"totalConnections"`
-	ActiveConnections   int                    `json:"activeConnections"`
-	TotalBytesSent      uint64                 `json:"totalBytesSent"`
-	TotalBytesRecv      uint64                 `json:"totalBytesRecv"`
-	TotalPacketsSent    uint64                 `json:"totalPacketsSent"`
-	TotalPacketsRecv    uint64                 `json:"totalPacketsRecv"`
-	PacketLossRate      float64                `json:"packetLossRate"`
-	ErrorRate           float64                `json:"errorRate"`
-	AverageLatency      time.Duration          `json:"averageLatency"`
-	TopConnections      []*NetworkConnection   `json:"topConnections"`
-	InterfaceStats      map[string]interface{} `json:"interfaceStats"`
-	Timestamp           time.Time              `json:"timestamp"`
+	TotalConnections  int                    `json:"totalConnections"`
+	ActiveConnections int                    `json:"activeConnections"`
+	TotalBytesSent    uint64                 `json:"totalBytesSent"`
+	TotalBytesRecv    uint64                 `json:"totalBytesRecv"`
+	TotalPacketsSent  uint64                 `json:"totalPacketsSent"`
+	TotalPacketsRecv  uint64                 `json:"totalPacketsRecv"`
+	PacketLossRate    float64                `json:"packetLossRate"`
+	ErrorRate         float64                `json:"errorRate"`
+	AverageLatency    time.Duration          `json:"averageLatency"`
+	TopConnections    []*NetworkConnection   `json:"topConnections"`
+	InterfaceStats    map[string]interface{} `json:"interfaceStats"`
+	Timestamp         time.Time              `json:"timestamp"`
 }
 
 // DefaultNetworkServiceConfig returns default configuration
 func DefaultNetworkServiceConfig() *NetworkServiceConfig {
 	return &NetworkServiceConfig{
-		RefreshInterval:          2000 * time.Millisecond,
-		EnableConnectionTracking: true,
+		RefreshInterval:           2000 * time.Millisecond,
+		EnableConnectionTracking:  true,
 		EnableBandwidthMonitoring: true,
-		EnableAlerts:             true,
-		MaxConnections:           1000,
-		BandwidthHistorySize:     300, // 5 minutes at 2-second intervals
+		EnableAlerts:              true,
+		MaxConnections:            1000,
+		BandwidthHistorySize:      300, // 5 minutes at 2-second intervals
 		AlertThresholds: &AlertThresholds{
 			BandwidthUsageMBps: 100.0, // 100 MB/s
 			ConnectionCount:    500,
@@ -171,6 +171,18 @@ func (s *NetworkService) GetNetworkMetrics(ctx context.Context) (*models.Network
 		return nil, fmt.Errorf("failed to get network interfaces: %w", err)
 	}
 
+	// Get IO counters for statistics
+	ioCounters, err := networkLib.IOCountersWithContext(ctx, true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get network IO counters: %w", err)
+	}
+
+	// Build a map of IO counters by interface name
+	ioCounterMap := make(map[string]networkLib.IOCountersStat)
+	for _, counter := range ioCounters {
+		ioCounterMap[counter.Name] = counter
+	}
+
 	var networkInterfaces []models.NetworkInterface
 	var totalSent, totalRecv uint64
 
@@ -180,26 +192,46 @@ func (s *NetworkService) GetNetworkMetrics(ctx context.Context) (*models.Network
 			continue
 		}
 
+		// Check if interface is up by looking for "up" in flags
+		isUp := false
+		for _, flag := range iface.Flags {
+			if strings.ToLower(flag) == "up" {
+				isUp = true
+				break
+			}
+		}
+
+		// Get IO counters for this interface
+		counter, hasCounter := ioCounterMap[iface.Name]
+
+		// Convert addresses to string slice
+		var ipAddresses []string
+		for _, addr := range iface.Addrs {
+			ipAddresses = append(ipAddresses, addr.Addr)
+		}
+
 		networkIface := models.NetworkInterface{
 			Name:        iface.Name,
-			IsUp:        iface.Flags&net.FlagUp != 0,
-			BytesSent:   iface.BytesSent,
-			BytesRecv:   iface.BytesRecv,
-			PacketsSent: iface.PacketsSent,
-			PacketsRecv: iface.PacketsRecv,
-			Errin:       iface.Errin,
-			Errout:      iface.Errout,
-			Dropin:      iface.Dropin,
-			Dropout:     iface.Dropout,
-			IPAddresses: iface.Addrs,
+			IsUp:        isUp,
 			MAC:         iface.HardwareAddr,
-			Speed:       iface.Speed,
 			MTU:         uint64(iface.MTU),
+			IPAddresses: ipAddresses,
+		}
+
+		if hasCounter {
+			networkIface.BytesSent = counter.BytesSent
+			networkIface.BytesRecv = counter.BytesRecv
+			networkIface.PacketsSent = counter.PacketsSent
+			networkIface.PacketsRecv = counter.PacketsRecv
+			networkIface.Errin = counter.Errin
+			networkIface.Errout = counter.Errout
+			networkIface.Dropin = counter.Dropin
+			networkIface.Dropout = counter.Dropout
+			totalSent += counter.BytesSent
+			totalRecv += counter.BytesRecv
 		}
 
 		networkInterfaces = append(networkInterfaces, networkIface)
-		totalSent += iface.BytesSent
-		totalRecv += iface.BytesRecv
 
 		// Update bandwidth data if enabled
 		if s.config.EnableBandwidthMonitoring {
@@ -221,7 +253,7 @@ func (s *NetworkService) GetNetworkMetrics(ctx context.Context) (*models.Network
 		s.eventBus.Publish(ctx, events.NetworkUpdated, map[string]interface{}{
 			"metrics":   metrics,
 			"timestamp": time.Now(),
-		})
+		}, "network-service")
 	}
 
 	return metrics, nil
@@ -338,7 +370,7 @@ func (s *NetworkService) GetStatistics(ctx context.Context) (*NetworkStatistics,
 		s.eventBus.Publish(ctx, "network.statistics.updated", map[string]interface{}{
 			"statistics": stats,
 			"timestamp":  time.Now(),
-		})
+		}, "network-service")
 	}
 
 	return stats, nil
@@ -518,7 +550,7 @@ func (s *NetworkService) updateConnections(ctx context.Context) error {
 	// This is a placeholder - in a real implementation, you would use
 	// platform-specific APIs to get actual connection information
 	// For now, we'll maintain a simple connection tracking system
-	
+
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -588,11 +620,11 @@ func (s *NetworkService) createAlert(alertType, message, severity, details, inte
 
 	// Emit alert event if event bus is available
 	if s.eventBus != nil {
-		s.eventBus.Publish(ctx, events.SystemAlert, map[string]interface{}{
-			"alert":    alert,
-			"type":     "network",
+		s.eventBus.Publish(context.Background(), events.SystemAlert, map[string]interface{}{
+			"alert":     alert,
+			"type":      "network",
 			"timestamp": time.Now(),
-		})
+		}, "network-service")
 	}
 
 	// Keep only last 100 alerts
@@ -614,10 +646,10 @@ func (s *NetworkService) ResolveAlert(alertID string) error {
 
 			// Emit resolved event if event bus is available
 			if s.eventBus != nil {
-				s.eventBus.Publish(ctx, "network.alert.resolved", map[string]interface{}{
+				s.eventBus.Publish(context.Background(), "network.alert.resolved", map[string]interface{}{
 					"alert":     s.alerts[i],
 					"timestamp": now,
-				})
+				}, "network-service")
 			}
 
 			return nil
@@ -808,11 +840,11 @@ func (s *NetworkService) GetConnectionsWithGeoIP(ctx context.Context) ([]*models
 						// Cache is updated automatically by the GeoIP service
 						// Emit event to notify frontend
 						if s.eventBus != nil {
-							s.eventBus.Emit("network:geoip-updated", map[string]interface{}{
+							s.eventBus.Publish(context.Background(), "network:geoip-updated", map[string]interface{}{
 								"connection": conn,
 								"geoip":      freshData,
 								"timestamp":  time.Now(),
-							})
+							}, "network-service")
 						}
 					}
 				}()

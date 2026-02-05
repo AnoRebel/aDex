@@ -16,16 +16,16 @@ import (
 
 // Service manages terminal color schemes
 type Service struct {
-	schemes       map[string]*models.ColorScheme
+	schemes        map[string]*models.ColorScheme
 	builtInSchemes map[string]*models.ColorScheme
-	config        *models.ColorSchemeConfig
-	eventBus      *events.EventBus
-	logger        *logger.Logger
-	mu            sync.RWMutex
-	ctx           context.Context
-	cancel        context.CancelFunc
-	configPath    string
-	schemesDir    string
+	config         *models.ColorSchemeConfig
+	eventBus       events.IEventBus
+	logger         *logger.Logger
+	mu             sync.RWMutex
+	ctx            context.Context
+	cancel         context.CancelFunc
+	configPath     string
+	schemesDir     string
 }
 
 // NewService creates a new color scheme service
@@ -89,9 +89,9 @@ func (s *Service) Initialize(ctx context.Context) error {
 	s.mergeSchemes()
 
 	s.logger.Info("Color scheme service initialized successfully", map[string]interface{}{
-		"total_schemes": len(s.schemes),
+		"total_schemes":   len(s.schemes),
 		"builtin_schemes": len(s.builtInSchemes),
-		"user_schemes": len(s.config.UserSchemes),
+		"user_schemes":    len(s.config.UserSchemes),
 	})
 
 	return nil
@@ -405,7 +405,7 @@ func (s *Service) ExportScheme(exportConfig *models.ColorSchemeExport) error {
 	// This would implement export functionality to various formats
 	// For now, it's a placeholder
 	s.logger.Info("Color scheme export requested", map[string]interface{}{
-		"format": exportConfig.Format,
+		"format":  exportConfig.Format,
 		"schemes": exportConfig.SchemeIDs,
 	})
 
@@ -431,7 +431,7 @@ func (s *Service) GetSchemePreview(id string) (*models.ColorSchemePreview, error
 	preview := &models.ColorSchemePreview{
 		SchemeID: id,
 		Name:     scheme.Name,
-		Colors:   map[string]string{
+		Colors: map[string]string{
 			"background": scheme.Colors.Background,
 			"foreground": scheme.Colors.Foreground,
 			"cursor":     scheme.Colors.Cursor,
@@ -488,15 +488,15 @@ func (s *Service) ensureDirectories() error {
 
 func (s *Service) initializeBuiltInSchemes() {
 	s.builtInSchemes = map[string]*models.ColorScheme{
-		"default-dark": s.createDefaultDarkScheme(),
-		"default-light": s.createDefaultLightScheme(),
-		"solarized-dark": s.createSolarizedDarkScheme(),
+		"default-dark":    s.createDefaultDarkScheme(),
+		"default-light":   s.createDefaultLightScheme(),
+		"solarized-dark":  s.createSolarizedDarkScheme(),
 		"solarized-light": s.createSolarizedLightScheme(),
-		"dracula": s.createDraculaScheme(),
-		"monokai": s.createMonokaiScheme(),
-		"nord": s.createNordScheme(),
-		"gruvbox-dark": s.createGruvboxDarkScheme(),
-		"gruvbox-light": s.createGruvboxLightScheme(),
+		"dracula":         s.createDraculaScheme(),
+		"monokai":         s.createMonokaiScheme(),
+		"nord":            s.createNordScheme(),
+		"gruvbox-dark":    s.createGruvboxDarkScheme(),
+		"gruvbox-light":   s.createGruvboxLightScheme(),
 	}
 }
 
@@ -612,7 +612,7 @@ Color palette:
 $ ls -la
 drwxr-xr-x  5 user group  160 Jan 15 10:30 \x1b[38;2;%smdirectory\x1b[0m
 -rw-r--r--  1 user group 1024 Jan 15 10:30 \x1b[38;2;%sfile.txt\x1b[0m
--rwxr-xr-x  1 user group 2048 Jan 15 10:30 \x1b[38;2;%msexecutable\x1b[0m`,
+-rwxr-xr-x  1 user group 2048 Jan 15 10:30 \x1b[38;2;%sexecutable\x1b[0m`,
 		scheme.Colors.Foreground,
 		scheme.Name,
 		scheme.Colors.Foreground,

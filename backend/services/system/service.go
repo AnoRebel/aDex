@@ -3,28 +3,32 @@ package system
 import (
 	"context"
 	"fmt"
+	"os/user"
+	"sort"
+	"strconv"
 	"time"
 
+	"aDex-UI/backend/utils"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/shirou/gopsutil/v3/host"
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/shirou/gopsutil/v3/net"
-	"aDex-UI/backend/utils"
+	"github.com/shirou/gopsutil/v3/process"
 )
 
 // Service handles system monitoring and operations
 type Service struct {
-	platform    *utils.FeatureDetection
+	platform     *utils.FeatureDetection
 	isMonitoring bool
-	stopChan    chan struct{}
+	stopChan     chan struct{}
 }
 
 // NewService creates a new system service instance
 func NewService() *Service {
 	return &Service{
-		platform:  utils.DetectPlatform(),
-		stopChan:  make(chan struct{}),
+		platform: utils.DetectPlatform(),
+		stopChan: make(chan struct{}),
 	}
 }
 
@@ -113,7 +117,16 @@ func (s *Service) GetSystemInfo(ctx context.Context) (*SystemInfo, error) {
 	}, nil
 }
 
-// GetCPUUsage retrieves current CPU usage
+// CPUInfo represents CPU usage information including per-core data
+type CPUInfo struct {
+	Usage     float64   `json:"usage"`     // Overall CPU usage percentage
+	Cores     []float64 `json:"cores"`     // Per-core usage percentages
+	CoreCount int       `json:"coreCount"` // Number of logical cores
+	ModelName string    `json:"modelName"` // CPU model name
+	Frequency float64   `json:"frequency"` // CPU frequency in MHz
+}
+
+// GetCPUUsage retrieves current CPU usage (legacy - returns single value)
 func (s *Service) GetCPUUsage(ctx context.Context) (float64, error) {
 	percent, err := cpu.PercentWithContext(ctx, time.Second, false)
 	if err != nil {
@@ -123,6 +136,54 @@ func (s *Service) GetCPUUsage(ctx context.Context) (float64, error) {
 		return percent[0], nil
 	}
 	return 0.0, nil
+}
+
+// GetCPUInfo retrieves detailed CPU information including per-core usage
+func (s *Service) GetCPUInfo(ctx context.Context) (*CPUInfo, error) {
+	// Get overall CPU usage
+	overallPercent, err := cpu.PercentWithContext(ctx, time.Millisecond*500, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get overall CPU usage: %w", err)
+	}
+
+	// Get per-core CPU usage
+	corePercent, err := cpu.PercentWithContext(ctx, time.Millisecond*500, true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get per-core CPU usage: %w", err)
+	}
+
+	// Get CPU info (model, frequency, etc.)
+	cpuInfos, err := cpu.InfoWithContext(ctx)
+	if err != nil {
+		// Continue without CPU info - not critical
+		cpuInfos = nil
+	}
+
+	// Get logical core count
+	coreCount, err := cpu.CountsWithContext(ctx, true)
+	if err != nil {
+		coreCount = len(corePercent)
+	}
+
+	var modelName string
+	var frequency float64
+	if len(cpuInfos) > 0 {
+		modelName = cpuInfos[0].ModelName
+		frequency = cpuInfos[0].Mhz
+	}
+
+	var overallUsage float64
+	if len(overallPercent) > 0 {
+		overallUsage = overallPercent[0]
+	}
+
+	return &CPUInfo{
+		Usage:     overallUsage,
+		Cores:     corePercent,
+		CoreCount: coreCount,
+		ModelName: modelName,
+		Frequency: frequency,
+	}, nil
 }
 
 // GetMemoryUsage retrieves current memory usage
@@ -249,4 +310,118 @@ func (s *Service) collectMetrics(ctx context.Context) {
 	_, _ = s.GetCPUUsage(ctx)
 	_, _ = s.GetMemoryUsage(ctx)
 	_, _ = s.GetDiskUsage(ctx)
+}
+
+// ProcessInfo represents process information
+type ProcessInfo struct {
+	PID           int     `json:"pid"`
+	Name          string  `json:"name"`
+	Command       string  `json:"command"`
+	User          string  `json:"user"`
+	Status        string  `json:"status"`
+	CPUPercent    float64 `json:"cpuPercent"`
+	MemoryPercent float64 `json:"memoryPercent"`
+	MemoryRSS     uint64  `json:"memoryRss"`
+	NumThreads    int     `json:"numThreads"`
+}
+
+// GetTopProcesses returns top processes by CPU or memory usage
+func (s *Service) GetTopProcesses(ctx context.Context, metric string, limit int) ([]ProcessInfo, error) {
+	processes, err := process.ProcessesWithContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get processes: %w", err)
+	}
+
+	var processInfos []ProcessInfo
+	for _, p := range processes {
+		info, err := s.getProcessInfo(ctx, p)
+		if err != nil {
+			continue
+		}
+		processInfos = append(processInfos, info)
+	}
+
+	// Sort by the specified metric
+	switch metric {
+	case "memory":
+		sort.Slice(processInfos, func(i, j int) bool {
+			return processInfos[i].MemoryPercent > processInfos[j].MemoryPercent
+		})
+	default: // default to CPU
+		sort.Slice(processInfos, func(i, j int) bool {
+			return processInfos[i].CPUPercent > processInfos[j].CPUPercent
+		})
+	}
+
+	// Limit results
+	if limit > 0 && len(processInfos) > limit {
+		processInfos = processInfos[:limit]
+	}
+
+	return processInfos, nil
+}
+
+// getProcessInfo converts a gopsutil process to our model
+func (s *Service) getProcessInfo(ctx context.Context, p *process.Process) (ProcessInfo, error) {
+	pid := p.Pid
+
+	name, err := p.NameWithContext(ctx)
+	if err != nil {
+		name = "unknown"
+	}
+
+	cmdline, err := p.CmdlineWithContext(ctx)
+	if err != nil {
+		cmdline = name
+	}
+
+	username := ""
+	uids, err := p.UidsWithContext(ctx)
+	if err == nil && len(uids) > 0 {
+		if u, err := user.LookupId(strconv.Itoa(int(uids[0]))); err == nil {
+			username = u.Username
+		}
+	}
+
+	statusSlice, err := p.StatusWithContext(ctx)
+	var status string
+	if err != nil {
+		status = "unknown"
+	} else if len(statusSlice) > 0 {
+		status = statusSlice[0]
+	} else {
+		status = "unknown"
+	}
+
+	cpuPercent, err := p.CPUPercentWithContext(ctx)
+	if err != nil {
+		cpuPercent = 0
+	}
+
+	memInfo, err := p.MemoryInfoWithContext(ctx)
+	if err != nil {
+		memInfo = &process.MemoryInfoStat{}
+	}
+
+	memPercent, err := p.MemoryPercentWithContext(ctx)
+	if err != nil {
+		memPercent = 0
+	}
+
+	numThreads, err := p.NumThreadsWithContext(ctx)
+	if err != nil {
+		numThreads = 0
+	}
+
+	return ProcessInfo{
+		PID:           int(pid),
+		Name:          name,
+		Command:       cmdline,
+		User:          username,
+		Status:        status,
+		CPUPercent:    cpuPercent,
+		MemoryPercent: float64(memPercent),
+		MemoryRSS:     memInfo.RSS,
+		NumThreads:    int(numThreads),
+	}, nil
 }

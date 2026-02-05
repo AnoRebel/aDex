@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -31,16 +30,16 @@ type CWDTracker struct {
 
 // CWDTrackingSession tracks CWD for a specific terminal session
 type CWDTrackingSession struct {
-	SessionID      string
-	CurrentCWD     string
-	PreviousCWD    string
-	PTY            *PTY
-	LastUpdate     time.Time
-	IsTracking     bool
-	CommandBuffer  []byte
-	PromptPattern  *regexp.Regexp
-	ShellType      string
-	mutex          sync.RWMutex
+	SessionID     string
+	CurrentCWD    string
+	PreviousCWD   string
+	PTY           *PTY
+	LastUpdate    time.Time
+	IsTracking    bool
+	CommandBuffer []byte
+	PromptPattern *regexp.Regexp
+	ShellType     string
+	mutex         sync.RWMutex
 }
 
 // CWDTrackingConfig holds configuration for CWD tracking
@@ -107,9 +106,9 @@ func (t *CWDTracker) Initialize(ctx context.Context) error {
 	// Initialize Windows tracker if available
 	if t.windowsTracker != nil {
 		if err := t.windowsTracker.Initialize(ctx); err != nil {
-			t.logger.Warn("Failed to initialize Windows CWD tracker", err, nil)
+			t.logger.Warn("Failed to initialize Windows CWD tracker", map[string]interface{}{"error": err.Error()})
 		} else {
-			t.logger.Info("Windows CWD tracker initialized successfully")
+			t.logger.Info("Windows CWD tracker initialized successfully", nil)
 		}
 	}
 
@@ -262,7 +261,7 @@ func (t *CWDTracker) processCommandBuffer(session *CWDTrackingSession) {
 	// Keep the incomplete last line in buffer
 	if len(lines) > 1 {
 		// Process all complete lines
-		for i, line := range lines[:len(lines)-1] {
+		for _, line := range lines[:len(lines)-1] {
 			t.processCommandLine(session, line)
 		}
 
@@ -324,11 +323,12 @@ func (t *CWDTracker) processDirectoryChangeCommand(session *CWDTrackingSession, 
 	}
 
 	if err != nil {
-		t.logger.Warn("Failed to resolve new working directory", err, map[string]interface{}{
-			"session_id":   session.SessionID,
-			"command":      commandLine,
-			"target_path":  targetPath,
-			"current_cwd":  session.CurrentCWD,
+		t.logger.Warn("Failed to resolve new working directory", map[string]interface{}{
+			"error":       err.Error(),
+			"session_id":  session.SessionID,
+			"command":     commandLine,
+			"target_path": targetPath,
+			"current_cwd": session.CurrentCWD,
 		})
 		return
 	}
@@ -336,9 +336,9 @@ func (t *CWDTracker) processDirectoryChangeCommand(session *CWDTrackingSession, 
 	// Verify the directory exists
 	if _, err := os.Stat(newCWD); os.IsNotExist(err) {
 		t.logger.Debug("Target directory does not exist", map[string]interface{}{
-			"session_id":   session.SessionID,
-			"target_path":  newCWD,
-			"command":      commandLine,
+			"session_id":  session.SessionID,
+			"target_path": newCWD,
+			"command":     commandLine,
 		})
 		return
 	}
@@ -350,10 +350,10 @@ func (t *CWDTracker) processDirectoryChangeCommand(session *CWDTrackingSession, 
 		session.LastUpdate = time.Now()
 
 		t.logger.Info("Working directory changed", map[string]interface{}{
-			"session_id":    session.SessionID,
-			"previous_cwd":  session.PreviousCWD,
-			"new_cwd":       newCWD,
-			"command":       commandLine,
+			"session_id":   session.SessionID,
+			"previous_cwd": session.PreviousCWD,
+			"new_cwd":      newCWD,
+			"command":      commandLine,
 		})
 
 		// Publish directory change event
@@ -409,9 +409,9 @@ func (t *CWDTracker) handleExecCommand(session *CWDTrackingSession, line string,
 				session.PromptPattern = t.createPromptPattern(newShellType)
 
 				t.logger.Info("Shell type changed after exec", map[string]interface{}{
-					"session_id":  session.SessionID,
-					"old_shell":   session.ShellType,
-					"new_shell":   newShellType,
+					"session_id": session.SessionID,
+					"old_shell":  session.ShellType,
+					"new_shell":  newShellType,
 				})
 			}
 		}
@@ -517,7 +517,8 @@ func (t *CWDTracker) checkCWDViaPTY(session *CWDTrackingSession) {
 
 	// Write the command to the PTY
 	if err := session.PTY.Write(pwdCommand); err != nil {
-		t.logger.Warn("Failed to write pwd command to PTY", err, map[string]interface{}{
+		t.logger.Warn("Failed to write pwd command to PTY", map[string]interface{}{
+			"error":      err.Error(),
 			"session_id": session.SessionID,
 		})
 		return
@@ -586,10 +587,10 @@ func (t *CWDTracker) publishDirectoryChanged(sessionID, newCWD, previousCWD, com
 	err := t.eventBus.Publish(context.Background(), "terminal.directory.changed", data, "cwd-tracker")
 	if err != nil {
 		t.logger.Error("Failed to publish directory changed event", err, map[string]interface{}{
-			"session_id":    sessionID,
-			"new_cwd":       newCWD,
-			"previous_cwd":  previousCWD,
-			"command":       command,
+			"session_id":   sessionID,
+			"new_cwd":      newCWD,
+			"previous_cwd": previousCWD,
+			"command":      command,
 		})
 	}
 }
@@ -629,7 +630,7 @@ func (t *CWDTracker) Shutdown(ctx context.Context) error {
 	// Shutdown Windows tracker if available
 	if t.windowsTracker != nil {
 		if err := t.windowsTracker.Shutdown(ctx); err != nil {
-			t.logger.Warn("Failed to shutdown Windows CWD tracker", err, nil)
+			t.logger.Warn("Failed to shutdown Windows CWD tracker", map[string]interface{}{"error": err.Error()})
 		}
 	}
 

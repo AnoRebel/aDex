@@ -14,7 +14,6 @@ import (
 
 	"aDex-UI/internal/events"
 	"aDex-UI/internal/models"
-	"github.com/djherbis/atime"
 )
 
 // Service manages audio effects and sound playback
@@ -23,7 +22,7 @@ type Service struct {
 	config ServiceConfig
 
 	// Audio state
-	settings       *models.AudioSettings
+	settings      *models.AudioSettings
 	mu            sync.RWMutex
 	soundpacks    map[string]*models.Soundpack
 	audioEvents   map[string]*models.AudioEvent
@@ -37,7 +36,7 @@ type Service struct {
 	audioPlayers  map[string]Player
 
 	// Event system
-	eventBus *events.EventBus
+	eventBus events.IEventBus
 
 	// Background processing
 	stopChan chan struct{}
@@ -85,16 +84,16 @@ func DefaultServiceConfig() ServiceConfig {
 // NewService creates a new audio service with the given configuration
 func NewService(config ServiceConfig, eventBus *events.EventBus) *Service {
 	service := &Service{
-		config:       config,
-		settings:     models.DefaultAudioSettings(),
-		soundpacks:   make(map[string]*models.Soundpack),
-		audioEvents:  make(map[string]*models.AudioEvent),
+		config:        config,
+		settings:      models.DefaultAudioSettings(),
+		soundpacks:    make(map[string]*models.Soundpack),
+		audioEvents:   make(map[string]*models.AudioEvent),
 		eventMappings: models.DefaultEventMappings(),
-		stats:        &models.AudioStats{
-			EventsPlayed:      make(map[string]int),
+		stats: &models.AudioStats{
+			EventsPlayed:     make(map[string]int),
 			CategoriesPlayed: make(map[string]int),
-			Settings:          make(map[string]interface{}),
-			GeneratedAt:       time.Now(),
+			Settings:         make(map[string]interface{}),
+			GeneratedAt:      time.Now(),
 		},
 		playbackQueue: make(chan string, config.MaxEventQueue),
 		audioPlayers:  make(map[string]Player),
@@ -269,7 +268,7 @@ func (s *Service) loadSoundpacksFromDirectory() error {
 			return nil
 		}
 
-		if !d.Name() {
+		if d.Name() == "" {
 			return nil
 		}
 
@@ -394,10 +393,10 @@ func (s *Service) UpdateSettings(settings *models.AudioSettings) error {
 
 	// Emit settings changed event
 	if s.eventBus != nil {
-		s.eventBus.Emit("audio:settings_changed", map[string]interface{}{
-			"settings": settings,
+		s.eventBus.Publish(context.Background(), "audio:settings_changed", map[string]interface{}{
+			"settings":  settings,
 			"timestamp": time.Now(),
-		})
+		}, "audio")
 	}
 
 	return nil
@@ -526,7 +525,7 @@ func (s *Service) GetPlaybackStatus() *models.AudioPlaybackStatus {
 	}
 
 	return &models.AudioPlaybackStatus{
-		IsPlaying:       s.isPlaying,
+		IsPlaying:        s.isPlaying,
 		CurrentEvent:     s.currentEvent,
 		Volume:           float64(s.settings.Volume) / 100.0,
 		Muted:            s.settings.Muted,
@@ -546,14 +545,14 @@ func (s *Service) GetStats() *models.AudioStats {
 
 	// Add current settings
 	stats.Settings = map[string]interface{}{
-		"enabled":            s.settings.Enabled,
-		"volume":             s.settings.Volume,
-		"muted":              s.settings.Muted,
-		"soundpack":          s.settings.Soundpack,
-		"global_volume":      s.settings.GlobalVolume,
-		"effects_volume":     s.settings.EffectsVolume,
-		"notification_volume": s.settings.NotificationVolume,
-		"auto_play":          s.settings.AutoPlay,
+		"enabled":              s.settings.Enabled,
+		"volume":               s.settings.Volume,
+		"muted":                s.settings.Muted,
+		"soundpack":            s.settings.Soundpack,
+		"global_volume":        s.settings.GlobalVolume,
+		"effects_volume":       s.settings.EffectsVolume,
+		"notification_volume":  s.settings.NotificationVolume,
+		"auto_play":            s.settings.AutoPlay,
 		"enabled_events_count": len(s.settings.EnabledEvents),
 	}
 
@@ -566,10 +565,10 @@ func (s *Service) ResetStats() error {
 	defer s.mu.Unlock()
 
 	s.stats = &models.AudioStats{
-		EventsPlayed:      make(map[string]int),
+		EventsPlayed:     make(map[string]int),
 		CategoriesPlayed: make(map[string]int),
-		Settings:          make(map[string]interface{}),
-		GeneratedAt:       time.Now(),
+		Settings:         make(map[string]interface{}),
+		GeneratedAt:      time.Now(),
 	}
 
 	// Save analytics
@@ -660,7 +659,7 @@ func (s *Service) processAudioEvent(soundID string) {
 func (s *Service) updateStats(event *models.AudioEvent) {
 	s.stats.TotalPlays++
 	s.stats.EventsPlayed[event.ID]++
-	s.stats.CategoriesPlayed[string(event.Category)]
+	s.stats.CategoriesPlayed[string(event.Category)]++
 	s.stats.LastPlayed = time.Now()
 
 	// Update most played event
@@ -834,11 +833,11 @@ func (p *NoOpPlayer) Cleanup() error {
 
 // AudioSessionDetector handles detection of audio sessions and background state
 type AudioSessionDetector struct {
-	isAppInBackground    bool
-	otherAppsPlaying     bool
-	lastCheckTime        time.Time
-	checkInterval        time.Duration
-	mu                   sync.RWMutex
+	isAppInBackground bool
+	otherAppsPlaying  bool
+	lastCheckTime     time.Time
+	checkInterval     time.Duration
+	mu                sync.RWMutex
 }
 
 // NewAudioSessionDetector creates a new audio session detector
@@ -944,7 +943,7 @@ func (d *AudioSessionDetector) checkMacOSAudioSessions(ctx context.Context) (boo
 	if err == nil {
 		// Check for audio-related assertions
 		if strings.Contains(string(output), "PreventUserIdleSystemSleep") ||
-		   strings.Contains(string(output), "Audio") {
+			strings.Contains(string(output), "Audio") {
 			return true, nil
 		}
 	}
@@ -977,11 +976,11 @@ func (d *AudioSessionDetector) GetAudioSessionInfo() map[string]interface{} {
 	defer d.mu.RUnlock()
 
 	return map[string]interface{}{
-		"app_in_background":   d.isAppInBackground,
-		"other_apps_playing":  d.otherAppsPlaying,
-		"last_check_time":     d.lastCheckTime,
-		"check_interval_ms":   d.checkInterval.Milliseconds(),
-		"platform":            runtime.GOOS,
+		"app_in_background":  d.isAppInBackground,
+		"other_apps_playing": d.otherAppsPlaying,
+		"last_check_time":    d.lastCheckTime,
+		"check_interval_ms":  d.checkInterval.Milliseconds(),
+		"platform":           runtime.GOOS,
 	}
 }
 
@@ -998,11 +997,11 @@ func (s *Service) HandleBackgroundStateChange(inBackground bool) error {
 
 			// Emit event
 			if s.eventBus != nil {
-				s.eventBus.Emit("audio:muted_background", map[string]interface{}{
-					"muted":    true,
-					"reason":   "app_in_background",
+				s.eventBus.Publish(context.Background(), "audio:muted_background", map[string]interface{}{
+					"muted":     true,
+					"reason":    "app_in_background",
 					"timestamp": time.Now(),
-				})
+				}, "audio")
 			}
 		} else if !inBackground && s.settings.Muted {
 			// Restore audio when coming to foreground
@@ -1010,11 +1009,11 @@ func (s *Service) HandleBackgroundStateChange(inBackground bool) error {
 
 			// Emit event
 			if s.eventBus != nil {
-				s.eventBus.Emit("audio:unmuted_foreground", map[string]interface{}{
-					"muted":    false,
-					"reason":   "app_in_foreground",
+				s.eventBus.Publish(context.Background(), "audio:unmuted_foreground", map[string]interface{}{
+					"muted":     false,
+					"reason":    "app_in_foreground",
 					"timestamp": time.Now(),
-				})
+				}, "audio")
 			}
 		}
 	}

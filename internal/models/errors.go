@@ -19,12 +19,12 @@ const (
 	ErrEventQueueFull = "event_queue_full"
 
 	// System-related errors
-	ErrSystemInfo     = "system_info"
-	ErrProcess        = "process"
-	ErrMemory         = "memory"
-	ErrDisk           = "disk"
-	ErrNetwork        = "network"
-	ErrAudio          = "audio"
+	ErrSystemInfo = "system_info"
+	ErrProcess    = "process"
+	ErrMemory     = "memory"
+	ErrDisk       = "disk"
+	ErrNetwork    = "network"
+	ErrAudio      = "audio"
 
 	// Terminal-related errors
 	ErrTerminalCreate = "terminal_create"
@@ -49,15 +49,15 @@ const (
 	ErrConfigValidate = "config_validate"
 
 	// Theme-related errors
-	ErrThemeLoad      = "theme_load"
-	ErrThemeParse     = "theme_parse"
-	ErrThemeValidate  = "theme_validate"
-	ErrThemeNotFound  = "theme_not_found"
+	ErrThemeLoad     = "theme_load"
+	ErrThemeParse    = "theme_parse"
+	ErrThemeValidate = "theme_validate"
+	ErrThemeNotFound = "theme_not_found"
 
 	// Service-related errors
-	ErrServiceInit    = "service_init"
-	ErrServiceStart   = "service_start"
-	ErrServiceStop    = "service_stop"
+	ErrServiceInit        = "service_init"
+	ErrServiceStart       = "service_start"
+	ErrServiceStop        = "service_stop"
 	ErrServiceUnavailable = "service_unavailable"
 )
 
@@ -182,6 +182,11 @@ type ValidationError struct {
 	Value   string `json:"value"`
 	Message string `json:"message"`
 	Rule    string `json:"rule"`
+}
+
+// Error implements the error interface for ValidationError
+func (ve *ValidationError) Error() string {
+	return fmt.Sprintf("validation error in %s: %s", ve.Field, ve.Message)
 }
 
 // ValidationErrors represents multiple validation errors

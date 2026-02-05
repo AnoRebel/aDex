@@ -7,19 +7,19 @@ import (
 
 // TerminalSession represents a terminal session state
 type TerminalSession struct {
-	ID         string                 `json:"id"`
-	PID        int                    `json:"pid,omitempty"`
-	Shell      string                 `json:"shell"`
-	CWD        string                 `json:"cwd"`
-	Env        map[string]string      `json:"env"`
-	Size       *TerminalSize          `json:"size"`
-	Active     bool                   `json:"active"`
-	CreatedAt  time.Time              `json:"created_at"`
-	UpdatedAt  time.Time              `json:"updated_at"`
-	LastSeen   time.Time              `json:"last_seen"`
-	User       string                 `json:"user"`
-	Title      string                 `json:"title,omitempty"`
-	Metadata   map[string]interface{} `json:"metadata,omitempty"`
+	ID        string                 `json:"id"`
+	PID       int                    `json:"pid,omitempty"`
+	Shell     string                 `json:"shell"`
+	CWD       string                 `json:"cwd"`
+	Env       map[string]string      `json:"env"`
+	Size      *TerminalSize          `json:"size"`
+	Active    bool                   `json:"active"`
+	CreatedAt time.Time              `json:"created_at"`
+	UpdatedAt time.Time              `json:"updated_at"`
+	LastSeen  time.Time              `json:"last_seen"`
+	User      string                 `json:"user"`
+	Title     string                 `json:"title,omitempty"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // TerminalSize represents terminal dimensions
@@ -74,62 +74,63 @@ type TerminalHistory struct {
 
 // TerminalTheme represents terminal color scheme and appearance
 type TerminalTheme struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	Colors      TerminalColors    `json:"colors"`
-	Font        TerminalFont      `json:"font"`
-	Opacity     float64           `json:"opacity"`
-	Blur        bool              `json:"blur"`
-	CursorStyle string            `json:"cursor_style"`
-	Animations  bool              `json:"animations"`
+	ID          string               `json:"id"`
+	Name        string               `json:"name"`
+	Colors      TerminalColorPalette `json:"colors"`
+	Font        TerminalFont         `json:"font"`
+	Opacity     float64              `json:"opacity"`
+	Blur        bool                 `json:"blur"`
+	CursorStyle string               `json:"cursor_style"`
+	Animations  bool                 `json:"animations"`
 }
 
-// TerminalColors represents terminal color palette
-type TerminalColors struct {
-	Background   string `json:"background"`
-	Foreground   string `json:"foreground"`
-	Cursor       string `json:"cursor"`
-	Selection    string `json:"selection"`
-	Black        string `json:"black"`
-	Red          string `json:"red"`
-	Green        string `json:"green"`
-	Yellow       string `json:"yellow"`
-	Blue         string `json:"blue"`
-	Magenta      string `json:"magenta"`
-	Cyan         string `json:"cyan"`
-	White        string `json:"white"`
-	BrightBlack  string `json:"bright_black"`
-	BrightRed    string `json:"bright_red"`
-	BrightGreen  string `json:"bright_green"`
-	BrightYellow string `json:"bright_yellow"`
-	BrightBlue   string `json:"bright_blue"`
+// TerminalColorPalette represents terminal color palette with simple string values
+// Note: This is distinct from TerminalColors in theme.go which uses ColorValue
+type TerminalColorPalette struct {
+	Background    string `json:"background"`
+	Foreground    string `json:"foreground"`
+	Cursor        string `json:"cursor"`
+	Selection     string `json:"selection"`
+	Black         string `json:"black"`
+	Red           string `json:"red"`
+	Green         string `json:"green"`
+	Yellow        string `json:"yellow"`
+	Blue          string `json:"blue"`
+	Magenta       string `json:"magenta"`
+	Cyan          string `json:"cyan"`
+	White         string `json:"white"`
+	BrightBlack   string `json:"bright_black"`
+	BrightRed     string `json:"bright_red"`
+	BrightGreen   string `json:"bright_green"`
+	BrightYellow  string `json:"bright_yellow"`
+	BrightBlue    string `json:"bright_blue"`
 	BrightMagenta string `json:"bright_magenta"`
-	BrightCyan   string `json:"bright_cyan"`
-	BrightWhite  string `json:"bright_white"`
+	BrightCyan    string `json:"bright_cyan"`
+	BrightWhite   string `json:"bright_white"`
 }
 
 // TerminalFont represents terminal font configuration
 type TerminalFont struct {
-	Family   string `json:"family"`
-	Size     int    `json:"size"`
-	Weight   string `json:"weight"`
+	Family     string  `json:"family"`
+	Size       int     `json:"size"`
+	Weight     string  `json:"weight"`
 	LineHeight float64 `json:"line_height"`
-	Ligatures bool   `json:"ligatures"`
+	Ligatures  bool    `json:"ligatures"`
 }
 
 // TerminalTab represents a terminal tab in the UI
 type TerminalTab struct {
-	ID          string          `json:"id"`
-	SessionID   string          `json:"session_id"`
-	Title       string          `json:"title"`
-	Active      bool            `json:"active"`
-	Icon        string          `json:"icon,omitempty"`
-	Color       string          `json:"color,omitempty"`
-	Badge       string          `json:"badge,omitempty"`
-	Position    int             `json:"position"`
-	Pinned      bool            `json:"pinned"`
-	Modified    bool            `json:"modified"`
-	LastActivity time.Time      `json:"last_activity"`
+	ID           string    `json:"id"`
+	SessionID    string    `json:"session_id"`
+	Title        string    `json:"title"`
+	Active       bool      `json:"active"`
+	Icon         string    `json:"icon,omitempty"`
+	Color        string    `json:"color,omitempty"`
+	Badge        string    `json:"badge,omitempty"`
+	Position     int       `json:"position"`
+	Pinned       bool      `json:"pinned"`
+	Modified     bool      `json:"modified"`
+	LastActivity time.Time `json:"last_activity"`
 }
 
 // TerminalNotification represents terminal-related notifications
@@ -144,24 +145,24 @@ type TerminalNotification struct {
 
 // TerminalProcess represents a process running in a terminal
 type TerminalProcess struct {
-	PID         int                    `json:"pid"`
-	PPID        int                    `json:"ppid"`
-	Name        string                 `json:"name"`
-	Command     string                 `json:"command"`
-	Args        []string               `json:"args"`
-	Env         []string               `json:"env"`
-	CWD         string                 `json:"cwd"`
-	User        string                 `json:"user"`
-	Group       string                 `json:"group"`
-	Status      string                 `json:"status"`
-	StartTime   time.Time              `json:"start_time"`
-	CPUTime     time.Duration          `json:"cpu_time"`
-	Memory      uint64                 `json:"memory"`
-	TTY         string                 `json:"tty"`
-	SessionID   string                 `json:"session_id"`
-	Parent      *TerminalProcess       `json:"parent,omitempty"`
-	Children    []*TerminalProcess     `json:"children,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	PID       int                    `json:"pid"`
+	PPID      int                    `json:"ppid"`
+	Name      string                 `json:"name"`
+	Command   string                 `json:"command"`
+	Args      []string               `json:"args"`
+	Env       []string               `json:"env"`
+	CWD       string                 `json:"cwd"`
+	User      string                 `json:"user"`
+	Group     string                 `json:"group"`
+	Status    string                 `json:"status"`
+	StartTime time.Time              `json:"start_time"`
+	CPUTime   time.Duration          `json:"cpu_time"`
+	Memory    uint64                 `json:"memory"`
+	TTY       string                 `json:"tty"`
+	SessionID string                 `json:"session_id"`
+	Parent    *TerminalProcess       `json:"parent,omitempty"`
+	Children  []*TerminalProcess     `json:"children,omitempty"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // TerminalBuffer represents the terminal output buffer
@@ -184,13 +185,13 @@ type TerminalClipboard struct {
 
 // TerminalSearch represents search functionality in terminal
 type TerminalSearch struct {
-	Query     string    `json:"query"`
-	Results   []int     `json:"results"`
-	Current   int       `json:"current"`
-	CaseSensitive bool  `json:"case_sensitive"`
-	Regex     bool      `json:"regex"`
-	Direction string    `json:"direction"` // "forward", "backward"
-	Timestamp time.Time `json:"timestamp"`
+	Query         string    `json:"query"`
+	Results       []int     `json:"results"`
+	Current       int       `json:"current"`
+	CaseSensitive bool      `json:"case_sensitive"`
+	Regex         bool      `json:"regex"`
+	Direction     string    `json:"direction"` // "forward", "backward"
+	Timestamp     time.Time `json:"timestamp"`
 }
 
 // TerminalBookmark represents a bookmark in terminal output
@@ -249,10 +250,10 @@ func NewTerminalSession(options *TerminalOptions) *TerminalSession {
 	}
 
 	return &TerminalSession{
-		ID:        generateTerminalSessionID(),
-		Shell:     shell,
-		CWD:       cwd,
-		Env:       options.Env,
+		ID:    generateTerminalSessionID(),
+		Shell: shell,
+		CWD:   cwd,
+		Env:   options.Env,
 		Size: &TerminalSize{
 			Rows: rows,
 			Cols: cols,
@@ -305,4 +306,50 @@ func getDefaultShell() string {
 	// This would be implemented to detect the default shell on the current platform
 	// For now, return a common default
 	return "/bin/bash"
+}
+
+// Terminal event type constants
+const (
+	TerminalCreated      = "terminal.created"
+	TerminalClosed       = "terminal.closed"
+	TerminalResized      = "terminal.resized"
+	TerminalOutput       = "terminal.output"
+	TerminalInput        = "terminal.input"
+	TerminalCWDChanged   = "terminal.cwd.changed"
+	TerminalThemeChanged = "terminal.theme.changed"
+	ErrorOccurred        = "terminal.error"
+)
+
+// TerminalEventData represents data for terminal events
+type TerminalEventData struct {
+	SessionID    string                `json:"sessionId"`
+	Shell        string                `json:"shell,omitempty"`
+	CWD          string                `json:"cwd,omitempty"`
+	Size         *TerminalSize         `json:"size,omitempty"`
+	CreatedAt    time.Time             `json:"createdAt,omitempty"`
+	ClosedAt     time.Time             `json:"closedAt,omitempty"`
+	ResizedAt    time.Time             `json:"resizedAt,omitempty"`
+	Active       bool                  `json:"active,omitempty"`
+	User         string                `json:"user,omitempty"`
+	Reason       string                `json:"reason,omitempty"`
+	Type         string                `json:"type,omitempty"`
+	Timestamp    time.Time             `json:"timestamp,omitempty"`
+	Command      string                `json:"command,omitempty"`
+	Arguments    []string              `json:"arguments,omitempty"`
+	StartTime    time.Time             `json:"startTime,omitempty"`
+	EndTime      *time.Time            `json:"endTime,omitempty"`
+	ExitCode     *int                  `json:"exitCode,omitempty"`
+	Duration     time.Duration         `json:"duration,omitempty"`
+	Data         []byte                `json:"data,omitempty"`
+	DataLength   int                   `json:"dataLength,omitempty"`
+	ChunkIndex   int                   `json:"chunkIndex,omitempty"`
+	IsLastChunk  bool                  `json:"isLastChunk,omitempty"`
+	Focused      *bool                 `json:"focused,omitempty"`
+	Title        string                `json:"title,omitempty"`
+	PID          int                   `json:"pid,omitempty"`
+	Process      *TerminalProcess      `json:"process,omitempty"`
+	Theme        string                `json:"theme,omitempty"`
+	Error        string                `json:"error,omitempty"`
+	Context      string                `json:"context,omitempty"`
+	Notification *TerminalNotification `json:"notification,omitempty"`
 }

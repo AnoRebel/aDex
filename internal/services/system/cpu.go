@@ -17,7 +17,7 @@ import (
 
 // CPUMonitor handles CPU metrics collection
 type CPUMonitor struct {
-	lastCPUTimes      []cpu.TimesStat
+	lastCPUTimes       []cpu.TimesStat
 	lastCollectionTime time.Time
 	isInitialized      bool
 }
@@ -50,7 +50,7 @@ func (cm *CPUMonitor) GetCPUMetrics(ctx context.Context) (*models.CPUMetrics, er
 	}
 
 	// Get per-core times
-	cpuTimesPerCore, err := cpu.TimesWithContext(ctx, true)
+	_, err = cpu.TimesWithContext(ctx, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get per-core CPU times: %w", err)
 	}
@@ -62,10 +62,9 @@ func (cm *CPUMonitor) GetCPUMetrics(ctx context.Context) (*models.CPUMetrics, er
 	}
 
 	// Get host info for additional CPU details
-	hostInfo, err := host.InfoWithContext(ctx)
+	_, err = host.InfoWithContext(ctx)
 	if err != nil {
 		// Host info is not critical, continue without it
-		hostInfo = &host.InfoStat{}
 	}
 
 	// Build metrics
@@ -87,7 +86,7 @@ func (cm *CPUMonitor) GetCPUMetrics(ctx context.Context) (*models.CPUMetrics, er
 		info := cpuInfo[0]
 		metrics.Model = info.ModelName
 		metrics.Vendor = info.VendorID
-		metrics.Frequency = float64(info.Mhz) // Current frequency in MHz
+		metrics.Frequency = float64(info.Mhz)    // Current frequency in MHz
 		metrics.FrequencyMax = float64(info.Mhz) // Max frequency (same as current for now)
 	}
 
@@ -177,7 +176,7 @@ func (cm *CPUMonitor) IsCPUHighUsage(threshold float64) (bool, error) {
 	}
 
 	// We need to get current usage to check against threshold
-	cpuPercent, err := cpu.Percent(context.Background(), 0, false)
+	cpuPercent, err := cpu.Percent(0, false)
 	if err != nil {
 		return false, fmt.Errorf("failed to get current CPU usage: %w", err)
 	}
@@ -371,10 +370,10 @@ func (cm *CPUMonitor) GetCPUTemperatureDetails(ctx context.Context) (*models.Tem
 	}
 
 	return &models.TemperatureInfo{
-		Current:         temp,
-		State:           state,
+		Current:          temp,
+		State:            state,
 		CoreTemperatures: coreTemps,
-		Timestamp:       time.Now(),
+		Timestamp:        time.Now(),
 	}, nil
 }
 

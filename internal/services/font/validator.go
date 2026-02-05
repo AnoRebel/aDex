@@ -36,7 +36,6 @@ func NewFontValidator() *FontValidator {
 			"Space Mono":       true,
 			"Victor Mono":      true,
 			"Iosevka":          true,
-			"Ubuntu Mono":      true,
 			"DejaVu Sans Mono": true,
 			"Liberation Mono":  true,
 		},
@@ -50,17 +49,8 @@ func NewFontValidator() *FontValidator {
 			string(models.FontWeightBold):       true,
 			string(models.FontWeightExtraBold):  true,
 			string(models.FontWeightBlack):      true,
-			"100": true,
-			"200": true,
-			"300": true,
-			"400": true,
-			"500": true,
-			"600": true,
-			"700": true,
-			"800": true,
-			"900": true,
-			"normal": true,
-			"bold":   true,
+			"normal":                            true,
+			"bold":                              true,
 		},
 		validHints: map[models.FontHinting]bool{
 			models.FontHintingNone:   true,
@@ -300,52 +290,52 @@ func (fv *FontValidator) ValidateFontSettings(settings *models.FontSettings) *mo
 // Check if a font feature is valid
 func (fv *FontValidator) isValidFontFeature(feature string) bool {
 	validFeatures := map[string]bool{
-		"liga":   true, // Standard ligatures
-		"dlig":   true, // Discretionary ligatures
-		"hlig":   true, // Historical ligatures
-		"clig":   true, // Contextual ligatures
-		"zero":   true, // Slashed zero
-		"onum":   true, // Old-style numerals
-		"lnum":   true, // Lining numerals
-		"tnum":   true, // Tabular numerals
-		"pnum":   true, // Proportional numerals
-		"frac":   true, // Fractions
-		"afrc":   true, // Alternative fractions
-		"sups":   true, // Superiors
-		"subs":   true, // Subscripts
-		"ordn":   true, // Ordinals
-		"case":   true, // Case-sensitive forms
-		"cpsp":   true, // Capital spacing
-		"smcp":   true, // Small capitals
-		"c2sc":   true, // Small capitals from capitals
-		"ss01":   true, // Stylistic set 1
-		"ss02":   true, // Stylistic set 2
-		"ss03":   true, // Stylistic set 3
-		"ss04":   true, // Stylistic set 4
-		"ss05":   true, // Stylistic set 5
-		"ss06":   true, // Stylistic set 6
-		"ss07":   true, // Stylistic set 7
-		"ss08":   true, // Stylistic set 8
-		"ss09":   true, // Stylistic set 9
-		"ss10":   true, // Stylistic set 10
-		"ss11":   true, // Stylistic set 11
-		"ss12":   true, // Stylistic set 12
-		"ss13":   true, // Stylistic set 13
-		"ss14":   true, // Stylistic set 14
-		"ss15":   true, // Stylistic set 15
-		"ss16":   true, // Stylistic set 16
-		"ss17":   true, // Stylistic set 17
-		"ss18":   true, // Stylistic set 18
-		"ss19":   true, // Stylistic set 19
-		"ss20":   true, // Stylistic set 20
-		"kern":   true, // Kerning
-		"mark":   true, // Mark positioning
-		"mkmk":   true, // Mark-to-mark positioning
-		"calt":   true, // Contextual alternates
-		"hist":   true, // Historical forms
-		"salt":   true, // Stylistic alternates
-		"nalt":   true, // Alternate annotation forms
-		"dalt":   true, // Alternate forms
+		"liga": true, // Standard ligatures
+		"dlig": true, // Discretionary ligatures
+		"hlig": true, // Historical ligatures
+		"clig": true, // Contextual ligatures
+		"zero": true, // Slashed zero
+		"onum": true, // Old-style numerals
+		"lnum": true, // Lining numerals
+		"tnum": true, // Tabular numerals
+		"pnum": true, // Proportional numerals
+		"frac": true, // Fractions
+		"afrc": true, // Alternative fractions
+		"sups": true, // Superiors
+		"subs": true, // Subscripts
+		"ordn": true, // Ordinals
+		"case": true, // Case-sensitive forms
+		"cpsp": true, // Capital spacing
+		"smcp": true, // Small capitals
+		"c2sc": true, // Small capitals from capitals
+		"ss01": true, // Stylistic set 1
+		"ss02": true, // Stylistic set 2
+		"ss03": true, // Stylistic set 3
+		"ss04": true, // Stylistic set 4
+		"ss05": true, // Stylistic set 5
+		"ss06": true, // Stylistic set 6
+		"ss07": true, // Stylistic set 7
+		"ss08": true, // Stylistic set 8
+		"ss09": true, // Stylistic set 9
+		"ss10": true, // Stylistic set 10
+		"ss11": true, // Stylistic set 11
+		"ss12": true, // Stylistic set 12
+		"ss13": true, // Stylistic set 13
+		"ss14": true, // Stylistic set 14
+		"ss15": true, // Stylistic set 15
+		"ss16": true, // Stylistic set 16
+		"ss17": true, // Stylistic set 17
+		"ss18": true, // Stylistic set 18
+		"ss19": true, // Stylistic set 19
+		"ss20": true, // Stylistic set 20
+		"kern": true, // Kerning
+		"mark": true, // Mark positioning
+		"mkmk": true, // Mark-to-mark positioning
+		"calt": true, // Contextual alternates
+		"hist": true, // Historical forms
+		"salt": true, // Stylistic alternates
+		"nalt": true, // Alternate annotation forms
+		"dalt": true, // Alternate forms
 	}
 
 	return validFeatures[feature]
@@ -368,21 +358,21 @@ func (fv *FontValidator) isValidFontFormat(ext string) bool {
 // Check if a font family supports ligatures
 func (fv *FontValidator) supportsLigatures(family string) bool {
 	ligatureFonts := map[string]bool{
-		"Fira Code":        true,
-		"JetBrains Mono":   true,
-		"Cascadia Code":    true,
-		"Iosevka":          true,
-		"Victor Mono":      true,
-		"Anonymous Pro":    true,
-		"Inconsolata":      true,
-		"Source Code Pro":  false, // Limited ligature support
-		"IBM Plex Mono":    false,
-		"Ubuntu Mono":      false,
-		"Consolas":         false,
-		"Monaco":           false,
-		"Courier New":      false,
-		"Lucida Console":   false,
-		"monospace":        false, // Generic fallback
+		"Fira Code":       true,
+		"JetBrains Mono":  true,
+		"Cascadia Code":   true,
+		"Iosevka":         true,
+		"Victor Mono":     true,
+		"Anonymous Pro":   true,
+		"Inconsolata":     true,
+		"Source Code Pro": false, // Limited ligature support
+		"IBM Plex Mono":   false,
+		"Ubuntu Mono":     false,
+		"Consolas":        false,
+		"Monaco":          false,
+		"Courier New":     false,
+		"Lucida Console":  false,
+		"monospace":       false, // Generic fallback
 	}
 
 	return ligatureFonts[family]
@@ -393,14 +383,14 @@ func (fv *FontValidator) GetRecommendedSettings(useCase string) *models.FontSett
 	switch useCase {
 	case "coding":
 		return &models.FontSettings{
-			DefaultFontID:        "jetbrains-mono",
-			FallbackFont:         "monospace",
-			FontSize:             14,
-			LineHeight:           1.4,
-			LetterSpacing:        0,
-			EnableLigatures:      true,
-			EnableAntialias:      true,
-			Hinting:              models.FontHintingSlight,
+			DefaultFontID:   "jetbrains-mono",
+			FallbackFont:    "monospace",
+			FontSize:        14,
+			LineHeight:      1.4,
+			LetterSpacing:   0,
+			EnableLigatures: true,
+			EnableAntialias: true,
+			Hinting:         models.FontHintingSlight,
 			FontFeatureSettings: map[string]bool{
 				"liga": true,
 				"dlig": true,
@@ -411,14 +401,14 @@ func (fv *FontValidator) GetRecommendedSettings(useCase string) *models.FontSett
 		}
 	case "accessibility":
 		return &models.FontSettings{
-			DefaultFontID:        "source-code-pro",
-			FallbackFont:         "monospace",
-			FontSize:             16,
-			LineHeight:           1.6,
-			LetterSpacing:        0.5,
-			EnableLigatures:      false, // Can be confusing for screen readers
-			EnableAntialias:      true,
-			Hinting:              models.FontHintingMedium,
+			DefaultFontID:   "source-code-pro",
+			FallbackFont:    "monospace",
+			FontSize:        16,
+			LineHeight:      1.6,
+			LetterSpacing:   0.5,
+			EnableLigatures: false, // Can be confusing for screen readers
+			EnableAntialias: true,
+			Hinting:         models.FontHintingMedium,
 			FontFeatureSettings: map[string]bool{
 				"kern": true,
 			},
@@ -427,17 +417,17 @@ func (fv *FontValidator) GetRecommendedSettings(useCase string) *models.FontSett
 		}
 	case "performance":
 		return &models.FontSettings{
-			DefaultFontID:        "consolas",
-			FallbackFont:         "monospace",
-			FontSize:             12,
-			LineHeight:           1.2,
-			LetterSpacing:        0,
-			EnableLigatures:      false, // Performance impact
-			EnableAntialias:      false, // Performance impact
-			Hinting:              models.FontHintingNone, // Performance impact
-			FontFeatureSettings:  map[string]bool{},
-			AllowCustomFonts:     false,
-			AutoDetectFonts:      false, // Skip scanning
+			DefaultFontID:       "consolas",
+			FallbackFont:        "monospace",
+			FontSize:            12,
+			LineHeight:          1.2,
+			LetterSpacing:       0,
+			EnableLigatures:     false,                  // Performance impact
+			EnableAntialias:     false,                  // Performance impact
+			Hinting:             models.FontHintingNone, // Performance impact
+			FontFeatureSettings: map[string]bool{},
+			AllowCustomFonts:    false,
+			AutoDetectFonts:     false, // Skip scanning
 		}
 	default:
 		return models.NewDefaultFontSettings()

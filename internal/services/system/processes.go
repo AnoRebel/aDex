@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/user"
-	"path/filepath"
 	"runtime"
 	"sort"
 	"strconv"
@@ -19,15 +18,15 @@ import (
 
 // ProcessMonitor handles process metrics collection
 type ProcessMonitor struct {
-	processCache map[int32]*process.Process
-	lastUpdate   time.Time
+	processCache  map[int32]*process.Process
+	lastUpdate    time.Time
 	isInitialized bool
 }
 
 // NewProcessMonitor creates a new process monitor instance
 func NewProcessMonitor() *ProcessMonitor {
 	return &ProcessMonitor{
-		processCache: make(map[int32]*process.Process),
+		processCache:  make(map[int32]*process.Process),
 		isInitialized: false,
 	}
 }
@@ -80,20 +79,20 @@ func (pm *ProcessMonitor) GetProcessMetrics(ctx context.Context, limit int) (*mo
 		processInfos = processInfos[:limit]
 	}
 
-	// Get host info
-	hostInfo, err := host.InfoWithContext(ctx)
+	// Get host info (unused but may be useful for future features)
+	_, err = host.InfoWithContext(ctx)
 	if err != nil {
-		hostInfo = &host.InfoStat{}
+		// Host info is not critical, continue without it
 	}
 
 	metrics := &models.ProcessMetrics{
-		Processes:        processInfos,
-		TotalProcesses:   totalProcesses,
-		RunningProcesses: runningProcesses,
+		Processes:         processInfos,
+		TotalProcesses:    totalProcesses,
+		RunningProcesses:  runningProcesses,
 		SleepingProcesses: sleepingProcesses,
-		StoppedProcesses: stoppedProcesses,
-		ZombieProcesses:  zombieProcesses,
-		Timestamp:        time.Now(),
+		StoppedProcesses:  stoppedProcesses,
+		ZombieProcesses:   zombieProcesses,
+		Timestamp:         time.Now(),
 	}
 
 	// Update cache
@@ -136,11 +135,14 @@ func (pm *ProcessMonitor) getProcessInfo(ctx context.Context, p *process.Process
 	}
 
 	// Get status
-	status, err := p.StatusWithContext(ctx)
+	statusSlice, err := p.StatusWithContext(ctx)
+	var status string
 	if err != nil {
 		status = "unknown"
-	} else if len(status) > 0 {
-		status = status[0]
+	} else if len(statusSlice) > 0 {
+		status = statusSlice[0]
+	} else {
+		status = "unknown"
 	}
 
 	// Get CPU percentage
@@ -179,7 +181,7 @@ func (pm *ProcessMonitor) getProcessInfo(ctx context.Context, p *process.Process
 	if runtime.GOOS != "windows" {
 		fds, err := p.NumFDsWithContext(ctx)
 		if err == nil {
-			numFDs = fds
+			numFDs = int(fds)
 		}
 	}
 
@@ -197,11 +199,11 @@ func (pm *ProcessMonitor) getProcessInfo(ctx context.Context, p *process.Process
 		User:          username,
 		Status:        status,
 		CPUPercent:    cpuPercent,
-		MemoryPercent: memPercent,
+		MemoryPercent: float64(memPercent),
 		MemoryRSS:     memInfo.RSS,
 		MemoryVMS:     memInfo.VMS,
 		CreateTime:    createTimeFormatted,
-		NumThreads:    numThreads,
+		NumThreads:    int(numThreads),
 		NumFDs:        numFDs,
 		CWD:           cwd,
 		Executable:    exe,
@@ -354,7 +356,7 @@ func (pm *ProcessMonitor) GetProcessTree(ctx context.Context) (map[int][]models.
 
 	// Build parent-child relationships
 	tree := make(map[int][]models.ProcessInfo)
-	for pid, info := range processMap {
+	for _, info := range processMap {
 		if info.PPID > 0 && info.PPID != 1 {
 			parentPID := info.PPID
 			tree[parentPID] = append(tree[parentPID], info)
@@ -373,8 +375,8 @@ func (pm *ProcessMonitor) GetSystemProcesses(ctx context.Context) (map[string]in
 
 	stats := map[string]interface{}{
 		"total_processes": len(processes),
-		"os":             runtime.GOOS,
-		"arch":           runtime.GOARCH,
+		"os":              runtime.GOOS,
+		"arch":            runtime.GOARCH,
 	}
 
 	// Count processes by status
@@ -609,18 +611,18 @@ func (pm *ProcessMonitor) GetProcessStatistics(ctx context.Context) (map[string]
 
 		// Memory usage
 		if memPercent, err := p.MemoryPercentWithContext(ctx); err == nil {
-			totalMemory += memPercent
+			totalMemory += float64(memPercent)
 		}
 
 		// Threads
 		if threads, err := p.NumThreadsWithContext(ctx); err == nil {
-			totalThreads += threads
+			totalThreads += int(threads)
 		}
 
 		// File descriptors (Unix-like systems only)
 		if runtime.GOOS != "windows" {
 			if fds, err := p.NumFDsWithContext(ctx); err == nil {
-				totalFDs += fds
+				totalFDs += int(fds)
 			}
 		}
 

@@ -119,12 +119,12 @@ func (l *Logger) log(level, msg string, args ...interface{}) {
 
 	// Format message
 	formattedMsg := fmt.Sprintf(msg, args...)
-	
+
 	// Add color if enabled
 	if l.useColors {
 		levelColor := l.getColorForLevel(level)
 		resetColor := "\033[0m"
-		formattedMsg = fmt.Sprintf("%s[%s]%s %s:%d - %s", 
+		formattedMsg = fmt.Sprintf("%s[%s]%s %s:%d - %s",
 			levelColor, level, resetColor, file, line, formattedMsg)
 	} else {
 		formattedMsg = fmt.Sprintf("[%s] %s:%d - %s", level, file, line, formattedMsg)
@@ -184,7 +184,7 @@ func (l *Logger) WithContext(context map[string]interface{}) *Logger {
 	for key, value := range context {
 		prefix += fmt.Sprintf("%s=%v ", key, value)
 	}
-	
+
 	newLogger := *l
 	newLogger.logger = log.New(l.logger.Writer(), prefix, l.logger.Flags())
 	return &newLogger
@@ -198,13 +198,13 @@ func (l *Logger) WithField(key string, value interface{}) *Logger {
 // LogRequest logs an HTTP request
 func (l *Logger) LogRequest(method, path string, statusCode int, duration time.Duration, clientIP string) {
 	msg := fmt.Sprintf("%s %s %d %v %s", method, path, statusCode, duration, clientIP)
-	
+
 	if statusCode >= 500 {
-		l.Error(msg)
+		l.Error("%s", msg)
 	} else if statusCode >= 400 {
-		l.Warn(msg)
+		l.Warn("%s", msg)
 	} else {
-		l.Info(msg)
+		l.Info("%s", msg)
 	}
 }
 
@@ -228,8 +228,8 @@ func (l *Logger) LogError(err error, msg string, args ...interface{}) {
 	// Format error message
 	errorMsg := fmt.Sprintf(msg, args...)
 	fullMsg := fmt.Sprintf("%s: %v\nStack trace:\n%s", errorMsg, err, string(buf))
-	
-	l.Error(fullMsg)
+
+	l.Error("%s", fullMsg)
 }
 
 // Global logger instance

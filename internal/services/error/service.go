@@ -1,7 +1,6 @@
 package error
 
 import (
-	"encoding/json"
 	"fmt"
 	"runtime"
 	"strings"
@@ -43,7 +42,7 @@ type ErrorTemplate struct {
 	Category      string            `json:"category"`      // "system", "user", "network", "file"
 	Retryable     bool              `json:"retryable"`     // Can the user retry this operation
 	RecoverySteps []string          `json:"recoverySteps"` // Steps the user can take
-	Translations  map[string]string `json:"translations"` // Language code -> translated message
+	Translations  map[string]string `json:"translations"`  // Language code -> translated message
 }
 
 // ErrorContext provides additional context for error handling
@@ -70,34 +69,42 @@ type StackFrame struct {
 
 // AppError represents a structured application error
 type AppError struct {
-	ID          string        `json:"id"`
-	Code        string        `json:"code"`
-	Message     string        `json:"message"`
-	UserMessage string        `json:"userMessage"`
-	Context     *ErrorContext `json:"context"`
+	ID          string         `json:"id"`
+	Code        string         `json:"code"`
+	Message     string         `json:"message"`
+	UserMessage string         `json:"userMessage"`
+	Context     *ErrorContext  `json:"context"`
 	Template    *ErrorTemplate `json:"template,omitempty"`
-	Cause       error         `json:"cause,omitempty"`
-	Timestamp   time.Time     `json:"timestamp"`
-	Retryable   bool          `json:"retryable"`
-	Recovered   bool          `json:"recovered"`
+	Cause       error          `json:"cause,omitempty"`
+	Timestamp   time.Time      `json:"timestamp"`
+	Retryable   bool           `json:"retryable"`
+	Recovered   bool           `json:"recovered"`
+}
+
+// Error implements the error interface for AppError
+func (e *AppError) Error() string {
+	if e.Message != "" {
+		return e.Message
+	}
+	return e.Code
 }
 
 // ErrorReport represents a collection of errors for reporting
 type ErrorReport struct {
-	ID        string       `json:"id"`
-	Timestamp time.Time    `json:"timestamp"`
-	Version   string       `json:"version"`
-	Errors    []*AppError  `json:"errors"`
-	Stats     ErrorStats   `json:"stats"`
-	System    SystemInfo   `json:"system"`
+	ID        string      `json:"id"`
+	Timestamp time.Time   `json:"timestamp"`
+	Version   string      `json:"version"`
+	Errors    []*AppError `json:"errors"`
+	Stats     ErrorStats  `json:"stats"`
+	System    SystemInfo  `json:"system"`
 }
 
 // ErrorStats provides statistics about errors
 type ErrorStats struct {
 	TotalErrors      int            `json:"totalErrors"`
-	ErrorsByCode     map[string]int  `json:"errorsByCode"`
-	ErrorsBySeverity map[string]int  `json:"errorsBySeverity"`
-	ErrorsByCategory map[string]int  `json:"errorsByCategory"`
+	ErrorsByCode     map[string]int `json:"errorsByCode"`
+	ErrorsBySeverity map[string]int `json:"errorsBySeverity"`
+	ErrorsByCategory map[string]int `json:"errorsByCategory"`
 	RecoveredErrors  int            `json:"recoveredErrors"`
 	RetryableErrors  int            `json:"retryableErrors"`
 }
@@ -225,7 +232,7 @@ func (s *Service) HandlePanic() {
 		appError.Context = s.captureErrorContext()
 
 		s.logError(appError)
-		s.logger.Error("Panic recovered", "error", appError.Message)
+		s.logger.Error("Panic recovered", fmt.Errorf("%s", appError.Message), map[string]interface{}{"id": appError.ID})
 	}
 }
 
@@ -277,7 +284,7 @@ func (s *Service) CreateErrorReport() *ErrorReport {
 // RegisterTemplate registers a custom error template
 func (s *Service) RegisterTemplate(template ErrorTemplate) {
 	s.templates[template.Code] = template
-	s.logger.Debug("Error template registered", "code", template.Code)
+	s.logger.Debug("Error template registered", map[string]interface{}{"code": template.Code})
 }
 
 // SetConfig updates the error handling configuration
@@ -474,7 +481,7 @@ func captureStackTrace() []StackFrame {
 			Function: fn.Name(),
 			File:     file,
 			Line:     line,
-			Package:  runtime.FuncForPC(pc).PkgPath(),
+			Package:  extractPackageName(fn.Name()),
 		})
 	}
 
@@ -483,33 +490,44 @@ func captureStackTrace() []StackFrame {
 
 // logError logs an error with appropriate level
 func (s *Service) logError(appError *AppError) {
+	ctx := map[string]interface{}{
+		"id":      appError.ID,
+		"code":    appError.Code,
+		"message": appError.Message,
+	}
+	if appError.Context != nil {
+		ctx["component"] = appError.Context.Component
+		ctx["operation"] = appError.Context.Operation
+	}
+
 	switch s.config.LogLevel {
 	case "debug":
-		s.logger.Debug("Error occurred",
-			"id", appError.ID,
-			"code", appError.Code,
-			"message", appError.Message,
-			"component", appError.Context.Component,
-			"operation", appError.Context.Operation)
+		s.logger.Debug("Error occurred", ctx)
 	case "info":
-		s.logger.Info("Error occurred",
-			"id", appError.ID,
-			"code", appError.Code,
-			"message", appError.Message)
+		s.logger.Info("Error occurred", ctx)
 	case "warn":
-		s.logger.Warn("Error occurred",
-			"id", appError.ID,
-			"code", appError.Code,
-			"message", appError.Message)
+		s.logger.Warn("Error occurred", ctx)
 	case "error":
-		s.logger.Error("Error occurred",
-			"id", appError.ID,
-			"code", appError.Code,
-			"message", appError.Message,
-			"cause", appError.Cause)
+		s.logger.Error("Error occurred", appError.Cause, ctx)
 	default:
-		s.logger.Error("Error occurred", "id", appError.ID, "code", appError.Code, "message", appError.Message)
+		s.logger.Error("Error occurred", appError.Cause, ctx)
 	}
+}
+
+// extractPackageName extracts the package name from a fully qualified function name
+func extractPackageName(funcName string) string {
+	// funcName is like "github.com/user/repo/pkg/subpkg.FuncName"
+	// We want to extract "github.com/user/repo/pkg/subpkg"
+	lastSlash := strings.LastIndex(funcName, "/")
+	if lastSlash == -1 {
+		return ""
+	}
+	afterSlash := funcName[lastSlash+1:]
+	dotIndex := strings.Index(afterSlash, ".")
+	if dotIndex == -1 {
+		return funcName[:lastSlash+1+len(afterSlash)]
+	}
+	return funcName[:lastSlash+1+dotIndex]
 }
 
 // generateUserFriendlyMessage generates a user-friendly error message
@@ -535,7 +553,7 @@ func (s *Service) attemptRecovery(appError *AppError) bool {
 	// In a real implementation, this would try specific recovery strategies
 	// based on the error type and context
 
-	s.logger.Info("Attempting recovery", "error_id", appError.ID, "code", appError.Code)
+	s.logger.Info("Attempting recovery", map[string]interface{}{"error_id": appError.ID, "code": appError.Code})
 
 	// Simulate recovery attempt
 	// In practice, this might retry operations, reset state, etc.
@@ -557,9 +575,9 @@ func (s *Service) getSystemInfo() SystemInfo {
 			NumGC:      memStats.NumGC,
 		},
 		Environment: map[string]string{
-			"go_version":      runtime.Version(),
-			"num_cpu":         fmt.Sprintf("%d", runtime.NumCPU()),
-			"num_goroutines":  fmt.Sprintf("%d", runtime.NumGoroutine()),
+			"go_version":     runtime.Version(),
+			"num_cpu":        fmt.Sprintf("%d", runtime.NumCPU()),
+			"num_goroutines": fmt.Sprintf("%d", runtime.NumGoroutine()),
 		},
 	}
 }
@@ -579,9 +597,10 @@ func (s *Service) errorReportingTask() {
 
 	for range ticker.C {
 		report := s.CreateErrorReport()
-		s.logger.Debug("Error report generated",
-			"report_id", report.ID,
-			"total_errors", report.Stats.TotalErrors)
+		s.logger.Debug("Error report generated", map[string]interface{}{
+			"report_id":    report.ID,
+			"total_errors": report.Stats.TotalErrors,
+		})
 	}
 }
 

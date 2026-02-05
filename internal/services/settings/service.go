@@ -13,11 +13,11 @@ import (
 
 // Service manages application settings and configuration
 type Service struct {
-	logger      *logger.Logger
-	configDir   string
-	configFile  string
-	settings    *models.AppSettings
-	migration   *Migration
+	logger     *logger.Logger
+	configDir  string
+	configFile string
+	settings   *models.AppSettings
+	migration  *Migration
 }
 
 // NewService creates a new settings service
@@ -163,9 +163,10 @@ func (s *Service) ImportFromLegacy() error {
 		return fmt.Errorf("failed to update settings with legacy import: %w", err)
 	}
 
-	s.logger.Info("Successfully imported legacy configuration",
-		"legacy_version", mergedSettings.Legacy.Version,
-		"imported_from", configPaths[0])
+	s.logger.Info("Successfully imported legacy configuration", map[string]interface{}{
+		"legacy_version": mergedSettings.Legacy.Version,
+		"imported_from":  configPaths[0],
+	})
 
 	return nil
 }
@@ -203,7 +204,7 @@ func (s *Service) Cleanup() error {
 	// Remove temporary files older than 24 hours
 	tempDir := filepath.Join(s.configDir, "temp")
 	if err := os.RemoveAll(tempDir); err != nil {
-		s.logger.Warn("Failed to cleanup temp directory", "error", err)
+		s.logger.Warn("Failed to cleanup temp directory", map[string]interface{}{"error": err.Error()})
 	}
 
 	return nil
@@ -232,22 +233,22 @@ func (s *Service) loadSettingsFromFile() error {
 	var settings models.AppSettings
 	if err := json.Unmarshal(data, &settings); err != nil {
 		// Try to recover by loading defaults and showing warning
-		s.logger.Warn("Failed to unmarshal settings, loading defaults", "error", err)
+		s.logger.Warn("Failed to unmarshal settings, loading defaults", map[string]interface{}{"error": err.Error()})
 		s.settings = models.DefaultAppSettings()
 		return s.saveSettings()
 	}
 
 	// Validate loaded settings
 	if err := settings.Validate(); err != nil {
-		s.logger.Warn("Invalid settings detected, fixing automatically", "error", err)
+		s.logger.Warn("Invalid settings detected, fixing automatically", map[string]interface{}{"error": err.Error()})
 		fixedSettings := models.DefaultAppSettings()
-		s.mergeSettings(&fixedSettings, &settings)
-		s.settings = &fixedSettings
+		s.mergeSettings(fixedSettings, &settings)
+		s.settings = fixedSettings
 		return s.saveSettings()
 	}
 
 	s.settings = &settings
-	s.logger.Info("Loaded settings from file", "file", s.configFile)
+	s.logger.Info("Loaded settings from file", map[string]interface{}{"file": s.configFile})
 	return nil
 }
 
@@ -271,7 +272,7 @@ func (s *Service) saveSettings() error {
 		return fmt.Errorf("failed to rename temporary settings file: %w", err)
 	}
 
-	s.logger.Debug("Settings saved", "file", s.configFile)
+	s.logger.Debug("Settings saved", map[string]interface{}{"file": s.configFile})
 	return nil
 }
 

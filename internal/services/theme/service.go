@@ -16,8 +16,8 @@ import (
 // Service is the main theme service that coordinates all theme operations
 type Service struct {
 	// Core components
-	converter      *LegacyThemeConverter
-	variableGen    *VariableGenerator
+	converter   *LegacyThemeConverter
+	variableGen *VariableGenerator
 
 	// Storage
 	themes         map[string]*models.Theme
@@ -70,7 +70,7 @@ func DefaultServiceConfig() ServiceConfig {
 // NewService creates a new theme service with the given configuration
 func NewService(config ServiceConfig) *Service {
 	service := &Service{
-		converter:      NewLegacyThemeConverter(),
+		converter:      NewLegacyThemeConverter(DefaultConversionConfig()),
 		variableGen:    NewVariableGenerator(),
 		themes:         make(map[string]*models.Theme),
 		themeDirectory: config.ThemeDirectory,
@@ -169,54 +169,53 @@ func (s *Service) createDefaultDarkTheme() *models.Theme {
 
 	// Set up dark theme colors
 	theme.Colors = models.ThemeColors{
-		Background: models.ColorPalette{
-			Primary:   "#0a0a0a",
-			Secondary: "#1a1a1a",
-			Tertiary:  "#2a2a2a",
-		},
-		Foreground: models.ColorPalette{
-			Primary:   "#ffffff",
-			Secondary: "#cccccc",
-			Tertiary:  "#999999",
-		},
-		Accent: models.AccentColors{
-			Primary:   "#00ff41",
-			Secondary: "#00cc33",
-		},
-		Status: models.StatusColors{
-			Success: "#00ff41",
-			Warning: "#ffaa00",
-			Error:   "#ff3333",
-			Info:    "#00aaff",
-		},
-		Terminal: models.TerminalColors{
-			"#000000", "#ff0000", "#00ff00", "#ffff00",
-			"#0000ff", "#ff00ff", "#00ffff", "#ffffff",
-			"#808080", "#ff8080", "#80ff80", "#ffff80",
-			"#8080ff", "#ff80ff", "#80ffff", "#c0c0c0",
-		},
-		UI: models.UIColors{
-			ButtonBackground:   "#1a1a1a",
-			ButtonForeground:   "#ffffff",
-			ButtonHover:        "#2a2a2a",
-			ButtonActive:       "#00ff41",
-			InputBackground:    "#0a0a0a",
-			InputForeground:    "#ffffff",
-			InputBorder:        "#333333",
-			InputFocus:         "#00ff41",
-			Border:             "#333333",
-			Shadow:             "rgba(0, 0, 0, 0.5)",
+		Primary:         models.ColorValue{Value: "#00ff41", Type: "hex"},
+		PrimaryHover:    models.ColorValue{Value: "#00cc33", Type: "hex"},
+		PrimaryActive:   models.ColorValue{Value: "#00aa28", Type: "hex"},
+		Secondary:       models.ColorValue{Value: "#1a1a1a", Type: "hex"},
+		SecondaryHover:  models.ColorValue{Value: "#2a2a2a", Type: "hex"},
+		SecondaryActive: models.ColorValue{Value: "#3a3a3a", Type: "hex"},
+		Accent:          models.ColorValue{Value: "#00ff41", Type: "hex"},
+		AccentHover:     models.ColorValue{Value: "#00cc33", Type: "hex"},
+		AccentActive:    models.ColorValue{Value: "#00aa28", Type: "hex"},
+		Background:      models.ColorValue{Value: "#0a0a0a", Type: "hex"},
+		Surface:         models.ColorValue{Value: "#1a1a1a", Type: "hex"},
+		SurfaceHover:    models.ColorValue{Value: "#2a2a2a", Type: "hex"},
+		SurfaceBorder:   models.ColorValue{Value: "#333333", Type: "hex"},
+		TextPrimary:     models.ColorValue{Value: "#ffffff", Type: "hex"},
+		TextSecondary:   models.ColorValue{Value: "#cccccc", Type: "hex"},
+		TextTertiary:    models.ColorValue{Value: "#999999", Type: "hex"},
+		TextInverse:     models.ColorValue{Value: "#000000", Type: "hex"},
+		Success:         models.ColorValue{Value: "#00ff41", Type: "hex"},
+		Warning:         models.ColorValue{Value: "#ffaa00", Type: "hex"},
+		Error:           models.ColorValue{Value: "#ff3333", Type: "hex"},
+		Info:            models.ColorValue{Value: "#00aaff", Type: "hex"},
+		Glitch:          models.ColorValue{Value: "#ff00ff", Type: "hex"},
+		Cursor:          models.ColorValue{Value: "#00ff41", Type: "hex"},
+		Selection:       models.ColorValue{Value: "#00ff4133", Type: "hex"},
+		Terminal: &models.TerminalColors{
+			Background:    models.ColorValue{Value: "#000000", Type: "hex"},
+			Foreground:    models.ColorValue{Value: "#ffffff", Type: "hex"},
+			Cursor:        models.ColorValue{Value: "#00ff41", Type: "hex"},
+			Selection:     models.ColorValue{Value: "#00ff4133", Type: "hex"},
+			Black:         models.ColorValue{Value: "#000000", Type: "hex"},
+			Red:           models.ColorValue{Value: "#ff0000", Type: "hex"},
+			Green:         models.ColorValue{Value: "#00ff00", Type: "hex"},
+			Yellow:        models.ColorValue{Value: "#ffff00", Type: "hex"},
+			Blue:          models.ColorValue{Value: "#0000ff", Type: "hex"},
+			Magenta:       models.ColorValue{Value: "#ff00ff", Type: "hex"},
+			Cyan:          models.ColorValue{Value: "#00ffff", Type: "hex"},
+			White:         models.ColorValue{Value: "#ffffff", Type: "hex"},
+			BrightBlack:   models.ColorValue{Value: "#808080", Type: "hex"},
+			BrightRed:     models.ColorValue{Value: "#ff8080", Type: "hex"},
+			BrightGreen:   models.ColorValue{Value: "#80ff80", Type: "hex"},
+			BrightYellow:  models.ColorValue{Value: "#ffff80", Type: "hex"},
+			BrightBlue:    models.ColorValue{Value: "#8080ff", Type: "hex"},
+			BrightMagenta: models.ColorValue{Value: "#ff80ff", Type: "hex"},
+			BrightCyan:    models.ColorValue{Value: "#80ffff", Type: "hex"},
+			BrightWhite:   models.ColorValue{Value: "#c0c0c0", Type: "hex"},
 		},
 	}
-
-	// Set up fonts
-	theme.Fonts = models.DefaultThemeFonts()
-
-	// Set up effects
-	theme.Effects = models.DefaultThemeEffects()
-
-	// Set up settings
-	theme.Settings = models.DefaultThemeSettings()
 
 	return theme
 }
@@ -228,51 +227,55 @@ func (s *Service) createDefaultLightTheme() *models.Theme {
 	theme.Author = "aDex-UI Team"
 	theme.Version = "1.0.0"
 
-	// Set up light theme colors (inverse of dark)
+	// Set up light theme colors
 	theme.Colors = models.ThemeColors{
-		Background: models.ColorPalette{
-			Primary:   "#ffffff",
-			Secondary: "#f5f5f5",
-			Tertiary:  "#e0e0e0",
-		},
-		Foreground: models.ColorPalette{
-			Primary:   "#000000",
-			Secondary: "#333333",
-			Tertiary:  "#666666",
-		},
-		Accent: models.AccentColors{
-			Primary:   "#0066cc",
-			Secondary: "#0052a3",
-		},
-		Status: models.StatusColors{
-			Success: "#00aa44",
-			Warning: "#ff8800",
-			Error:   "#cc0000",
-			Info:    "#0088cc",
-		},
-		Terminal: models.TerminalColors{
-			"#ffffff", "#cc0000", "#00cc00", "#cccc00",
-			"#0000cc", "#cc00cc", "#00cccc", "#000000",
-			"#808080", "#ff8080", "#80ff80", "#ffff80",
-			"#8080ff", "#ff80ff", "#80ffff", "#c0c0c0",
-		},
-		UI: models.UIColors{
-			ButtonBackground:   "#f5f5f5",
-			ButtonForeground:   "#000000",
-			ButtonHover:        "#e0e0e0",
-			ButtonActive:       "#0066cc",
-			InputBackground:    "#ffffff",
-			InputForeground:    "#000000",
-			InputBorder:        "#cccccc",
-			InputFocus:         "#0066cc",
-			Border:             "#cccccc",
-			Shadow:             "rgba(0, 0, 0, 0.1)",
+		Primary:         models.ColorValue{Value: "#0066cc", Type: "hex"},
+		PrimaryHover:    models.ColorValue{Value: "#0052a3", Type: "hex"},
+		PrimaryActive:   models.ColorValue{Value: "#003d7a", Type: "hex"},
+		Secondary:       models.ColorValue{Value: "#f5f5f5", Type: "hex"},
+		SecondaryHover:  models.ColorValue{Value: "#e0e0e0", Type: "hex"},
+		SecondaryActive: models.ColorValue{Value: "#cccccc", Type: "hex"},
+		Accent:          models.ColorValue{Value: "#0066cc", Type: "hex"},
+		AccentHover:     models.ColorValue{Value: "#0052a3", Type: "hex"},
+		AccentActive:    models.ColorValue{Value: "#003d7a", Type: "hex"},
+		Background:      models.ColorValue{Value: "#ffffff", Type: "hex"},
+		Surface:         models.ColorValue{Value: "#f5f5f5", Type: "hex"},
+		SurfaceHover:    models.ColorValue{Value: "#e0e0e0", Type: "hex"},
+		SurfaceBorder:   models.ColorValue{Value: "#cccccc", Type: "hex"},
+		TextPrimary:     models.ColorValue{Value: "#000000", Type: "hex"},
+		TextSecondary:   models.ColorValue{Value: "#333333", Type: "hex"},
+		TextTertiary:    models.ColorValue{Value: "#666666", Type: "hex"},
+		TextInverse:     models.ColorValue{Value: "#ffffff", Type: "hex"},
+		Success:         models.ColorValue{Value: "#00aa44", Type: "hex"},
+		Warning:         models.ColorValue{Value: "#ff8800", Type: "hex"},
+		Error:           models.ColorValue{Value: "#cc0000", Type: "hex"},
+		Info:            models.ColorValue{Value: "#0088cc", Type: "hex"},
+		Glitch:          models.ColorValue{Value: "#ff00ff", Type: "hex"},
+		Cursor:          models.ColorValue{Value: "#0066cc", Type: "hex"},
+		Selection:       models.ColorValue{Value: "#0066cc33", Type: "hex"},
+		Terminal: &models.TerminalColors{
+			Background:    models.ColorValue{Value: "#ffffff", Type: "hex"},
+			Foreground:    models.ColorValue{Value: "#000000", Type: "hex"},
+			Cursor:        models.ColorValue{Value: "#0066cc", Type: "hex"},
+			Selection:     models.ColorValue{Value: "#0066cc33", Type: "hex"},
+			Black:         models.ColorValue{Value: "#000000", Type: "hex"},
+			Red:           models.ColorValue{Value: "#cc0000", Type: "hex"},
+			Green:         models.ColorValue{Value: "#00cc00", Type: "hex"},
+			Yellow:        models.ColorValue{Value: "#cccc00", Type: "hex"},
+			Blue:          models.ColorValue{Value: "#0000cc", Type: "hex"},
+			Magenta:       models.ColorValue{Value: "#cc00cc", Type: "hex"},
+			Cyan:          models.ColorValue{Value: "#00cccc", Type: "hex"},
+			White:         models.ColorValue{Value: "#ffffff", Type: "hex"},
+			BrightBlack:   models.ColorValue{Value: "#808080", Type: "hex"},
+			BrightRed:     models.ColorValue{Value: "#ff8080", Type: "hex"},
+			BrightGreen:   models.ColorValue{Value: "#80ff80", Type: "hex"},
+			BrightYellow:  models.ColorValue{Value: "#ffff80", Type: "hex"},
+			BrightBlue:    models.ColorValue{Value: "#8080ff", Type: "hex"},
+			BrightMagenta: models.ColorValue{Value: "#ff80ff", Type: "hex"},
+			BrightCyan:    models.ColorValue{Value: "#80ffff", Type: "hex"},
+			BrightWhite:   models.ColorValue{Value: "#c0c0c0", Type: "hex"},
 		},
 	}
-
-	theme.Fonts = models.DefaultThemeFonts()
-	theme.Effects = models.DefaultThemeEffects()
-	theme.Settings = models.DefaultThemeSettings()
 
 	return theme
 }
@@ -285,49 +288,53 @@ func (s *Service) createCyberpunkTheme() *models.Theme {
 	theme.Version = "1.0.0"
 
 	theme.Colors = models.ThemeColors{
-		Background: models.ColorPalette{
-			Primary:   "#0a0a0f",
-			Secondary: "#1a0a2a",
-			Tertiary:  "#2a1a3a",
-		},
-		Foreground: models.ColorPalette{
-			Primary:   "#ff00ff",
-			Secondary: "#00ffff",
-			Tertiary:  "#ffff00",
-		},
-		Accent: models.AccentColors{
-			Primary:   "#ff0080",
-			Secondary: "#00ff80",
-		},
-		Status: models.StatusColors{
-			Success: "#00ff80",
-			Warning: "#ffaa00",
-			Error:   "#ff0040",
-			Info:    "#00aaff",
-		},
-		Terminal: models.TerminalColors{
-			"#0a0a0f", "#ff0040", "#00ff80", "#ffff00",
-			"#0080ff", "#ff00ff", "#00ffff", "#ffffff",
-			"#80808f", "#ff8080", "#80ff80", "#ffff80",
-			"#8080ff", "#ff80ff", "#80ffff", "#c0c0c0",
-		},
-		UI: models.UIColors{
-			ButtonBackground:   "#1a0a2a",
-			ButtonForeground:   "#00ffff",
-			ButtonHover:        "#2a1a3a",
-			ButtonActive:       "#ff0080",
-			InputBackground:    "#0a0a0f",
-			InputForeground:    "#00ffff",
-			InputBorder:        "#ff0080",
-			InputFocus:         "#00ff80",
-			Border:             "#ff0080",
-			Shadow:             "rgba(255, 0, 255, 0.3)",
+		Primary:         models.ColorValue{Value: "#ff0080", Type: "hex"},
+		PrimaryHover:    models.ColorValue{Value: "#cc0066", Type: "hex"},
+		PrimaryActive:   models.ColorValue{Value: "#990050", Type: "hex"},
+		Secondary:       models.ColorValue{Value: "#1a0a2a", Type: "hex"},
+		SecondaryHover:  models.ColorValue{Value: "#2a1a3a", Type: "hex"},
+		SecondaryActive: models.ColorValue{Value: "#3a2a4a", Type: "hex"},
+		Accent:          models.ColorValue{Value: "#00ff80", Type: "hex"},
+		AccentHover:     models.ColorValue{Value: "#00cc66", Type: "hex"},
+		AccentActive:    models.ColorValue{Value: "#009950", Type: "hex"},
+		Background:      models.ColorValue{Value: "#0a0a0f", Type: "hex"},
+		Surface:         models.ColorValue{Value: "#1a0a2a", Type: "hex"},
+		SurfaceHover:    models.ColorValue{Value: "#2a1a3a", Type: "hex"},
+		SurfaceBorder:   models.ColorValue{Value: "#ff0080", Type: "hex"},
+		TextPrimary:     models.ColorValue{Value: "#ff00ff", Type: "hex"},
+		TextSecondary:   models.ColorValue{Value: "#00ffff", Type: "hex"},
+		TextTertiary:    models.ColorValue{Value: "#ffff00", Type: "hex"},
+		TextInverse:     models.ColorValue{Value: "#000000", Type: "hex"},
+		Success:         models.ColorValue{Value: "#00ff80", Type: "hex"},
+		Warning:         models.ColorValue{Value: "#ffaa00", Type: "hex"},
+		Error:           models.ColorValue{Value: "#ff0040", Type: "hex"},
+		Info:            models.ColorValue{Value: "#00aaff", Type: "hex"},
+		Glitch:          models.ColorValue{Value: "#ff00ff", Type: "hex"},
+		Cursor:          models.ColorValue{Value: "#ff0080", Type: "hex"},
+		Selection:       models.ColorValue{Value: "#ff008033", Type: "hex"},
+		Terminal: &models.TerminalColors{
+			Background:    models.ColorValue{Value: "#0a0a0f", Type: "hex"},
+			Foreground:    models.ColorValue{Value: "#ffffff", Type: "hex"},
+			Cursor:        models.ColorValue{Value: "#ff0080", Type: "hex"},
+			Selection:     models.ColorValue{Value: "#ff008033", Type: "hex"},
+			Black:         models.ColorValue{Value: "#0a0a0f", Type: "hex"},
+			Red:           models.ColorValue{Value: "#ff0040", Type: "hex"},
+			Green:         models.ColorValue{Value: "#00ff80", Type: "hex"},
+			Yellow:        models.ColorValue{Value: "#ffff00", Type: "hex"},
+			Blue:          models.ColorValue{Value: "#0080ff", Type: "hex"},
+			Magenta:       models.ColorValue{Value: "#ff00ff", Type: "hex"},
+			Cyan:          models.ColorValue{Value: "#00ffff", Type: "hex"},
+			White:         models.ColorValue{Value: "#ffffff", Type: "hex"},
+			BrightBlack:   models.ColorValue{Value: "#80808f", Type: "hex"},
+			BrightRed:     models.ColorValue{Value: "#ff8080", Type: "hex"},
+			BrightGreen:   models.ColorValue{Value: "#80ff80", Type: "hex"},
+			BrightYellow:  models.ColorValue{Value: "#ffff80", Type: "hex"},
+			BrightBlue:    models.ColorValue{Value: "#8080ff", Type: "hex"},
+			BrightMagenta: models.ColorValue{Value: "#ff80ff", Type: "hex"},
+			BrightCyan:    models.ColorValue{Value: "#80ffff", Type: "hex"},
+			BrightWhite:   models.ColorValue{Value: "#c0c0c0", Type: "hex"},
 		},
 	}
-
-	theme.Fonts = models.DefaultThemeFonts()
-	theme.Effects = models.DefaultThemeEffects()
-	theme.Settings = models.DefaultThemeSettings()
 
 	return theme
 }
@@ -340,49 +347,53 @@ func (s *Service) createRetroTheme() *models.Theme {
 	theme.Version = "1.0.0"
 
 	theme.Colors = models.ThemeColors{
-		Background: models.ColorPalette{
-			Primary:   "#000000",
-			Secondary: "#0a0a0a",
-			Tertiary:  "#141414",
-		},
-		Foreground: models.ColorPalette{
-			Primary:   "#00ff41",
-			Secondary: "#00cc33",
-			Tertiary:   "#009922",
-		},
-		Accent: models.AccentColors{
-			Primary:   "#00ff41",
-			Secondary: "#00cc33",
-		},
-		Status: models.StatusColors{
-			Success: "#00ff41",
-			Warning: "#ffaa00",
-			Error:   "#ff3333",
-			Info:    "#00aaff",
-		},
-		Terminal: models.TerminalColors{
-			"#000000", "#cc0000", "#00cc00", "#cccc00",
-			"#0000cc", "#cc00cc", "#00cccc", "#cccccc",
-			"#808080", "#ff8080", "#80ff80", "#ffff80",
-			"#8080ff", "#ff80ff", "#80ffff", "#ffffff",
-		},
-		UI: models.UIColors{
-			ButtonBackground:   "#0a0a0a",
-			ButtonForeground:   "#00ff41",
-			ButtonHover:        "#141414",
-			ButtonActive:       "#00ff41",
-			InputBackground:    "#000000",
-			InputForeground:    "#00ff41",
-			InputBorder:        "#00ff41",
-			InputFocus:         "#00ff41",
-			Border:             "#00ff41",
-			Shadow:             "rgba(0, 255, 65, 0.2)",
+		Primary:         models.ColorValue{Value: "#00ff41", Type: "hex"},
+		PrimaryHover:    models.ColorValue{Value: "#00cc33", Type: "hex"},
+		PrimaryActive:   models.ColorValue{Value: "#009922", Type: "hex"},
+		Secondary:       models.ColorValue{Value: "#0a0a0a", Type: "hex"},
+		SecondaryHover:  models.ColorValue{Value: "#141414", Type: "hex"},
+		SecondaryActive: models.ColorValue{Value: "#1e1e1e", Type: "hex"},
+		Accent:          models.ColorValue{Value: "#00ff41", Type: "hex"},
+		AccentHover:     models.ColorValue{Value: "#00cc33", Type: "hex"},
+		AccentActive:    models.ColorValue{Value: "#009922", Type: "hex"},
+		Background:      models.ColorValue{Value: "#000000", Type: "hex"},
+		Surface:         models.ColorValue{Value: "#0a0a0a", Type: "hex"},
+		SurfaceHover:    models.ColorValue{Value: "#141414", Type: "hex"},
+		SurfaceBorder:   models.ColorValue{Value: "#00ff41", Type: "hex"},
+		TextPrimary:     models.ColorValue{Value: "#00ff41", Type: "hex"},
+		TextSecondary:   models.ColorValue{Value: "#00cc33", Type: "hex"},
+		TextTertiary:    models.ColorValue{Value: "#009922", Type: "hex"},
+		TextInverse:     models.ColorValue{Value: "#000000", Type: "hex"},
+		Success:         models.ColorValue{Value: "#00ff41", Type: "hex"},
+		Warning:         models.ColorValue{Value: "#ffaa00", Type: "hex"},
+		Error:           models.ColorValue{Value: "#ff3333", Type: "hex"},
+		Info:            models.ColorValue{Value: "#00aaff", Type: "hex"},
+		Glitch:          models.ColorValue{Value: "#ff00ff", Type: "hex"},
+		Cursor:          models.ColorValue{Value: "#00ff41", Type: "hex"},
+		Selection:       models.ColorValue{Value: "#00ff4133", Type: "hex"},
+		Terminal: &models.TerminalColors{
+			Background:    models.ColorValue{Value: "#000000", Type: "hex"},
+			Foreground:    models.ColorValue{Value: "#00ff41", Type: "hex"},
+			Cursor:        models.ColorValue{Value: "#00ff41", Type: "hex"},
+			Selection:     models.ColorValue{Value: "#00ff4133", Type: "hex"},
+			Black:         models.ColorValue{Value: "#000000", Type: "hex"},
+			Red:           models.ColorValue{Value: "#cc0000", Type: "hex"},
+			Green:         models.ColorValue{Value: "#00cc00", Type: "hex"},
+			Yellow:        models.ColorValue{Value: "#cccc00", Type: "hex"},
+			Blue:          models.ColorValue{Value: "#0000cc", Type: "hex"},
+			Magenta:       models.ColorValue{Value: "#cc00cc", Type: "hex"},
+			Cyan:          models.ColorValue{Value: "#00cccc", Type: "hex"},
+			White:         models.ColorValue{Value: "#cccccc", Type: "hex"},
+			BrightBlack:   models.ColorValue{Value: "#808080", Type: "hex"},
+			BrightRed:     models.ColorValue{Value: "#ff8080", Type: "hex"},
+			BrightGreen:   models.ColorValue{Value: "#80ff80", Type: "hex"},
+			BrightYellow:  models.ColorValue{Value: "#ffff80", Type: "hex"},
+			BrightBlue:    models.ColorValue{Value: "#8080ff", Type: "hex"},
+			BrightMagenta: models.ColorValue{Value: "#ff80ff", Type: "hex"},
+			BrightCyan:    models.ColorValue{Value: "#80ffff", Type: "hex"},
+			BrightWhite:   models.ColorValue{Value: "#ffffff", Type: "hex"},
 		},
 	}
-
-	theme.Fonts = models.DefaultThemeFonts()
-	theme.Effects = models.DefaultThemeEffects()
-	theme.Settings = models.DefaultThemeSettings()
 
 	return theme
 }
@@ -411,7 +422,7 @@ func (s *Service) SetCurrentTheme(themeID string) error {
 		return fmt.Errorf("theme '%s' not found", themeID)
 	}
 
-	oldThemeID := s.currentThemeID
+	_ = s.currentThemeID // Previous theme ID (available for future use)
 	s.currentThemeID = themeID
 
 	// Trigger theme change event
@@ -654,12 +665,12 @@ func (s *Service) GetServiceStatus() map[string]interface{} {
 	defer s.mutex.RUnlock()
 
 	return map[string]interface{}{
-		"current_theme_id":   s.currentThemeID,
-		"default_theme_id":   s.defaultThemeID,
-		"total_themes":       len(s.themes),
-		"theme_directory":    s.themeDirectory,
-		"auto_reload":        s.config.AutoReload,
-		"cache_enabled":      s.config.CacheEnabled,
+		"current_theme_id":    s.currentThemeID,
+		"default_theme_id":    s.defaultThemeID,
+		"total_themes":        len(s.themes),
+		"theme_directory":     s.themeDirectory,
+		"auto_reload":         s.config.AutoReload,
+		"cache_enabled":       s.config.CacheEnabled,
 		"variable_cache_info": s.variableGen.GetCacheInfo(),
 	}
 }

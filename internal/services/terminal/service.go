@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -33,35 +32,35 @@ type Service struct {
 
 // ServiceConfig holds configuration for the terminal service
 type ServiceConfig struct {
-	MaxSessions        int           `json:"max_sessions"`
-	DefaultShell       string        `json:"default_shell"`
-	DefaultWorkingDir  string        `json:"default_working_dir"`
-	HistorySize        int           `json:"history_size"`
-	BufferSize         int           `json:"buffer_size"`
-	SessionTimeout     time.Duration `json:"session_timeout"`
-	CleanupInterval    time.Duration `json:"cleanup_interval"`
-	EnableBell         bool          `json:"enable_bell"`
-	EnableNotifications bool         `json:"enable_notifications"`
-	Theme              string        `json:"theme"`
-	Font               string        `json:"font"`
-	CWDTracking        *CWDTrackingConfig `json:"cwd_tracking,omitempty"`
+	MaxSessions         int                `json:"max_sessions"`
+	DefaultShell        string             `json:"default_shell"`
+	DefaultWorkingDir   string             `json:"default_working_dir"`
+	HistorySize         int                `json:"history_size"`
+	BufferSize          int                `json:"buffer_size"`
+	SessionTimeout      time.Duration      `json:"session_timeout"`
+	CleanupInterval     time.Duration      `json:"cleanup_interval"`
+	EnableBell          bool               `json:"enable_bell"`
+	EnableNotifications bool               `json:"enable_notifications"`
+	Theme               string             `json:"theme"`
+	Font                string             `json:"font"`
+	CWDTracking         *CWDTrackingConfig `json:"cwd_tracking,omitempty"`
 }
 
 // DefaultServiceConfig returns the default terminal service configuration
 func DefaultServiceConfig() *ServiceConfig {
 	return &ServiceConfig{
-		MaxSessions:        10,
-		DefaultShell:       getDefaultShell(),
-		DefaultWorkingDir:  "/tmp",
-		HistorySize:        1000,
-		BufferSize:         8192,
-		SessionTimeout:     30 * time.Minute,
-		CleanupInterval:    5 * time.Minute,
-		EnableBell:         true,
+		MaxSessions:         10,
+		DefaultShell:        getDefaultShell(),
+		DefaultWorkingDir:   "/tmp",
+		HistorySize:         1000,
+		BufferSize:          8192,
+		SessionTimeout:      30 * time.Minute,
+		CleanupInterval:     5 * time.Minute,
+		EnableBell:          true,
 		EnableNotifications: true,
-		Theme:              "default-dark",
-		Font:               "JetBrains Mono",
-		CWDTracking:        DefaultCWDTrackingConfig(),
+		Theme:               "default-dark",
+		Font:                "JetBrains Mono",
+		CWDTracking:         DefaultCWDTrackingConfig(),
 	}
 }
 
@@ -105,7 +104,7 @@ func (s *Service) Initialize(ctx context.Context) error {
 	if s.cwdTracker != nil {
 		s.cwdTracker.SetEventBus(s.eventBus)
 		if err := s.cwdTracker.Initialize(ctx); err != nil {
-			s.logger.Warn("Failed to initialize CWD tracker", err, nil)
+			s.logger.Warn("Failed to initialize CWD tracker", map[string]interface{}{"error": err.Error()})
 		} else {
 			s.logger.Info("CWD tracker initialized successfully")
 		}
@@ -120,7 +119,10 @@ func (s *Service) Initialize(ctx context.Context) error {
 
 // SetEventBus sets the event bus for the service
 func (s *Service) SetEventBus(bus events.IEventBus) {
-	s.eventBus = bus
+	// Store as interface type
+	if eb, ok := bus.(*events.EventBus); ok {
+		s.eventBus = eb
+	}
 	if s.cwdTracker != nil {
 		s.cwdTracker.SetEventBus(bus)
 	}
@@ -186,7 +188,8 @@ func (s *Service) CreateSession(ctx context.Context, options *models.TerminalOpt
 	// Add session to CWD tracker
 	if s.cwdTracker != nil {
 		if err := s.cwdTracker.AddSession(session.ID, pty, session.CWD); err != nil {
-			s.logger.Warn("Failed to add session to CWD tracker", err, map[string]interface{}{
+			s.logger.Warn("Failed to add session to CWD tracker", map[string]interface{}{
+				"error":      err.Error(),
 				"session_id": session.ID,
 				"cwd":        session.CWD,
 			})
@@ -686,7 +689,7 @@ func (s *Service) GetCurrentCWD(sessionID string) (string, error) {
 		s.mu.RUnlock()
 
 		if !exists {
-			return "", models.NewError(models.ErrTerminalNotFound, "Session not found", nil)
+			return "", models.NewError(models.ErrTerminalCreate, "Session not found", nil)
 		}
 
 		return session.CWD, nil
@@ -726,7 +729,7 @@ func (s *Service) Shutdown(ctx context.Context) error {
 	// Shutdown CWD tracker
 	if s.cwdTracker != nil {
 		if err := s.cwdTracker.Shutdown(ctx); err != nil {
-			s.logger.Warn("Failed to shutdown CWD tracker", err, nil)
+			s.logger.Warn("Failed to shutdown CWD tracker", map[string]interface{}{"error": err.Error()})
 		}
 	}
 

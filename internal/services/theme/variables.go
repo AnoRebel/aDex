@@ -1,8 +1,10 @@
 package theme
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
@@ -23,12 +25,12 @@ type VariableGenerator struct {
 
 // GeneratedCSS represents generated CSS with metadata
 type GeneratedCSS struct {
-	Variables    string            `json:"variables"`
-	ThemeID      string            `json:"theme_id"`
-	GeneratedAt  time.Time         `json:"generated_at"`
-	Hash         string            `json:"hash"`
-	VariableCount int              `json:"variable_count"`
-	Metadata     map[string]string `json:"metadata"`
+	Variables     string            `json:"variables"`
+	ThemeID       string            `json:"theme_id"`
+	GeneratedAt   time.Time         `json:"generated_at"`
+	Hash          string            `json:"hash"`
+	VariableCount int               `json:"variable_count"`
+	Metadata      map[string]string `json:"metadata"`
 }
 
 // NewVariableGenerator creates a new CSS variable generator
@@ -55,16 +57,25 @@ func (vg *VariableGenerator) SetVariablePrefix(prefix string) {
 	vg.variableCache = make(map[string]*GeneratedCSS)
 }
 
+// computeThemeHash computes a hash for the theme for caching purposes
+func (vg *VariableGenerator) computeThemeHash(theme *models.Theme) string {
+	data, _ := json.Marshal(theme)
+	hash := sha256.Sum256(data)
+	return hex.EncodeToString(hash[:8])
+}
+
 // GenerateCSSVariables generates CSS custom properties from a theme
 func (vg *VariableGenerator) GenerateCSSVariables(theme *models.Theme) (*GeneratedCSS, error) {
 	if theme == nil {
 		return nil, fmt.Errorf("theme cannot be nil")
 	}
 
+	themeHash := vg.computeThemeHash(theme)
+
 	// Check cache first
 	if cached, exists := vg.variableCache[theme.ID]; exists {
 		// Verify theme hasn't changed by comparing hashes
-		if cached.Hash == theme.Hash() {
+		if cached.Hash == themeHash {
 			return cached, nil
 		}
 	}
@@ -74,11 +85,11 @@ func (vg *VariableGenerator) GenerateCSSVariables(theme *models.Theme) (*Generat
 
 	// Generate CSS variables
 	css := &GeneratedCSS{
-		ThemeID:      theme.ID,
-		GeneratedAt:  time.Now(),
-		Hash:         theme.Hash(),
+		ThemeID:       theme.ID,
+		GeneratedAt:   time.Now(),
+		Hash:          themeHash,
 		VariableCount: 0,
-		Metadata:     make(map[string]string),
+		Metadata:      make(map[string]string),
 	}
 
 	var builder strings.Builder
@@ -95,22 +106,8 @@ func (vg *VariableGenerator) GenerateCSSVariables(theme *models.Theme) (*Generat
 	// Color variables
 	vg.generateColorVariables(&builder, theme.Colors, css)
 
-	// Font variables
-	vg.generateFontVariables(&builder, theme.Fonts, css)
-
-	// Effect variables
-	vg.generateEffectVariables(&builder, theme.Effects, css)
-
-	// Settings variables
-	vg.generateSettingsVariables(&builder, theme.Settings, css)
-
 	// Close root block
 	builder.WriteString("}\n")
-
-	// Add utility classes if not minified
-	if !vg.minify {
-		vg.generateUtilityClasses(&builder, theme, css)
-	}
 
 	css.Variables = builder.String()
 
@@ -122,127 +119,70 @@ func (vg *VariableGenerator) GenerateCSSVariables(theme *models.Theme) (*Generat
 
 // generateColorVariables generates CSS color variables
 func (vg *VariableGenerator) generateColorVariables(builder *strings.Builder, colors models.ThemeColors, css *GeneratedCSS) {
-	// Base colors
-	vg.addColorVariable(builder, "background-primary", colors.Background.Primary, css)
-	vg.addColorVariable(builder, "background-secondary", colors.Background.Secondary, css)
-	vg.addColorVariable(builder, "background-tertiary", colors.Background.Tertiary, css)
+	// Primary colors
+	vg.addColorVariable(builder, "primary", colors.Primary.Value, css)
+	vg.addColorVariable(builder, "primary-hover", colors.PrimaryHover.Value, css)
+	vg.addColorVariable(builder, "primary-active", colors.PrimaryActive.Value, css)
 
-	vg.addColorVariable(builder, "foreground-primary", colors.Foreground.Primary, css)
-	vg.addColorVariable(builder, "foreground-secondary", colors.Foreground.Secondary, css)
-	vg.addColorVariable(builder, "foreground-tertiary", colors.Foreground.Tertiary, css)
+	// Secondary colors
+	vg.addColorVariable(builder, "secondary", colors.Secondary.Value, css)
+	vg.addColorVariable(builder, "secondary-hover", colors.SecondaryHover.Value, css)
+	vg.addColorVariable(builder, "secondary-active", colors.SecondaryActive.Value, css)
 
 	// Accent colors
-	vg.addColorVariable(builder, "accent-primary", colors.Accent.Primary, css)
-	vg.addColorVariable(builder, "accent-secondary", colors.Accent.Secondary, css)
+	vg.addColorVariable(builder, "accent", colors.Accent.Value, css)
+	vg.addColorVariable(builder, "accent-hover", colors.AccentHover.Value, css)
+	vg.addColorVariable(builder, "accent-active", colors.AccentActive.Value, css)
+
+	// Surface colors
+	vg.addColorVariable(builder, "background", colors.Background.Value, css)
+	vg.addColorVariable(builder, "surface", colors.Surface.Value, css)
+	vg.addColorVariable(builder, "surface-hover", colors.SurfaceHover.Value, css)
+	vg.addColorVariable(builder, "surface-border", colors.SurfaceBorder.Value, css)
+
+	// Text colors
+	vg.addColorVariable(builder, "text-primary", colors.TextPrimary.Value, css)
+	vg.addColorVariable(builder, "text-secondary", colors.TextSecondary.Value, css)
+	vg.addColorVariable(builder, "text-tertiary", colors.TextTertiary.Value, css)
+	vg.addColorVariable(builder, "text-inverse", colors.TextInverse.Value, css)
 
 	// Status colors
-	vg.addColorVariable(builder, "success", colors.Status.Success, css)
-	vg.addColorVariable(builder, "warning", colors.Status.Warning, css)
-	vg.addColorVariable(builder, "error", colors.Status.Error, css)
-	vg.addColorVariable(builder, "info", colors.Status.Info, css)
+	vg.addColorVariable(builder, "success", colors.Success.Value, css)
+	vg.addColorVariable(builder, "warning", colors.Warning.Value, css)
+	vg.addColorVariable(builder, "error", colors.Error.Value, css)
+	vg.addColorVariable(builder, "info", colors.Info.Value, css)
+
+	// Special colors
+	vg.addColorVariable(builder, "glitch", colors.Glitch.Value, css)
+	vg.addColorVariable(builder, "cursor", colors.Cursor.Value, css)
+	vg.addColorVariable(builder, "selection", colors.Selection.Value, css)
 
 	// Terminal colors
-	for i, color := range colors.Terminal {
-		vg.addColorVariable(builder, fmt.Sprintf("terminal-%d", i), color, css)
-	}
-
-	// UI component colors
-	vg.addColorVariable(builder, "ui-button-bg", colors.UI.ButtonBackground, css)
-	vg.addColorVariable(builder, "ui-button-fg", colors.UI.ButtonForeground, css)
-	vg.addColorVariable(builder, "ui-button-hover", colors.UI.ButtonHover, css)
-	vg.addColorVariable(builder, "ui-button-active", colors.UI.ButtonActive, css)
-
-	vg.addColorVariable(builder, "ui-input-bg", colors.UI.InputBackground, css)
-	vg.addColorVariable(builder, "ui-input-fg", colors.UI.InputForeground, css)
-	vg.addColorVariable(builder, "ui-input-border", colors.UI.InputBorder, css)
-	vg.addColorVariable(builder, "ui-input-focus", colors.UI.InputFocus, css)
-
-	vg.addColorVariable(builder, "ui-border", colors.UI.Border, css)
-	vg.addColorVariable(builder, "ui-shadow", colors.UI.Shadow, css)
-}
-
-// generateFontVariables generates CSS font variables
-func (vg *VariableGenerator) generateFontVariables(builder *strings.Builder, fonts models.ThemeFonts, css *GeneratedCSS) {
-	vg.addFontVariable(builder, "font-family-primary", fonts.Families.Primary, css)
-	vg.addFontVariable(builder, "font-family-secondary", fonts.Families.Secondary, css)
-	vg.addFontVariable(builder, "font-family-mono", fonts.Families.Monospace, css)
-
-	vg.addSizeVariable(builder, "font-size-xs", fonts.Sizes.ExtraSmall, css)
-	vg.addSizeVariable(builder, "font-size-sm", fonts.Sizes.Small, css)
-	vg.addSizeVariable(builder, "font-size-base", fonts.Sizes.Base, css)
-	vg.addSizeVariable(builder, "font-size-lg", fonts.Sizes.Large, css)
-	vg.addSizeVariable(builder, "font-size-xl", fonts.Sizes.ExtraLarge, css)
-	vg.addSizeVariable(builder, "font-size-2xl", fonts.Sizes.DoubleExtraLarge, css)
-
-	vg.addWeightVariable(builder, "font-weight-light", fonts.Weights.Light, css)
-	vg.addWeightVariable(builder, "font-weight-normal", fonts.Weights.Normal, css)
-	vg.addWeightVariable(builder, "font-weight-medium", fonts.Weights.Medium, css)
-	vg.addWeightVariable(builder, "font-weight-semibold", fonts.Weights.SemiBold, css)
-	vg.addWeightVariable(builder, "font-weight-bold", fonts.Weights.Bold, css)
-
-	vg.addSizeVariable(builder, "line-height-tight", fonts.LineHeights.Tight, css)
-	vg.addSizeVariable(builder, "line-height-normal", fonts.LineHeights.Normal, css)
-	vg.addSizeVariable(builder, "line-height-relaxed", fonts.LineHeights.Relaxed, css)
-
-	vg.addSizeVariable(builder, "letter-spacing-tight", fonts.LetterSpacing.Tight, css)
-	vg.addSizeVariable(builder, "letter-spacing-normal", fonts.LetterSpacing.Normal, css)
-	vg.addSizeVariable(builder, "letter-spacing-wide", fonts.LetterSpacing.Wide, css)
-}
-
-// generateEffectVariables generates CSS effect variables
-func (vg *VariableGenerator) generateEffectVariables(builder *strings.Builder, effects models.ThemeEffects, css *GeneratedCSS) {
-	// Border radius
-	vg.addSizeVariable(builder, "border-radius-sm", effects.BorderRadius.Small, css)
-	vg.addSizeVariable(builder, "border-radius-md", effects.BorderRadius.Medium, css)
-	vg.addSizeVariable(builder, "border-radius-lg", effects.BorderRadius.Large, css)
-	vg.addSizeVariable(builder, "border-radius-xl", effects.BorderRadius.ExtraLarge, css)
-	vg.addSizeVariable(builder, "border-radius-full", effects.BorderRadius.Full, css)
-
-	// Shadows
-	for i, shadow := range effects.Shadows {
-		vg.addShadowVariable(builder, fmt.Sprintf("shadow-%d", i+1), shadow, css)
-	}
-
-	// Gradients
-	for i, gradient := range effects.Gradients {
-		vg.addGradientVariable(builder, fmt.Sprintf("gradient-%d", i+1), gradient, css)
-	}
-
-	// Animations
-	vg.addAnimationVariable(builder, "animation-duration-fast", effects.Animations.Duration.Fast, css)
-	vg.addAnimationVariable(builder, "animation-duration-normal", effects.Animations.Duration.Normal, css)
-	vg.addAnimationVariable(builder, "animation-duration-slow", effects.Animations.Duration.Slow, css)
-
-	vg.addAnimationVariable(builder, "animation-easing-linear", effects.Animations.Easing.Linear, css)
-	vg.addAnimationVariable(builder, "animation-easing-ease-in", effects.Animations.Easing.EaseIn, css)
-	vg.addAnimationVariable(builder, "animation-easing-ease-out", effects.Animations.Easing.EaseOut, css)
-	vg.addAnimationVariable(builder, "animation-easing-ease-in-out", effects.Animations.Easing.EaseInOut, css)
-
-	// Blur effects
-	vg.addSizeVariable(builder, "blur-sm", effects.Blur.Small, css)
-	vg.addSizeVariable(builder, "blur-md", effects.Blur.Medium, css)
-	vg.addSizeVariable(builder, "blur-lg", effects.Blur.Large, css)
-	vg.addSizeVariable(builder, "blur-xl", effects.Blur.ExtraLarge, css)
-}
-
-// generateSettingsVariables generates CSS settings variables
-func (vg *VariableGenerator) generateSettingsVariables(builder *strings.Builder, settings models.ThemeSettings, css *GeneratedCSS) {
-	vg.addOpacityVariable(builder, "opacity-disabled", settings.DisabledOpacity, css)
-	vg.addOpacityVariable(builder, "opacity-hover", settings.HoverOpacity, css)
-	vg.addOpacityVariable(builder, "opacity-active", settings.ActiveOpacity, css)
-
-	vg.addTransitionVariable(builder, "transition-fast", settings.TransitionDuration.Fast, css)
-	vg.addTransitionVariable(builder, "transition-normal", settings.TransitionDuration.Normal, css)
-	vg.addTransitionVariable(builder, "transition-slow", settings.TransitionDuration.Slow, css)
-
-	// Z-index scale
-	for name, value := range settings.ZIndexScale {
-		vg.addZIndexVariable(builder, fmt.Sprintf("z-%s", name), value, css)
+	if colors.Terminal != nil {
+		vg.addColorVariable(builder, "terminal-bg", colors.Terminal.Background.Value, css)
+		vg.addColorVariable(builder, "terminal-fg", colors.Terminal.Foreground.Value, css)
+		vg.addColorVariable(builder, "terminal-cursor", colors.Terminal.Cursor.Value, css)
+		vg.addColorVariable(builder, "terminal-selection", colors.Terminal.Selection.Value, css)
+		vg.addColorVariable(builder, "terminal-black", colors.Terminal.Black.Value, css)
+		vg.addColorVariable(builder, "terminal-red", colors.Terminal.Red.Value, css)
+		vg.addColorVariable(builder, "terminal-green", colors.Terminal.Green.Value, css)
+		vg.addColorVariable(builder, "terminal-yellow", colors.Terminal.Yellow.Value, css)
+		vg.addColorVariable(builder, "terminal-blue", colors.Terminal.Blue.Value, css)
+		vg.addColorVariable(builder, "terminal-magenta", colors.Terminal.Magenta.Value, css)
+		vg.addColorVariable(builder, "terminal-cyan", colors.Terminal.Cyan.Value, css)
+		vg.addColorVariable(builder, "terminal-white", colors.Terminal.White.Value, css)
+		vg.addColorVariable(builder, "terminal-bright-black", colors.Terminal.BrightBlack.Value, css)
+		vg.addColorVariable(builder, "terminal-bright-red", colors.Terminal.BrightRed.Value, css)
+		vg.addColorVariable(builder, "terminal-bright-green", colors.Terminal.BrightGreen.Value, css)
+		vg.addColorVariable(builder, "terminal-bright-yellow", colors.Terminal.BrightYellow.Value, css)
+		vg.addColorVariable(builder, "terminal-bright-blue", colors.Terminal.BrightBlue.Value, css)
+		vg.addColorVariable(builder, "terminal-bright-magenta", colors.Terminal.BrightMagenta.Value, css)
+		vg.addColorVariable(builder, "terminal-bright-cyan", colors.Terminal.BrightCyan.Value, css)
+		vg.addColorVariable(builder, "terminal-bright-white", colors.Terminal.BrightWhite.Value, css)
 	}
 }
 
-// Helper methods for adding CSS variables
-
+// addColorVariable adds a color CSS variable
 func (vg *VariableGenerator) addColorVariable(builder *strings.Builder, name, value string, css *GeneratedCSS) {
 	if value == "" {
 		value = "transparent"
@@ -250,178 +190,35 @@ func (vg *VariableGenerator) addColorVariable(builder *strings.Builder, name, va
 	vg.addVariable(builder, name, value, css)
 }
 
-func (vg *VariableGenerator) addFontVariable(builder *strings.Builder, name, value string, css *GeneratedCSS) {
-	if value == "" {
-		value = "inherit"
-	}
-	vg.addVariable(builder, name, value, css)
-}
-
-func (vg *VariableGenerator) addSizeVariable(builder *strings.Builder, name, value string, css *GeneratedCSS) {
-	if value == "" {
-		value = "0"
-	}
-	vg.addVariable(builder, name, value, css)
-}
-
-func (vg *VariableGenerator) addWeightVariable(builder *strings.Builder, name, value string, css *GeneratedCSS) {
-	if value == "" {
-		value = "400"
-	}
-	vg.addVariable(builder, name, value, css)
-}
-
-func (vg *VariableGenerator) addShadowVariable(builder *strings.Builder, name, value string, css *GeneratedCSS) {
-	if value == "" {
-		value = "none"
-	}
-	vg.addVariable(builder, name, value, css)
-}
-
-func (vg *VariableGenerator) addGradientVariable(builder *strings.Builder, name, value string, css *GeneratedCSS) {
-	if value == "" {
-		value = "transparent"
-	}
-	vg.addVariable(builder, name, value, css)
-}
-
-func (vg *VariableGenerator) addAnimationVariable(builder *strings.Builder, name, value string, css *GeneratedCSS) {
-	if value == "" {
-		value = "0s"
-	}
-	vg.addVariable(builder, name, value, css)
-}
-
-func (vg *VariableGenerator) addOpacityVariable(builder *strings.Builder, name string, value float32, css *GeneratedCSS) {
-	vg.addVariable(builder, name, fmt.Sprintf("%.2f", value), css)
-}
-
-func (vg *VariableGenerator) addTransitionVariable(builder *strings.Builder, name string, value time.Duration, css *GeneratedCSS) {
-	vg.addVariable(builder, name, fmt.Sprintf("%.0fms", float64(value.Milliseconds())), css)
-}
-
-func (vg *VariableGenerator) addZIndexVariable(builder *strings.Builder, name string, value int, css *GeneratedCSS) {
-	vg.addVariable(builder, name, fmt.Sprintf("%d", value), css)
-}
-
+// addVariable adds a CSS variable to the builder
 func (vg *VariableGenerator) addVariable(builder *strings.Builder, name, value string, css *GeneratedCSS) {
-	indent := "  "
+	varName := fmt.Sprintf("%s-%s", vg.variablePrefix, name)
 	if vg.minify {
-		indent = ""
+		builder.WriteString(fmt.Sprintf("%s:%s;", varName, value))
+	} else {
+		builder.WriteString(fmt.Sprintf("  %s: %s;\n", varName, value))
 	}
-
-	variableName := fmt.Sprintf("%s-%s", vg.variablePrefix, name)
-
-	// Sanitize the variable name
-	variableName = vg.sanitizeVariableName(variableName)
-
-	// Sanitize the value
-	value = vg.sanitizeValue(value)
-
-	builder.WriteString(fmt.Sprintf("%s%s: %s;\n", indent, variableName, value))
 	css.VariableCount++
 }
 
-// generateUtilityClasses generates utility CSS classes for common theme values
-func (vg *VariableGenerator) generateUtilityClasses(builder *strings.Builder, theme *models.Theme, css *GeneratedCSS) {
-	builder.WriteString("\n/* Utility Classes */\n")
-
-	// Text color utilities
-	builder.WriteString(".text-primary { color: var(--dex-theme-foreground-primary); }\n")
-	builder.WriteString(".text-secondary { color: var(--dex-theme-foreground-secondary); }\n")
-	builder.WriteString(".text-accent { color: var(--dex-theme-accent-primary); }\n")
-
-	// Background utilities
-	builder.WriteString(".bg-primary { background-color: var(--dex-theme-background-primary); }\n")
-	builder.WriteString(".bg-secondary { background-color: var(--dex-theme-background-secondary); }\n")
-
-	// Border utilities
-	builder.WriteString(".border-themed { border-color: var(--dex-theme-ui-border); }\n")
-	builder.WriteString(".border-radius-themed { border-radius: var(--dex-theme-border-radius-md); }\n")
-
-	// Font utilities
-	builder.WriteString(".font-primary { font-family: var(--dex-theme-font-family-primary); }\n")
-	builder.WriteString(".font-mono { font-family: var(--dex-theme-font-family-mono); }\n")
-}
-
-// sanitizeVariableName ensures CSS variable names are valid
-func (vg *VariableGenerator) sanitizeVariableName(name string) string {
-	// Convert to lowercase
-	name = strings.ToLower(name)
-
-	// Replace spaces and special characters with hyphens
-	reg := regexp.MustCompile(`[^a-z0-9\-]`)
-	name = reg.ReplaceAllString(name, "-")
-
-	// Remove multiple consecutive hyphens
-	reg = regexp.MustCompile(`-+`)
-	name = reg.ReplaceAllString(name, "-")
-
-	// Remove leading/trailing hyphens
-	name = strings.Trim(name, "-")
-
-	return name
-}
-
-// sanitizeValue ensures CSS values are safe
-func (vg *VariableGenerator) sanitizeValue(value string) string {
-	// Remove potentially unsafe characters
-	value = strings.ReplaceAll(value, "<", "")
-	value = strings.ReplaceAll(value, ">", "")
-	value = strings.ReplaceAll(value, "&", "")
-	value = strings.ReplaceAll(value, "\"", "")
-	value = strings.ReplaceAll(value, "'", "")
-
-	return strings.TrimSpace(value)
-}
-
-// GenerateCSSForThemeID generates CSS variables for a theme by ID
-func (vg *VariableGenerator) GenerateCSSForThemeID(themeID string) (*GeneratedCSS, error) {
-	theme, exists := vg.themeCache[themeID]
-	if !exists {
-		return nil, fmt.Errorf("theme with ID '%s' not found in cache", themeID)
-	}
-
-	return vg.GenerateCSSVariables(theme)
-}
-
-// GetCachedCSS retrieves cached CSS if available
-func (vg *VariableGenerator) GetCachedCSS(themeID string) (*GeneratedCSS, bool) {
-	css, exists := vg.variableCache[themeID]
-	return css, exists
-}
-
-// ClearCache clears the CSS variable cache
+// ClearCache clears all cached CSS variables
 func (vg *VariableGenerator) ClearCache() {
 	vg.variableCache = make(map[string]*GeneratedCSS)
 	vg.themeCache = make(map[string]*models.Theme)
 }
 
-// GetCacheInfo returns information about the current cache state
-func (vg *VariableGenerator) GetCacheInfo() map[string]interface{} {
-	return map[string]interface{}{
-		"cached_themes":      len(vg.themeCache),
-		"cached_css_files":   len(vg.variableCache),
-		"minify_enabled":     vg.minify,
-		"variable_prefix":    vg.variablePrefix,
-	}
+// GetCachedCSS returns cached CSS for a theme if available
+func (vg *VariableGenerator) GetCachedCSS(themeID string) (*GeneratedCSS, bool) {
+	css, exists := vg.variableCache[themeID]
+	return css, exists
 }
 
-// GenerateCSSVariablesBatch generates CSS variables for multiple themes
-func (vg *VariableGenerator) GenerateCSSVariablesBatch(themes []*models.Theme) ([]*GeneratedCSS, error) {
-	if len(themes) == 0 {
-		return nil, fmt.Errorf("no themes provided")
+// GetCacheInfo returns information about the variable cache
+func (vg *VariableGenerator) GetCacheInfo() map[string]interface{} {
+	return map[string]interface{}{
+		"cache_size":      len(vg.variableCache),
+		"themes_cached":   len(vg.themeCache),
+		"minify":          vg.minify,
+		"variable_prefix": vg.variablePrefix,
 	}
-
-	results := make([]*GeneratedCSS, 0, len(themes))
-
-	for _, theme := range themes {
-		css, err := vg.GenerateCSSVariables(theme)
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate CSS for theme '%s': %w", theme.ID, err)
-		}
-		results = append(results, css)
-	}
-
-	return results, nil
 }

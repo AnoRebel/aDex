@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"aDex-UI/internal/models"
 )
@@ -18,29 +19,29 @@ type LegacyThemeConverter struct {
 
 // ConversionConfig contains configuration for theme conversion
 type ConversionConfig struct {
-	StrictMode      bool     `json:"strictMode"`
-	PreserveOriginal bool    `json:"preserveOriginal"`
-	AutoFixColors   bool     `json:"autoFixColors"`
-	GeneratePreview bool     `json:"generatePreview"`
-	ImportMetadata  bool     `json:"importMetadata"`
-	CategoryMapping map[string]models.ThemeCategory `json:"categoryMapping"`
+	StrictMode       bool                            `json:"strictMode"`
+	PreserveOriginal bool                            `json:"preserveOriginal"`
+	AutoFixColors    bool                            `json:"autoFixColors"`
+	GeneratePreview  bool                            `json:"generatePreview"`
+	ImportMetadata   bool                            `json:"importMetadata"`
+	CategoryMapping  map[string]models.ThemeCategory `json:"categoryMapping"`
 }
 
 // DefaultConversionConfig returns default conversion configuration
 func DefaultConversionConfig() *ConversionConfig {
 	return &ConversionConfig{
-	StrictMode:      false,
+		StrictMode:       false,
 		PreserveOriginal: true,
-		AutoFixColors:   true,
-		GeneratePreview: true,
-		ImportMetadata:  true,
+		AutoFixColors:    true,
+		GeneratePreview:  true,
+		ImportMetadata:   true,
 		CategoryMapping: map[string]models.ThemeCategory{
 			"dark":     models.ThemeCategoryDark,
 			"light":    models.ThemeCategoryLight,
 			"colorful": models.ThemeCategoryColorful,
 			"minimal":  models.ThemeCategoryMinimal,
 			"retro":    models.ThemeCategoryRetro,
-			"cyber":   models.ThemeCategoryCyberpunk,
+			"cyber":    models.ThemeCategoryCyberpunk,
 			"custom":   models.ThemeCategoryCustom,
 		},
 	}
@@ -78,7 +79,7 @@ func (c *LegacyThemeConverter) ConvertFromLegacy(legacy *models.LegacyTheme) (*m
 	if legacy.Created != "" {
 		if createdAt, err := c.parseDate(legacy.Created); err == nil {
 			theme.CreatedAt = createdAt
-					theme.UpdatedAt = createdAt
+			theme.UpdatedAt = createdAt
 		}
 	}
 
@@ -181,7 +182,7 @@ func (c *LegacyThemeConverter) parseDate(dateStr string) (time.Time, error) {
 		"2006-01-02T15:04:05Z07:00",
 		"2006-01-02 15:04:05",
 		"2006-01-02",
-			"01/02/2006 15:04:05",
+		"01/02/2006 15:04:05",
 		"01/02/2006",
 	}
 
@@ -205,39 +206,39 @@ func (c *LegacyThemeConverter) convertColors(legacyColors map[string]interface{}
 			colors.PrimaryHover = cv
 			return nil
 		},
-	"primaryActive": func(cv models.ColorValue) error {
+		"primaryActive": func(cv models.ColorValue) error {
 			colors.PrimaryActive = cv
 			return nil
 		},
-	"secondary": func(cv models.ColorValue) error {
+		"secondary": func(cv models.ColorValue) error {
 			colors.Secondary = cv
 			return nil
 		},
-	"accent": func(cv models.ColorValue) error {
+		"accent": func(cv models.ColorValue) error {
 			colors.Accent = cv
 			return nil
 		},
-	"background": func(cv models.ColorValue) error {
+		"background": func(cv models.ColorValue) error {
 			colors.Background = cv
 			return nil
-			},
-	"surface": func(cv models.ColorValue) error {
+		},
+		"surface": func(cv models.ColorValue) error {
 			colors.Surface = cv
 			return nil
 		},
-	"text": func(cv models.ColorValue) error {
+		"text": func(cv models.ColorValue) error {
 			colors.TextPrimary = cv
 			return nil
 		},
-	"textSecondary": func(cv models.ColorValue) error {
+		"textSecondary": func(cv models.ColorValue) error {
 			colors.TextSecondary = cv
 			return nil
 		},
-	"success": func(cv models.ColorValue) error {
+		"success": func(cv models.ColorValue) error {
 			colors.Success = cv
 			return nil
 		},
-	"warning": func(cv models.ColorValue) error {
+		"warning": func(cv models.ColorValue) error {
 			colors.Warning = cv
 			return nil
 		},
@@ -245,7 +246,7 @@ func (c *LegacyThemeConverter) convertColors(legacyColors map[string]interface{}
 			colors.Error = cv
 			return nil
 		},
-	"glitch": func(cv models.ColorValue) error {
+		"glitch": func(cv models.ColorValue) error {
 			colors.Glitch = cv
 			return nil
 		},
@@ -253,7 +254,7 @@ func (c *LegacyThemeConverter) convertColors(legacyColors map[string]interface{}
 			colors.Cursor = cv
 			return nil
 		},
-	"selection": func(cv models.ColorValue) error {
+		"selection": func(cv models.ColorValue) error {
 			colors.Selection = cv
 			return nil
 		},
@@ -412,11 +413,11 @@ func (c *LegacyThemeConverter) convertFontConfig(font interface{}) (models.FontC
 
 	return models.FontConfig{
 		Family:   family,
-		Size:      size,
+		Size:     size,
 		Weight:   weight,
-		Style:     style,
-		Variants:  []string{"400", "500", "600", "700"},
-		Features:  []string{"liga", "kern"},
+		Style:    style,
+		Variants: []string{"400", "500", "600", "700"},
+		Features: []string{"liga", "kern"},
 	}, nil
 }
 
@@ -612,11 +613,11 @@ func (c *LegacyThemeConverter) generateTags(legacy *models.LegacyTheme) []string
 	searchText := strings.ToLower(legacy.Name + " " + legacy.Description)
 
 	styleKeywords := map[string][]string{
-		"cyber":     {"cyber", "hacker", "matrix", "tech", "sci-fi"},
-		"minimal":    {"minimal", "simple", "clean", "basic"},
-		"retro":      {"retro", "vintage", "classic", "old-school"},
-		"colorful":   {"colorful", "rainbow", "vibrant", "neon"},
-		"animated":   {"animated", "dynamic", "interactive"},
+		"cyber":    {"cyber", "hacker", "matrix", "tech", "sci-fi"},
+		"minimal":  {"minimal", "simple", "clean", "basic"},
+		"retro":    {"retro", "vintage", "classic", "old-school"},
+		"colorful": {"colorful", "rainbow", "vibrant", "neon"},
+		"animated": {"animated", "dynamic", "interactive"},
 	}
 
 	for tag, keywords := range styleKeywords {
@@ -670,8 +671,8 @@ func (c *LegacyThemeConverter) generatePreview(theme *models.Theme) *models.Them
 
 	return &models.ThemePreview{
 		Thumbnail:  "",
-		Colors:    colors,
-		Layout:    "default",
+		Colors:     colors,
+		Layout:     "default",
 		Components: []string{"header", "sidebar", "content"},
 	}
 }
@@ -746,7 +747,7 @@ func (c *LegacyThemeConverter) fixColor(color string) string {
 
 	// Convert 3-digit hex to 6-digit
 	if len(color) == 4 && strings.HasPrefix(color, "#") {
-		return fmt.Sprintf("#%s%s%s%s", color[1], color[1], color[2], color[2], color[3])
+		return fmt.Sprintf("#%c%c%c%c%c%c", color[1], color[1], color[2], color[2], color[3], color[3])
 	}
 
 	// Ensure valid hex length
@@ -759,20 +760,20 @@ func (c *LegacyThemeConverter) fixColor(color string) string {
 
 // ConversionResult contains the result of a conversion operation
 type ConversionResult struct {
-	Theme      *models.Theme            `json:"theme"`
-	Warnings   []string               `json:"warnings"`
-	Errors     []string               `json:"errors"`
-	Success    bool                   `json:"success"`
-	Metadata   *ConversionMetadata     `json:"metadata"`
+	Theme    *models.Theme       `json:"theme"`
+	Warnings []string            `json:"warnings"`
+	Errors   []string            `json:"errors"`
+	Success  bool                `json:"success"`
+	Metadata *ConversionMetadata `json:"metadata"`
 }
 
 // ConversionMetadata contains metadata about the conversion process
 type ConversionMetadata struct {
-	OriginalName string                 `json:"originalName"`
-	ConvertedAt time.Time             `json:"convertedAt"`
-	ProcessingTime time.Duration         `json:"processingTime"`
-	FieldsConverted []string             `json:"fieldsConverted"`
-	FieldsSkipped   []string             `json:"fieldsSkipped"`
+	OriginalName    string        `json:"originalName"`
+	ConvertedAt     time.Time     `json:"convertedAt"`
+	ProcessingTime  time.Duration `json:"processingTime"`
+	FieldsConverted []string      `json:"fieldsConverted"`
+	FieldsSkipped   []string      `json:"fieldsSkipped"`
 }
 
 // ConvertWithResult converts a legacy theme and returns detailed results
@@ -780,11 +781,11 @@ func (c *LegacyThemeConverter) ConvertWithResult(legacy *models.LegacyTheme) *Co
 	startTime := time.Now()
 
 	result := &ConversionResult{
-	Success:  false,
+		Success: false,
 		Metadata: &ConversionMetadata{
-			OriginalName: legacy.Name,
-			ConvertedAt:  startTime,
-			ProcessingTime: 0,
+			OriginalName:    legacy.Name,
+			ConvertedAt:     startTime,
+			ProcessingTime:  0,
 			FieldsConverted: []string{},
 			FieldsSkipped:   []string{},
 		},
@@ -807,7 +808,7 @@ func (c *LegacyThemeConverter) ConvertWithResult(legacy *models.LegacyTheme) *Co
 			result.Metadata.FieldsConverted = append(result.Metadata.FieldsConverted, "fonts")
 		}
 		if legacy.Effects != nil && len(legacy.Effects) > 0 {
-			result.FieldsConverted = append(result.Metadata.FieldsConverted, "effects")
+			result.Metadata.FieldsConverted = append(result.Metadata.FieldsConverted, "effects")
 		}
 		if legacy.Settings != nil && len(legacy.Settings) > 0 {
 			result.Metadata.FieldsConverted = append(result.Metadata.FieldsConverted, "settings")

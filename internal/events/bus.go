@@ -10,7 +10,7 @@ import (
 // EventBus handles event publishing and subscription
 type EventBus struct {
 	subscribers map[string][]chan Event
-	mu         sync.RWMutex
+	mu          sync.RWMutex
 }
 
 // Event represents an application event
@@ -23,10 +23,10 @@ type Event struct {
 
 // EventSubscription represents a subscription to events
 type EventSubscription struct {
-	ID       string
-	Types    []string
-	Handler  EventHandler
-	Active   bool
+	ID      string
+	Types   []string
+	Handler EventHandler
+	Active  bool
 }
 
 // EventHandler handles incoming events
@@ -52,10 +52,10 @@ func (eb *EventBus) Subscribe(ctx context.Context, eventTypes []string, handler 
 
 	subID := fmt.Sprintf("sub-%d", time.Now().UnixNano())
 	subscription := &EventSubscription{
-		ID:       subID,
-		Types:    eventTypes,
-		Handler:  handler,
-		Active:   true,
+		ID:      subID,
+		Types:   eventTypes,
+		Handler: handler,
+		Active:  true,
 	}
 
 	// Create channels for each event type
@@ -114,6 +114,32 @@ func (eb *EventBus) Unsubscribe(subscriptionID string) error {
 	return nil
 }
 
+// SubscribeOnce subscribes to an event type for a single occurrence
+func (eb *EventBus) SubscribeOnce(ctx context.Context, eventType string, handler EventHandler) (*EventSubscription, error) {
+	wrappedHandler := func(ctx context.Context, event Event) error {
+		err := handler(ctx, event)
+		// Unsubscribe after handling (one-time subscription)
+		return err
+	}
+	return eb.Subscribe(ctx, []string{eventType}, wrappedHandler)
+}
+
+// GetSubscribers returns the number of subscribers for an event type
+func (eb *EventBus) GetSubscribers(eventType string) int {
+	eb.mu.RLock()
+	defer eb.mu.RUnlock()
+
+	if subscribers, exists := eb.subscribers[eventType]; exists {
+		return len(subscribers)
+	}
+	return 0
+}
+
+// Emit is an alias for Publish for compatibility
+func (eb *EventBus) Emit(eventType string, data interface{}) error {
+	return eb.Publish(context.Background(), eventType, data, "system")
+}
+
 // eventListener listens for events and forwards them to the handler
 func (eb *EventBus) eventListener(ctx context.Context, subscription *EventSubscription, channels []chan Event) {
 	defer func() {
@@ -160,7 +186,7 @@ func (eb *EventBus) eventListener(ctx context.Context, subscription *EventSubscr
 				}
 			}
 
-		// Add more cases for additional channels if needed
+			// Add more cases for additional channels if needed
 		}
 	}
 }
@@ -195,63 +221,63 @@ func (eb *EventBus) Broadcast(ctx context.Context, data interface{}, source stri
 // Common event types
 const (
 	// System events
-	SystemInfoUpdated     = "system.info.updated"
+	SystemInfoUpdated    = "system.info.updated"
 	SystemAlert          = "system.alert"
 	SystemProcessStarted = "system.process.started"
 	SystemProcessEnded   = "system.process.ended"
-	
+
 	// Terminal events
-	TerminalCreated  = "terminal.created"
-	TerminalClosed   = "terminal.closed"
-	TerminalResized  = "terminal.resized"
-	TerminalOutput   = "terminal.output"
-	TerminalInput    = "terminal.input"
-	TerminalCommand  = "terminal.command"
-	
+	TerminalCreated = "terminal.created"
+	TerminalClosed  = "terminal.closed"
+	TerminalResized = "terminal.resized"
+	TerminalOutput  = "terminal.output"
+	TerminalInput   = "terminal.input"
+	TerminalCommand = "terminal.command"
+
 	// Filesystem events
-	FileCreated    = "file.created"
-	FileModified   = "file.modified"
-	FileDeleted    = "file.deleted"
-	FileMoved      = "file.moved"
-	DirectoryCreated = "directory.created"
-	DirectoryDeleted = "directory.deleted"
+	FileCreated       = "file.created"
+	FileModified      = "file.modified"
+	FileDeleted       = "file.deleted"
+	FileMoved         = "file.moved"
+	DirectoryCreated  = "directory.created"
+	DirectoryDeleted  = "directory.deleted"
 	DirectoryModified = "directory.modified"
-	
+
 	// Audio events
-	AudioDeviceChanged = "audio.device.changed"
-	AudioVolumeChanged = "audio.volume.changed"
+	AudioDeviceChanged  = "audio.device.changed"
+	AudioVolumeChanged  = "audio.volume.changed"
 	AudioSessionStarted = "audio.session.started"
-	AudioSessionEnded = "audio.session.ended"
-	
+	AudioSessionEnded   = "audio.session.ended"
+
 	// Config events
-	ConfigChanged   = "config.changed"
-	ConfigSaved     = "config.saved"
-	ConfigLoaded    = "config.loaded"
-	ConfigReset     = "config.reset"
-	
+	ConfigChanged = "config.changed"
+	ConfigSaved   = "config.saved"
+	ConfigLoaded  = "config.loaded"
+	ConfigReset   = "config.reset"
+
 	// Theme events
 	ThemeChanged = "theme.changed"
 	ThemeLoaded  = "theme.loaded"
 	ThemeCreated = "theme.created"
 	ThemeDeleted = "theme.deleted"
-	
+
 	// Application events
-	AppStarted    = "app.started"
-	AppStopped    = "app.stopped"
-	AppShutdown   = "app.shutdown"
-	AppRestart    = "app.restart"
-	
+	AppStarted  = "app.started"
+	AppStopped  = "app.stopped"
+	AppShutdown = "app.shutdown"
+	AppRestart  = "app.restart"
+
 	// User events
-	UserLogin     = "user.login"
-	UserLogout    = "user.logout"
+	UserLogin              = "user.login"
+	UserLogout             = "user.logout"
 	UserPreferencesChanged = "user.preferences.changed"
-	
+
 	// Network events
 	NetworkConnected    = "network.connected"
 	NetworkDisconnected = "network.disconnected"
 	NetworkError        = "network.error"
 	NetworkUpdated      = "network.updated"
-	
+
 	// Error events
 	ErrorOccurred = "error.occurred"
 	PanicOccurred = "panic.occurred"
@@ -267,12 +293,12 @@ type SystemInfoData struct {
 }
 
 type SystemAlertData struct {
-	Type       string  `json:"type"`
-	Resource   string  `json:"resource"`
-	Threshold  float64 `json:"threshold"`
-	Current    float64 `json:"current"`
-	Message    string  `json:"message"`
-	Severity   string  `json:"severity"`
+	Type      string  `json:"type"`
+	Resource  string  `json:"resource"`
+	Threshold float64 `json:"threshold"`
+	Current   float64 `json:"current"`
+	Message   string  `json:"message"`
+	Severity  string  `json:"severity"`
 }
 
 type TerminalData struct {

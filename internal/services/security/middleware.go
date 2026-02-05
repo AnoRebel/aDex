@@ -28,21 +28,21 @@ type RateLimiter struct {
 
 // ClientLimits tracks rate limits for a client
 type ClientLimits struct {
-	Requests      int
-	ResetTime     time.Time
-	LastReset     time.Time
-	TokenCount    map[string]int
-	TokenReset    time.Time
+	Requests   int
+	ResetTime  time.Time
+	LastReset  time.Time
+	TokenCount map[string]int
+	TokenReset time.Time
 }
 
 // SecurityHeaders adds security headers to HTTP responses
 type SecurityHeaders struct {
-	ContentSecurityPolicy string
-	XFrameOptions         string
-	XContentTypeOptions   string
-	XSSProtection         string
+	ContentSecurityPolicy   string
+	XFrameOptions           string
+	XContentTypeOptions     string
+	XSSProtection           string
 	StrictTransportSecurity string
-	ReferrerPolicy        string
+	ReferrerPolicy          string
 }
 
 // NewMiddleware creates a new security middleware
@@ -70,7 +70,7 @@ func (m *Middleware) SecurityMiddleware(next http.Handler) http.Handler {
 		if m.config.RateLimitEnabled {
 			clientIP := m.getClientIP(r)
 			if !m.rateLimiter.IsAllowed(clientIP) {
-				m.logger.Warn("Rate limit exceeded", "client_ip", clientIP)
+				m.logger.Warn("Rate limit exceeded", map[string]interface{}{"client_ip": clientIP})
 				http.Error(w, "Rate limit exceeded", http.StatusTooManyRequests)
 				return
 			}
@@ -79,7 +79,7 @@ func (m *Middleware) SecurityMiddleware(next http.Handler) http.Handler {
 		// CSRF protection for state-changing methods
 		if m.config.BlockCSRF && m.isStateChangingMethod(r.Method) {
 			if !m.validateCSRFToken(r) {
-				m.logger.Warn("CSRF token validation failed", "method", r.Method, "path", r.URL.Path)
+				m.logger.Warn("CSRF token validation failed", map[string]interface{}{"method": r.Method, "path": r.URL.Path})
 				http.Error(w, "CSRF token validation failed", http.StatusForbidden)
 				return
 			}
@@ -87,14 +87,14 @@ func (m *Middleware) SecurityMiddleware(next http.Handler) http.Handler {
 
 		// Input validation for query parameters
 		if err := m.validateQueryParams(r); err != nil {
-			m.logger.Warn("Invalid query parameters", "error", err, "path", r.URL.Path)
+			m.logger.Warn("Invalid query parameters", map[string]interface{}{"error": err.Error(), "path": r.URL.Path})
 			http.Error(w, "Invalid request parameters", http.StatusBadRequest)
 			return
 		}
 
 		// Check for suspicious user agent
 		if m.isSuspiciousUserAgent(r.UserAgent()) {
-			m.logger.Warn("Suspicious user agent blocked", "user_agent", r.UserAgent())
+			m.logger.Warn("Suspicious user agent blocked", map[string]interface{}{"user_agent": r.UserAgent()})
 			http.Error(w, "Access denied", http.StatusForbidden)
 			return
 		}
@@ -130,10 +130,11 @@ func (m *Middleware) ValidateInputMiddleware(inputType string) func(http.Handler
 			if input != "" {
 				result := m.securityService.SanitizeInput(input, m.config)
 				if !result.IsValid {
-					m.logger.Warn("Invalid input detected",
-						"input_type", inputType,
-						"errors", result.Errors,
-						"risk_level", result.RiskLevel)
+					m.logger.Warn("Invalid input detected", map[string]interface{}{
+						"input_type": inputType,
+						"errors":     result.Errors,
+						"risk_level": result.RiskLevel,
+					})
 
 					http.Error(w, fmt.Sprintf("Invalid input: %s", strings.Join(result.Errors, ", ")), http.StatusBadRequest)
 					return
@@ -171,12 +172,13 @@ func (m *Middleware) LoggingMiddleware(next http.Handler) http.Handler {
 
 		// Log high-value targets
 		if m.isHighValueTarget(r.URL.Path) {
-			m.logger.Info("High-value target accessed",
-				"method", r.Method,
-				"path", r.URL.Path,
-				"status", wrapped.statusCode,
-				"duration_ms", duration.Milliseconds(),
-				"client_ip", m.getClientIP(r))
+			m.logger.Info("High-value target accessed", map[string]interface{}{
+				"method":      r.Method,
+				"path":        r.URL.Path,
+				"status":      wrapped.statusCode,
+				"duration_ms": duration.Milliseconds(),
+				"client_ip":   m.getClientIP(r),
+			})
 		}
 	})
 }
@@ -209,12 +211,12 @@ func (m *Middleware) addSecurityHeaders(w http.ResponseWriter) {
 // getSecurityHeaders returns configured security headers
 func (m *Middleware) getSecurityHeaders() SecurityHeaders {
 	return SecurityHeaders{
-		ContentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws: wss:;",
-		XFrameOptions:         "DENY",
-		XContentTypeOptions:   "nosniff",
-		XSSProtection:         "1; mode=block",
+		ContentSecurityPolicy:   "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws: wss:;",
+		XFrameOptions:           "DENY",
+		XContentTypeOptions:     "nosniff",
+		XSSProtection:           "1; mode=block",
 		StrictTransportSecurity: "max-age=31536000; includeSubDomains; preload",
-		ReferrerPolicy:        "strict-origin-when-cross-origin",
+		ReferrerPolicy:          "strict-origin-when-cross-origin",
 	}
 }
 
@@ -378,20 +380,22 @@ func (m *Middleware) isHighValueTarget(path string) bool {
 
 // logSecurityEvent logs security-related events
 func (m *Middleware) logSecurityEvent(r *http.Request, statusCode int, duration time.Duration) {
-	level := "info"
-	if statusCode >= 500 {
-		level = "error"
-	} else if statusCode >= 400 {
-		level = "warn"
+	ctx := map[string]interface{}{
+		"method":      r.Method,
+		"path":        r.URL.Path,
+		"status":      statusCode,
+		"duration_ms": duration.Milliseconds(),
+		"client_ip":   m.getClientIP(r),
+		"user_agent":  r.UserAgent(),
 	}
 
-	m.logger.Log(level, "Security event",
-		"method", r.Method,
-		"path", r.URL.Path,
-		"status", statusCode,
-		"duration_ms", duration.Milliseconds(),
-		"client_ip", m.getClientIP(r),
-		"user_agent", r.UserAgent())
+	if statusCode >= 500 {
+		m.logger.Error("Security event", nil, ctx)
+	} else if statusCode >= 400 {
+		m.logger.Warn("Security event", ctx)
+	} else {
+		m.logger.Info("Security event", ctx)
+	}
 }
 
 // responseWriter wraps http.ResponseWriter to capture status code

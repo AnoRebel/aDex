@@ -26,11 +26,11 @@ type Session struct {
 
 // SessionManager manages user sessions
 type SessionManager struct {
-	sessions      map[string]*Session // indexed by session ID
-	byUserID      map[string][]*Session // sessions by user ID
-	config        *SessionConfig
-	mu            sync.RWMutex
-	logger        *logger.Logger
+	sessions map[string]*Session   // indexed by session ID
+	byUserID map[string][]*Session // sessions by user ID
+	config   *SessionConfig
+	mu       sync.RWMutex
+	logger   *logger.Logger
 }
 
 // SessionConfig holds session configuration
@@ -106,7 +106,7 @@ func (sm *SessionManager) CreateSession(user *User, ipAddress, userAgent string)
 	sm.sessions[sessionID] = session
 	sm.byUserID[user.ID] = append(sm.byUserID[user.ID], session)
 
-	sm.logger.Info("Session created", "session_id", sessionID, "user_id", user.ID)
+	sm.logger.Info("Session created", map[string]interface{}{"session_id": sessionID, "user_id": user.ID})
 	return session, nil
 }
 
@@ -156,7 +156,7 @@ func (sm *SessionManager) ValidateSession(sessionID string) (*Session, error) {
 		if timeUntilExpiry < sm.config.SessionDuration/4 {
 			// Renew for another full duration
 			session.ExpiresAt = now.Add(sm.config.SessionDuration)
-			sm.logger.Debug("Session renewed", "session_id", sessionID)
+			sm.logger.Debug("Session renewed", map[string]interface{}{"session_id": sessionID})
 		}
 	}
 
@@ -187,7 +187,7 @@ func (sm *SessionManager) DestroySession(sessionID string) error {
 		return fmt.Errorf("session not found")
 	}
 
-	sm.logger.Info("Session destroyed", "session_id", sessionID, "user_id", session.UserID)
+	sm.logger.Info("Session destroyed", map[string]interface{}{"session_id": sessionID, "user_id": session.UserID})
 	sm.removeSessionLocked(sessionID)
 	return nil
 }
@@ -202,7 +202,7 @@ func (sm *SessionManager) DestroyUserSessions(userID string) error {
 		sm.removeSessionLocked(session.ID)
 	}
 
-	sm.logger.Info("All user sessions destroyed", "user_id", userID, "count", len(sessions))
+	sm.logger.Info("All user sessions destroyed", map[string]interface{}{"user_id": userID, "count": len(sessions)})
 	return nil
 }
 
@@ -315,9 +315,10 @@ func (sm *SessionManager) removeOldestSession(userID string) {
 		}
 	}
 
-	sm.logger.Info("Removing oldest session due to max sessions limit",
-		"user_id", userID,
-		"session_id", sessions[oldestIdx].ID)
+	sm.logger.Info("Removing oldest session due to max sessions limit", map[string]interface{}{
+		"user_id":    userID,
+		"session_id": sessions[oldestIdx].ID,
+	})
 
 	sm.removeSessionLocked(sessions[oldestIdx].ID)
 }
@@ -344,7 +345,7 @@ func (sm *SessionManager) cleanupExpiredSessions() {
 		sm.mu.Unlock()
 
 		if expiredCount > 0 {
-			sm.logger.Debug("Cleaned up expired sessions", "count", expiredCount)
+			sm.logger.Debug("Cleaned up expired sessions", map[string]interface{}{"count": expiredCount})
 		}
 	}
 }
