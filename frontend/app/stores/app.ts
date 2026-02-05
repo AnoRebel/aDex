@@ -214,22 +214,28 @@ export const useAppStore = defineStore('app', {
       try {
         this.setStatus('backend', 'connecting')
 
-        const response = await fetch('/api/health')
-        if (response.ok) {
-          this.setStatus('backend', 'connected')
-          return true
-        } else {
-          throw new Error(`Backend returned ${response.status}`)
+        // Check if Wails bindings are available
+        const go = (window as any).go
+        if (go?.main?.ServiceCoordinator) {
+          // Try to call a simple method to verify connection
+          const coordinator = go.main.ServiceCoordinator
+          if (coordinator.IsStarted) {
+            const isStarted = await coordinator.IsStarted()
+            if (isStarted) {
+              this.setStatus('backend', 'connected')
+              return true
+            }
+          }
         }
+        
+        // Wails bindings not available yet, but that's okay in dev mode
+        console.warn('Wails bindings not available, continuing in limited mode')
+        this.setStatus('backend', 'disconnected')
+        return false
       } catch (error) {
-        console.error('Backend connection failed:', error)
-        this.setStatus('backend', 'error')
-        this.addAlert({
-          type: 'error',
-          title: 'Backend Connection Failed',
-          message: 'Unable to connect to backend services',
-          persistent: true,
-        })
+        console.error('Backend connection check failed:', error)
+        // Don't show error alert here - let the app continue
+        this.setStatus('backend', 'disconnected')
         return false
       }
     },

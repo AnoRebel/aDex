@@ -1,13 +1,14 @@
 <template>
-  <div class="theme-manager">
-    <div class="theme-header">
-      <h3 class="glitch">THEME MANAGER</h3>
-      <div class="theme-controls">
-        <button @click="toggleThemePanel" class="control-btn">
-          <span class="btn-icon">🎨</span>
-        </button>
+  <div class="theme-overlay" @click="$emit('close')">
+    <div class="theme-manager" @click.stop>
+      <div class="theme-header">
+        <h3 class="glitch">THEME MANAGER</h3>
+        <div class="theme-controls">
+          <button @click="$emit('close')" class="close-btn">
+            <span class="btn-icon">✕</span>
+          </button>
+        </div>
       </div>
-    </div>
 
     <!-- Theme Selection Panel -->
     <div v-if="showThemePanel" class="theme-panel">
@@ -181,11 +182,17 @@
         </label>
       </div>
     </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+
+// Emits
+defineEmits<{
+  close: []
+}>()
 
 interface ThemeColors {
   primary: string
@@ -216,8 +223,8 @@ interface ThemeSettings {
 }
 
 // Reactive data
-const showThemePanel = ref<boolean>(false)
-const selectedCategory = ref<string>('tron')
+const showThemePanel = ref<boolean>(true)  // Show panel by default when manager is opened
+const selectedCategory = ref<string>('cyberpunk')
 const currentTheme = ref<Theme | null>(null)
 const showCustomization = ref<boolean>(false)
 const customColors = ref<ThemeColors>({
@@ -601,7 +608,43 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.theme-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+}
+
+.close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--surface-border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  border-color: #ff0000;
+  color: #ff0000;
+}
+
 .theme-manager {
+  max-width: 800px;
+  max-height: 80vh;
+  overflow-y: auto;
   background: rgba(10, 10, 10, 0.95);
   border: 1px solid var(--surface-border);
   border-radius: 12px;

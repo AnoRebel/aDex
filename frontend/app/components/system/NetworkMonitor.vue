@@ -462,6 +462,9 @@ onUnmounted(() => {
   backdrop-filter: blur(10px);
   font-family: 'Fira Code', monospace;
   color: var(--text-primary);
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .network-header {

@@ -244,10 +244,11 @@ interface KeyPosition {
 const emit = defineEmits<{
   keypress: [key: string]
   specialKey: [key: string]
+  close: []
 }>()
 
 // Reactive data
-const isVisible = ref<boolean>(false)
+const isVisible = ref<boolean>(true)
 const isMinimized = ref<boolean>(false)
 const showSettings = ref<boolean>(false)
 const selectedLayout = ref<string>('qwerty')
@@ -504,6 +505,9 @@ const changeLayout = () => {
 
 const toggleKeyboard = () => {
   isVisible.value = !isVisible.value
+  if (!isVisible.value) {
+    emit('close')
+  }
 }
 
 const toggleMinimize = () => {

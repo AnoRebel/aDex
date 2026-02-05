@@ -1,11 +1,11 @@
 /**
- * Vue Audio Plugin
+ * Nuxt Audio Plugin
  *
  * Provides Vue plugin and directives for easy audio event triggering
  * from components and templates.
  */
 
-import type { App, Directive } from 'vue'
+import type { Directive } from 'vue'
 import { triggerAudioEvent, createDebouncedAudioTrigger } from '~/utils/audio-events'
 
 // Plugin options
@@ -15,46 +15,37 @@ export interface AudioPluginOptions {
   respectFocusVisible?: boolean
 }
 
-// Audio plugin instance
-export const createAudioPlugin = (options: AudioPluginOptions = {}) => {
-  const {
-    enableDebug = false,
-    respectReducedMotion = true,
-    respectFocusVisible = true
-  } = options
-
-  return {
-    install(app: App) {
-      // Global properties
-      app.config.globalProperties.$audio = {
-        trigger: triggerAudioEvent,
-        play: triggerAudioEvent,
-        debug: enableDebug
-      }
-
-      // Provide to composition API
-      app.provide('audio', {
-        trigger: triggerAudioEvent,
-        play: triggerAudioEvent,
-        options: {
-          enableDebug,
-          respectReducedMotion,
-          respectFocusVisible
-        }
-      })
-
-      // Register directives
-      app.directive('audio-sound', createAudioSoundDirective())
-      app.directive('audio-hover', createAudioHoverDirective())
-      app.directive('audio-click', createAudioClickDirective())
-      app.directive('audio-focus', createAudioFocusDirective())
-
-      if (enableDebug) {
-        console.log('🎵 Audio plugin installed with options:', options)
-      }
-    }
+export default defineNuxtPlugin((nuxtApp) => {
+  const options: AudioPluginOptions = {
+    enableDebug: false,
+    respectReducedMotion: true,
+    respectFocusVisible: true
   }
-}
+
+  // Global properties
+  nuxtApp.vueApp.config.globalProperties.$audio = {
+    trigger: triggerAudioEvent,
+    play: triggerAudioEvent,
+    debug: options.enableDebug
+  }
+
+  // Provide to composition API
+  nuxtApp.vueApp.provide('audio', {
+    trigger: triggerAudioEvent,
+    play: triggerAudioEvent,
+    options
+  })
+
+  // Register directives
+  nuxtApp.vueApp.directive('audio-sound', createAudioSoundDirective())
+  nuxtApp.vueApp.directive('audio-hover', createAudioHoverDirective())
+  nuxtApp.vueApp.directive('audio-click', createAudioClickDirective())
+  nuxtApp.vueApp.directive('audio-focus', createAudioFocusDirective())
+
+  if (options.enableDebug) {
+    console.log('🎵 Audio plugin installed with options:', options)
+  }
+})
 
 /**
  * v-audio-sound directive
@@ -65,28 +56,21 @@ const createAudioSoundDirective = (): Directive => {
     mounted(el, binding) {
       const eventName = binding.arg || 'click'
       const audioEvent = binding.value
-      const options = binding.modifiers
 
       if (!audioEvent) {
         console.warn('v-audio-sound: No audio event specified')
         return
       }
 
-      const handler = async (event: Event) => {
-        // Respect reduced motion preference
-        if (options.respectMotion && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-          return
-        }
-
+      const handler = async () => {
         // Don't play if element is disabled
-        if ((el as HTMLElement).disabled) {
+        if ((el as HTMLButtonElement).disabled) {
           return
         }
 
         try {
           await triggerAudioEvent(audioEvent, {
-            source: `${el.tagName.toLowerCase()}:${eventName}`,
-            data: event
+            source: `${el.tagName.toLowerCase()}:${eventName}`
           })
         } catch (error) {
           console.warn(`Failed to play audio event "${audioEvent}":`, error)
@@ -95,13 +79,16 @@ const createAudioSoundDirective = (): Directive => {
 
       el.addEventListener(eventName, handler)
       ;(el as any)._audioSoundHandler = handler
+      ;(el as any)._audioSoundEvent = eventName
     },
 
     unmounted(el) {
       const handler = (el as any)._audioSoundHandler
+      const eventName = (el as any)._audioSoundEvent || 'click'
       if (handler) {
-        el.removeEventListener('click', handler)
+        el.removeEventListener(eventName, handler)
         delete (el as any)._audioSoundHandler
+        delete (el as any)._audioSoundEvent
       }
     }
   }
@@ -115,20 +102,15 @@ const createAudioHoverDirective = (): Directive => {
   return {
     mounted(el, binding) {
       const audioEvent = binding.value || 'ui:hover'
-      const options = binding.modifiers
-
       let isHovering = false
-      let hoverTimeout: NodeJS.Timeout | null = null
+      let hoverTimeout: ReturnType<typeof setTimeout> | null = null
 
       const handleMouseEnter = async () => {
         if (isHovering) return
-
-        // Skip if using keyboard navigation
         if (document.activeElement === el) return
 
         isHovering = true
 
-        // Debounce hover sounds
         if (hoverTimeout) clearTimeout(hoverTimeout)
 
         hoverTimeout = setTimeout(async () => {
@@ -140,7 +122,7 @@ const createAudioHoverDirective = (): Directive => {
           } catch (error) {
             console.warn(`Failed to play hover audio:`, error)
           }
-        }, options.debounce ? 100 : 0)
+        }, binding.modifiers.debounce ? 100 : 0)
       }
 
       const handleMouseLeave = () => {
@@ -153,15 +135,10 @@ const createAudioHoverDirective = (): Directive => {
 
       el.addEventListener('mouseenter', handleMouseEnter)
       el.addEventListener('mouseleave', handleMouseLeave)
-      el.addEventListener('focus', handleMouseEnter)
-      el.addEventListener('blur', handleMouseLeave)
 
-      // Store handlers for cleanup
       ;(el as any)._audioHoverHandlers = {
         mouseenter: handleMouseEnter,
-        mouseleave: handleMouseLeave,
-        focus: handleMouseEnter,
-        blur: handleMouseLeave
+        mouseleave: handleMouseLeave
       }
     },
 
@@ -170,8 +147,6 @@ const createAudioHoverDirective = (): Directive => {
       if (handlers) {
         el.removeEventListener('mouseenter', handlers.mouseenter)
         el.removeEventListener('mouseleave', handlers.mouseleave)
-        el.removeEventListener('focus', handlers.focus)
-        el.removeEventListener('blur', handlers.blur)
         delete (el as any)._audioHoverHandlers
       }
     }
@@ -186,23 +161,16 @@ const createAudioClickDirective = (): Directive => {
   return {
     mounted(el, binding) {
       const audioEvent = binding.value || 'ui:button_click'
-      const options = binding.modifiers
 
       const handleClick = async (event: MouseEvent) => {
-        // Don't play if right-clicked or disabled
-        if (event.button !== 0 || (el as HTMLElement).disabled) {
-          return
-        }
-
-        // Respect reduced motion
-        if (options.respectMotion && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        if (event.button !== 0 || (el as HTMLButtonElement).disabled) {
           return
         }
 
         try {
           await triggerAudioEvent(audioEvent, {
             source: 'click',
-            data: { element: el.tagName.toLowerCase(), event }
+            data: { element: el.tagName.toLowerCase() }
           })
         } catch (error) {
           console.warn(`Failed to play click audio:`, error)
@@ -231,18 +199,12 @@ const createAudioFocusDirective = (): Directive => {
   return {
     mounted(el, binding) {
       const audioEvent = binding.value || 'ui:focus'
-      const options = binding.modifiers
 
-      const handleFocus = async (event: FocusEvent) => {
-        // Only play if focus is visible (keyboard navigation)
-        if (options.keyboard && !(event.target as HTMLElement).matches(':focus-visible')) {
-          return
-        }
-
+      const handleFocus = async () => {
         try {
           await triggerAudioEvent(audioEvent, {
             source: 'focus',
-            data: { element: el.tagName.toLowerCase(), event }
+            data: { element: el.tagName.toLowerCase() }
           })
         } catch (error) {
           console.warn(`Failed to play focus audio:`, error)
@@ -267,14 +229,20 @@ const createAudioFocusDirective = (): Directive => {
  * Composable for audio functionality
  */
 export const useAudioPlugin = () => {
-  const audio = inject('audio') as {
+  const nuxtApp = useNuxtApp()
+  const audio = nuxtApp.vueApp._context.provides.audio as {
     trigger: typeof triggerAudioEvent
     play: typeof triggerAudioEvent
     options: AudioPluginOptions
   }
 
   if (!audio) {
-    throw new Error('Audio plugin not installed')
+    // Return a no-op version if not available
+    return {
+      trigger: async () => null,
+      play: async () => null,
+      options: {} as AudioPluginOptions
+    }
   }
 
   return audio
@@ -342,6 +310,4 @@ export const audioTriggers = {
   debouncedScroll: createDebouncedAudioTrigger(150)
 }
 
-// Export everything
-export default createAudioPlugin
 export type { AudioPluginOptions }

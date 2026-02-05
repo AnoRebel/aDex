@@ -48,7 +48,7 @@ export default defineNuxtConfig({
 
   // Build configuration for Wails integration
   build: {
-    transpile: ['@wailsio/runtime', 'xterm-addon-webgl', 'xterm-addon-canvas']
+    transpile: ['xterm-addon-webgl', 'xterm-addon-canvas']
   },
 
   // Vite configuration
@@ -60,8 +60,14 @@ export default defineNuxtConfig({
       __WAILS_RUNTIME__: JSON.stringify(true)
     },
     optimizeDeps: {
-      exclude: ['@wailsio/runtime', 'xterm', 'xterm-addon-fit', 'xterm-addon-webgl']
+      exclude: ['xterm', 'xterm-addon-fit', 'xterm-addon-webgl']
     }
+  },
+
+  // Dev server configuration
+  devServer: {
+    host: '127.0.0.1',
+    port: 9245
   },
 
   nitro: {

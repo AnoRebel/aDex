@@ -1,19 +1,26 @@
 import { ref, computed, onMounted, onUnmounted, readonly } from 'vue'
-import * as ServiceCoordinator from '~~/bindings/aDex-UI/backend/services/coordinator/servicecoordinator'
 
-// Type definitions for Wails integration
-export interface WailsService {
-  IsRunning(): Promise<boolean>
-  Start(): Promise<void>
-  Stop(): Promise<void>
-  GetStatus(): Promise<string>
-}
+// Import Wails runtime (local implementation for v2)
+import { Events, Log } from '~/lib/wailsjs/runtime'
 
+// Import coordinator bindings
+import {
+  GetCPUUsage,
+  GetMemoryUsage,
+  GetDiskUsage,
+  GetSystemInfo,
+  GetTopProcesses,
+  CreateTerminal,
+  WriteToTerminal,
+  ResizeTerminal,
+  CloseTerminal,
+  ReadDirectory
+} from '~/lib/wailsjs/coordinator'
+
+// Type definitions for Wails v2 integration
 export interface WailsEvent {
-  Type: string
-  Timestamp: string
-  Data: any
-  Source: string
+  name: string
+  data?: any
 }
 
 export interface ServiceStatus {
@@ -26,22 +33,17 @@ export interface ServiceStatus {
 // Global state
 const isInitialized = ref(false)
 const isReady = ref(false)
-const isWailsAvailable = ref(false)
-const coordinatorStarted = ref(false)
+const error = ref<string | null>(null)
 const services = ref<Map<string, ServiceStatus>>(new Map())
 const events = ref<WailsEvent[]>([])
-const error = ref<string | null>(null)
-const lastError = ref<string | null>(null)
 
-// Event listeners
-const eventListeners = new Map<string, (event: WailsEvent) => void>()
+// Event listeners map
+const eventListeners = new Map<string, Set<(data: any) => void>>()
 
 /**
- * useWails composable provides Wails integration functionality
+ * useWails composable provides Wails v2 integration functionality
  */
 export function useWails() {
-
-  // Computed properties
   const appStatus = computed(() => {
     if (!isInitialized.value) return 'initializing'
     if (!isReady.value) return 'loading'
@@ -53,465 +55,239 @@ export function useWails() {
     return Array.from(services.value.values()).filter(service => service.running)
   })
 
-  const failedServices = computed(() => {
-    return Array.from(services.value.values()).filter(service => service.lastError)
-  })
-
-  // Methods
   const initialize = async (): Promise<void> => {
     try {
       error.value = null
-      lastError.value = null
       isInitialized.value = true
 
-      // Check Wails availability first
-      if (!checkWailsAvailability()) {
-        lastError.value = 'Wails runtime not available'
-        throw new Error(lastError.value)
-      }
-
-      // Initialize Wails runtime
-      if (typeof window !== 'undefined' && window.wails) {
-        await window.wails.Init()
-      }
-
-      // Initialize the service coordinator
-      await ServiceCoordinator.Initialize()
-      await ServiceCoordinator.StartMonitoring()
-      coordinatorStarted.value = true
-
-      // Load service status
-      await loadServiceStatus()
-
+      // Wails v2 runtime is automatically available
+      // No explicit init needed
+      
+      // Setup event listeners
+      setupEventListeners()
+      
       isReady.value = true
+      Log.info('Wails v2 initialized successfully')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error during initialization'
       error.value = errorMessage
-      lastError.value = errorMessage
-      console.error('Wails initialization failed:', err)
+      Log.error('Wails initialization failed: ' + errorMessage)
       throw err
     }
   }
 
-  const loadServiceStatus = async (): Promise<void> => {
-    try {
-      // Initialize with default services
-      // The actual status would be fetched from the coordinator
-      services.value = new Map([
-        ['system', { name: 'system', running: true, status: 'active' }],
-        ['filesystem', { name: 'filesystem', running: true, status: 'active' }],
-        ['terminal', { name: 'terminal', running: true, status: 'active' }],
-        ['audio', { name: 'audio', running: true, status: 'active' }],
-        ['theme', { name: 'theme', running: true, status: 'active' }],
-        ['config', { name: 'config', running: true, status: 'active' }],
-      ])
-    } catch (err) {
-      console.error('Failed to load service status:', err)
+  const setupEventListeners = () => {
+    // Listen to all Wails events
+    Events.On('time.updated', (time: string) => {
+      emit('time.updated', { time })
+    })
+  }
+
+  const emit = (eventName: string, data?: any) => {
+    const event: WailsEvent = { name: eventName, data }
+    events.value.push(event)
+    
+    // Notify local listeners
+    const listeners = eventListeners.get(eventName)
+    if (listeners) {
+      listeners.forEach(callback => callback(data))
     }
   }
 
-  const callService = async <T = any>(
-    serviceName: string,
-    methodName: string,
-    ...args: any[]
-  ): Promise<T> => {
-    if (!isReady.value) {
-      throw new Error('Wails is not ready. Call initialize() first.')
+  const subscribe = (eventName: string, callback: (data: any) => void) => {
+    if (!eventListeners.has(eventName)) {
+      eventListeners.set(eventName, new Set())
+      
+      // Also subscribe to Wails runtime events
+      Events.On(eventName, callback)
     }
+    eventListeners.get(eventName)!.add(callback)
+  }
 
-    try {
-      // Generic service call implementation
-      // This would be extended based on actual service methods
-      const service = services.value.get(serviceName)
-      if (!service || !service.running) {
-        throw new Error(`Service ${serviceName} is not available`)
-      }
-
-      // Placeholder for actual service method call
-      // Implementation would depend on the specific service interface
-      return {} as T
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown service error'
-
-      // Update service error status
-      const service = services.value.get(serviceName)
-      if (service) {
-        service.lastError = errorMessage
-        services.value.set(serviceName, { ...service })
-      }
-
-      throw new Error(`Service call failed: ${errorMessage}`)
+  const unsubscribe = (eventName: string, callback?: (data: any) => void) => {
+    if (callback) {
+      eventListeners.get(eventName)?.delete(callback)
+    }
+    // Wails v2 EventsOff takes event names (not callbacks)
+    const listeners = eventListeners.get(eventName)
+    if (!callback || !listeners?.size) {
+      Events.Off(eventName)
+      listeners?.clear()
     }
   }
 
-  const subscribeToEvents = (eventType: string, callback: (event: WailsEvent) => void): void => {
-    eventListeners.set(eventType, callback)
+  const publish = (eventName: string, data?: any) => {
+    Events.Emit(eventName, data)
+    emit(eventName, data)
   }
 
-  const unsubscribeFromEvents = (eventType: string): void => {
-    eventListeners.delete(eventType)
-  }
-
-  const publishEvent = async (eventType: string, data: any, source: string = 'frontend'): Promise<void> => {
-    if (!isReady.value) {
-      throw new Error('Wails is not ready. Call initialize() first.')
-    }
-
-    try {
-      // This would publish to the Go event bus
-      // Implementation depends on Wails event system
-      const event: WailsEvent = {
-        Type: eventType,
-        Timestamp: new Date().toISOString(),
-        Data: data,
-        Source: source
-      }
-
-      events.value.push(event)
-
-      // Notify local listeners
-      const listener = eventListeners.get(eventType)
-      if (listener) {
-        listener(event)
-      }
-    } catch (err) {
-      console.error('Failed to publish event:', err)
-      throw err
-    }
-  }
-
-  const clearEvents = (): void => {
-    events.value = []
-  }
-
-  const getServiceStatus = (serviceName: string): ServiceStatus | undefined => {
-    return services.value.get(serviceName)
-  }
-
-  const getAllServices = (): ServiceStatus[] => {
-    return Array.from(services.value.values())
-  }
-
-  const restartService = async (serviceName: string): Promise<void> => {
-    try {
-      await callService(serviceName, 'restart')
-      await loadServiceStatus()
-    } catch (err) {
-      console.error(`Failed to restart service ${serviceName}:`, err)
-      throw err
-    }
-  }
-
-  // Check if Wails is available
-  const checkWailsAvailability = () => {
-    isWailsAvailable.value = !!(typeof window !== 'undefined' && window.wails)
-    return isWailsAvailable.value
-  }
-
-  // Get a service from the coordinator
-  const getService = async (serviceType: string) => {
-    try {
-      return await ServiceCoordinator.GetService(serviceType)
-    } catch (error) {
-      console.error(`Failed to get service ${serviceType}:`, error)
-      return null
-    }
-  }
-
-  // Service method wrappers - simplified async calls through coordinator
-  const system = {
-    getSystemInfo: async () => {
-      const service = await getService('system')
-      return service?.GetSystemInfo()
-    },
-    getCPUUsage: async () => {
-      const service = await getService('system')
-      return service?.GetCPUUsage()
-    },
-    getMemoryUsage: async () => {
-      const service = await getService('system')
-      return service?.GetMemoryUsage()
-    },
-    getDiskUsage: async () => {
-      const service = await getService('system')
-      return service?.GetDiskUsage()
-    },
-    getNetworkInfo: async () => {
-      const service = await getService('system')
-      return service?.GetNetworkInfo()
-    },
-    startMonitoring: async (interval: number) => {
-      const service = await getService('system')
-      return service?.StartMonitoring(interval)
-    },
-    stopMonitoring: async () => {
-      const service = await getService('system')
-      return service?.StopMonitoring()
-    }
-  }
-
-  const filesystem = {
-    readDirectory: async (path: string) => {
-      const service = await getService('filesystem')
-      return service?.ReadDirectory(path)
-    },
-    getFileInfo: async (path: string) => {
-      const service = await getService('filesystem')
-      return service?.GetFileInfo(path)
-    },
-    createDirectory: async (path: string, mode: number) => {
-      const service = await getService('filesystem')
-      return service?.CreateDirectory(path, mode)
-    },
-    deleteFile: async (path: string) => {
-      const service = await getService('filesystem')
-      return service?.DeleteFile(path)
-    },
-    copyFile: async (src: string, dst: string) => {
-      const service = await getService('filesystem')
-      return service?.CopyFile(src, dst)
-    },
-    moveFile: async (src: string, dst: string) => {
-      const service = await getService('filesystem')
-      return service?.MoveFile(src, dst)
-    },
-    readFile: async (path: string) => {
-      const service = await getService('filesystem')
-      return service?.ReadFile(path)
-    },
-    writeFile: async (path: string, data: string, mode: number) => {
-      const service = await getService('filesystem')
-      return service?.WriteFile(path, data, mode)
-    },
-    searchFiles: async (root: string, pattern: string) => {
-      const service = await getService('filesystem')
-      return service?.SearchFiles(root, pattern)
-    },
-    watchDirectory: async (path: string) => {
-      const service = await getService('filesystem')
-      return service?.WatchDirectory(path)
-    }
-  }
-
-  const terminal = {
-    createTerminal: async (width: number, height: number) => {
-      const service = await getService('terminal')
-      return service?.CreateTerminal(width, height)
-    },
-    resizeTerminal: async (terminalId: string, width: number, height: number) => {
-      const service = await getService('terminal')
-      return service?.ResizeTerminal(terminalId, width, height)
-    },
-    writeToTerminal: async (terminalId: string, data: string) => {
-      const service = await getService('terminal')
-      return service?.WriteToTerminal(terminalId, data)
-    },
-    readFromTerminal: async (terminalId: string) => {
-      const service = await getService('terminal')
-      return service?.ReadFromTerminal(terminalId)
-    },
-    closeTerminal: async (terminalId: string) => {
-      const service = await getService('terminal')
-      return service?.CloseTerminal(terminalId)
-    }
-  }
-
-  const audio = {
-    getDevices: async () => {
-      const service = await getService('audio')
-      return service?.GetDevices()
-    },
-    getCurrentVolume: async () => {
-      const service = await getService('audio')
-      return service?.GetCurrentVolume()
-    },
-    setVolume: async (volume: number) => {
-      const service = await getService('audio')
-      return service?.SetVolume(volume)
-    },
-    playSound: async (soundPath: string) => {
-      const service = await getService('audio')
-      return service?.PlaySound(soundPath)
-    },
-    stopSound: async () => {
-      const service = await getService('audio')
-      return service?.StopSound()
-    },
-    getSystemSounds: async () => {
-      const service = await getService('audio')
-      return service?.GetSystemSounds()
-    }
-  }
-
-  const theme = {
-    getCurrentTheme: async () => {
-      const service = await getService('theme')
-      return service?.GetCurrentTheme()
-    },
-    setTheme: async (themeName: string) => {
-      const service = await getService('theme')
-      return service?.SetTheme(themeName)
-    },
-    getAvailableThemes: async () => {
-      const service = await getService('theme')
-      return service?.GetAvailableThemes()
-    },
-    saveTheme: async (themeData: any) => {
-      const service = await getService('theme')
-      return service?.SaveTheme(themeData)
-    }
-  }
-
-  const config = {
-    getConfig: async (key: string) => {
-      const service = await getService('config')
-      return service?.GetConfig(key)
-    },
-    setConfig: async (key: string, value: any) => {
-      const service = await getService('config')
-      return service?.SetConfig(key, value)
-    },
-    getAllConfig: async () => {
-      const service = await getService('config')
-      return service?.GetAllConfig()
-    },
-    saveConfig: async () => {
-      const service = await getService('config')
-      return service?.SaveConfig()
-    },
-    loadConfig: async () => {
-      const service = await getService('config')
-      return service?.LoadConfig()
-    }
-  }
-
-  // Get platform info
-  const getPlatform = () => ServiceCoordinator.GetPlatform()
-
-  // Cleanup
-  const cleanup = (): void => {
+  const cleanup = () => {
+    eventListeners.forEach((_listeners, eventName) => {
+      Events.Off(eventName)
+    })
     eventListeners.clear()
     events.value = []
     services.value.clear()
     isReady.value = false
     isInitialized.value = false
-    isWailsAvailable.value = false
-    coordinatorStarted.value = false
     error.value = null
-    lastError.value = null
-  }
-
-  // Auto-initialize on mount
-  onMounted(async () => {
-    if (!isInitialized.value) {
-      await initialize()
-    }
-  })
-
-  // Auto-initialize when composable is used (from old version)
-  if (typeof window !== 'undefined') {
-    checkWailsAvailability()
-    if (isWailsAvailable.value) {
-      initialize()
-    }
-  }
-
-  // Shutdown method for cleanup
-  const shutdown = async () => {
-    try {
-      await ServiceCoordinator.Shutdown()
-      coordinatorStarted.value = false
-      isInitialized.value = false
-    } catch (error) {
-      console.error('Failed to shutdown service coordinator:', error)
-    }
   }
 
   onUnmounted(() => {
     cleanup()
   })
 
+  // System service methods - calls the Go backend via Wails bindings
+  const system = {
+    async getSystemInfo() {
+      try {
+        const info = await GetSystemInfo()
+        if (info) {
+          return {
+            hostname: info.Hostname || info.hostname || 'localhost',
+            platform: info.OS || info.os || 'linux',
+            os: info.OS || info.os || 'Linux',
+            arch: info.Architecture || info.architecture || 'x64',
+            uptime: info.Uptime ? Number(info.Uptime) / 1e9 : 0,
+            kernel: info.KernelVersion || info.kernel || ''
+          }
+        }
+        return { hostname: 'localhost', platform: 'linux', os: 'Linux', arch: 'x64', uptime: 0, kernel: '' }
+      } catch (e) {
+        console.error('getSystemInfo error:', e)
+        return { hostname: 'localhost', platform: 'linux', os: 'Linux', arch: 'x64', uptime: 0, kernel: '' }
+      }
+    },
+    async getCPUUsage() {
+      try {
+        const result = await GetCPUUsage()
+        console.log('CPU Usage result:', result)
+        return { 
+          usage: result?.usage || 0, 
+          cores: result?.cores || [],
+          coreCount: result?.coreCount || result?.cores?.length || 0,
+          modelName: result?.modelName || '',
+          frequency: result?.frequency || 0
+        }
+      } catch (e) {
+        console.error('getCPUUsage error:', e)
+        return { usage: 0, cores: [], coreCount: 0, modelName: '', frequency: 0 }
+      }
+    },
+    async getMemoryUsage() {
+      try {
+        const result = await GetMemoryUsage()
+        console.log('Memory Usage result:', result)
+        return { 
+          total: result?.total || 0, 
+          used: result?.used || 0, 
+          free: result?.free || 0, 
+          usage: result?.usage || 0 
+        }
+      } catch (e) {
+        console.error('getMemoryUsage error:', e)
+        return { total: 0, used: 0, free: 0, usage: 0 }
+      }
+    },
+    async getDiskUsage() {
+      try {
+        const result = await GetDiskUsage()
+        return result || []
+      } catch (e) {
+        console.error('getDiskUsage error:', e)
+        return []
+      }
+    },
+    async getTopProcesses(metric: string = 'cpu', limit: number = 10) {
+      try {
+        return await GetTopProcesses(metric, limit)
+      } catch (e) {
+        console.error('getTopProcesses error:', e)
+        return []
+      }
+    },
+    async startMonitoring(interval: number) {
+      try {
+        // Monitoring is handled by the backend automatically
+        console.log('System monitoring started')
+      } catch (e) {
+        console.error('startMonitoring error:', e)
+      }
+    },
+    async stopMonitoring() {
+      try {
+        console.log('System monitoring stopped')
+      } catch (e) {
+        console.error('stopMonitoring error:', e)
+      }
+    }
+  }
+
+  // Terminal service methods
+  const terminal = {
+    async create(cols: number, rows: number) {
+      try {
+        return await CreateTerminal(cols, rows)
+      } catch (e) {
+        console.error('terminal.create error:', e)
+        return { id: `term-${Date.now()}` }
+      }
+    },
+    async write(terminalId: string, data: string) {
+      try {
+        await WriteToTerminal(terminalId, data)
+      } catch (e) {
+        console.error('terminal.write error:', e)
+      }
+    },
+    async resize(terminalId: string, cols: number, rows: number) {
+      try {
+        await ResizeTerminal(terminalId, cols, rows)
+      } catch (e) {
+        console.error('terminal.resize error:', e)
+      }
+    },
+    async close(terminalId: string) {
+      try {
+        await CloseTerminal(terminalId)
+      } catch (e) {
+        console.error('terminal.close error:', e)
+      }
+    }
+  }
+
+  // Filesystem service methods
+  const filesystem = {
+    async readDirectory(path: string) {
+      try {
+        return await ReadDirectory(path)
+      } catch (e) {
+        console.error('filesystem.readDirectory error:', e)
+        return []
+      }
+    },
+    async getCurrentDirectory() {
+      return '/'
+    }
+  }
+
   return {
-    // State (readonly for safety)
     isInitialized: readonly(isInitialized),
     isReady: readonly(isReady),
-    isWailsAvailable: readonly(isWailsAvailable),
-    coordinatorStarted: readonly(coordinatorStarted),
+    error: readonly(error),
     services: readonly(services),
     events: readonly(events),
-    error: readonly(error),
-    lastError: readonly(lastError),
-
-    // Computed
     appStatus,
     activeServices,
-    failedServices,
-
-    // Core methods
     initialize,
-    shutdown,
-    getPlatform,
-    checkWailsAvailability,
-
-    // Event methods
-    callService,
-    subscribeToEvents,
-    unsubscribeFromEvents,
-    publishEvent,
-    clearEvents,
-    getServiceStatus,
-    getAllServices,
-    restartService,
+    emit,
+    subscribe,
+    unsubscribe,
+    publish,
     cleanup,
-
-    // Service-specific methods
     system,
-    filesystem,
     terminal,
-    audio,
-    theme,
-    config
-  }
-}
-
-/**
- * useService composable for working with specific services
- */
-export function useService(serviceName: string) {
-  const wails = useWails()
-
-  const service = computed(() => wails.services.value.get(serviceName))
-  const isRunning = computed(() => service.value?.running ?? false)
-  const status = computed(() => service.value?.status ?? 'unknown')
-  const lastError = computed(() => service.value?.lastError ?? null)
-
-  const call = async <T = any>(methodName: string, ...args: any[]): Promise<T> => {
-    return wails.callService<T>(serviceName, methodName, ...args)
-  }
-
-  const start = async (): Promise<void> => {
-    await call('start')
-    await wails.loadServiceStatus()
-  }
-
-  const stop = async (): Promise<void> => {
-    await call('stop')
-    await wails.loadServiceStatus()
-  }
-
-  const restart = async (): Promise<void> => {
-    await wails.restartService(serviceName)
-  }
-
-  return {
-    service,
-    isRunning,
-    status,
-    lastError,
-    call,
-    start,
-    stop,
-    restart
+    filesystem
   }
 }
 
@@ -521,53 +297,58 @@ export function useService(serviceName: string) {
 export function useEvents() {
   const wails = useWails()
 
-  const subscribe = (eventType: string, callback: (event: WailsEvent) => void) => {
-    wails.subscribeToEvents(eventType, callback)
+  const subscribe = (eventName: string, callback: (data: any) => void) => {
+    wails.subscribe(eventName, callback)
   }
 
-  const unsubscribe = (eventType: string) => {
-    wails.unsubscribeFromEvents(eventType)
+  const unsubscribe = (eventName: string, callback?: (data: any) => void) => {
+    wails.unsubscribe(eventName, callback)
   }
 
-  const publish = (eventType: string, data: any, source?: string) => {
-    return wails.publishEvent(eventType, data, source)
-  }
-
-  const getEvents = (eventType?: string) => {
-    if (!eventType) return wails.events.value
-    return wails.events.value.filter(event => event.Type === eventType)
-  }
-
-  const clearEvents = (eventType?: string) => {
-    if (!eventType) {
-      wails.clearEvents()
-    } else {
-      // Filter out events of the specified type
-      wails.events.value = wails.events.value.filter(event => event.Type !== eventType)
-    }
+  const publish = (eventName: string, data?: any) => {
+    return wails.publish(eventName, data)
   }
 
   return {
     events: wails.events,
     subscribe,
     unsubscribe,
-    publish,
-    getEvents,
-    clearEvents
+    publish
   }
 }
 
-// Type declarations for Wails runtime
-declare global {
-  interface Window {
-    wails?: {
-      Init(): Promise<void>
-      Call(serviceName: string, methodName: string, ...args: any[]): Promise<any>
-      Emit(eventName: string, ...args: any[]): void
-      On(eventName: string, callback: (...args: any[]) => void): void
-      Off(eventName: string, callback?: (...args: any[]) => void): void
+/**
+ * useService composable for working with specific services
+ * In Wails v2, services are bound Go structs
+ */
+export function useService(serviceName: string) {
+  const wails = useWails()
+
+  const isRunning = computed(() => {
+    const service = wails.services.value.get(serviceName)
+    return service?.running ?? false
+  })
+
+  const status = computed(() => {
+    const service = wails.services.value.get(serviceName)
+    return service?.status ?? 'unknown'
+  })
+
+  const call = async <T = any>(methodName: string, ...args: any[]): Promise<T> => {
+    // In Wails v2, bound methods are available on window.go.{ServiceName}.{MethodName}
+    const boundMethod = (window as any).go?.[serviceName]?.[methodName]
+    if (!boundMethod) {
+      throw new Error(`Method ${serviceName}.${methodName} not found`)
     }
+    return boundMethod(...args)
+  }
+
+  return {
+    isRunning,
+    status,
+    call
   }
 }
 
+// Default export
 export default useWails

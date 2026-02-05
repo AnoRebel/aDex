@@ -3,6 +3,8 @@
  * specifically optimized for file system thumbnails
  */
 
+import { ref, computed, readonly, type Ref, type ComputedRef } from 'vue'
+
 export interface ImageConfig {
   format: 'auto' | 'avif' | 'webp' | 'jpg' | 'png'
   quality: number
@@ -267,5 +269,5 @@ export const useNuxtImageConfig = () => {
   }
 }
 
-// Export singleton instance
-export const nuxtImageConfig = useNuxtImageConfig()
+// Note: Do not export a singleton at module level
+// Always use useNuxtImageConfig() inside setup/plugin context

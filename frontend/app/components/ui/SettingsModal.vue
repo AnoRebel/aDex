@@ -1,6 +1,7 @@
 <template>
-  <div v-if="isVisible" class="settings-overlay" @click="closeModal">
-    <div class="settings-modal" @click.stop>
+  <Teleport to="body">
+    <div class="settings-overlay" @click="closeModal">
+      <div class="settings-modal" @click.stop>
       <div class="modal-header">
         <h2 class="modal-title">
           <span class="glitch">SYSTEM CONFIGURATION</span>
@@ -443,6 +444,7 @@
       </div>
     </div>
   </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -495,6 +497,7 @@ interface SettingsCategory {
 // Props
 const emit = defineEmits<{
   settingsChanged: [settings: Settings]
+  close: []
 }>()
 
 // Reactive data
@@ -557,6 +560,7 @@ const showModal = () => {
 
 const closeModal = () => {
   isVisible.value = false
+  emit('close')
 }
 
 const saveSettings = () => {
@@ -872,16 +876,19 @@ onMounted(() => {
 }
 
 .setting-name {
+  display: block;
   font-size: 12px;
   font-weight: bold;
   color: var(--text-primary);
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .setting-description {
+  display: block;
   font-size: 10px;
   color: var(--text-secondary);
   line-height: 1.4;
+  margin-top: 2px;
 }
 
 .setting-select,

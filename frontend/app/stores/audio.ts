@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import * as ServiceCoordinator from '~~/bindings/aDex-UI/backend/services/coordinator/servicecoordinator'
+import { GetService } from '~~/bindings'
 import type {
   AudioEvent,
   AudioSettings,
@@ -430,7 +430,8 @@ export const useAudioStore = defineStore('audio', {
     async fetchAvailableEvents(): Promise<void> {
       try {
         this.setLoading(true)
-        const events = await ServiceCoordinator.GetService('audio').then(s => s?.GetAvailableEvents())
+        const service = await GetService('audio')
+        const events = service?.GetAvailableEvents ? await service.GetAvailableEvents() : null
         if (events) {
           this.availableEvents = events
         }
@@ -444,7 +445,8 @@ export const useAudioStore = defineStore('audio', {
 
     async fetchSoundpacks(): Promise<void> {
       try {
-        const soundpacks = await ServiceCoordinator.GetService('audio').then(s => s?.GetSoundpacks())
+        const service = await GetService('audio')
+        const soundpacks = service?.GetSoundpacks ? await service.GetSoundpacks() : null
         if (soundpacks) {
           this.soundpacks = soundpacks
         }
@@ -455,7 +457,8 @@ export const useAudioStore = defineStore('audio', {
 
     async fetchStats(): Promise<void> {
       try {
-        const stats = await ServiceCoordinator.GetService('audio').then(s => s?.GetStats())
+        const service = await GetService('audio')
+        const stats = service?.GetStats ? await service.GetStats() : null
         if (stats) {
           this.stats = stats
         }
@@ -473,7 +476,10 @@ export const useAudioStore = defineStore('audio', {
         if (!event) return
 
         this.startPlayback(event)
-        await ServiceCoordinator.GetService('audio').then(s => s?.PlayEvent(eventId))
+        const service = await GetService('audio')
+        if (service?.PlayEvent) {
+          await service.PlayEvent(eventId)
+        }
         this.incrementPlayCount(eventId)
       } catch (error) {
         console.error('Failed to play audio event:', error)

@@ -545,20 +545,39 @@ export function useTheme() {
   }
 
   const generateFallbackCSS = (theme: Theme): string => {
-    const prefix = config.value.variablePrefix!
     let css = `:root {\n`
 
-    // Add color variables
-    css += `  ${prefix}-background-primary: ${theme.colors.background.primary};\n`
-    css += `  ${prefix}-background-secondary: ${theme.colors.background.secondary};\n`
-    css += `  ${prefix}-foreground-primary: ${theme.colors.foreground.primary};\n`
-    css += `  ${prefix}-foreground-secondary: ${theme.colors.foreground.secondary};\n`
-    css += `  ${prefix}-accent-primary: ${theme.colors.accent.primary};\n`
-    css += `  ${prefix}-accent-secondary: ${theme.colors.accent.secondary};\n`
-
-    // Add font variables
-    css += `  ${prefix}-font-family-primary: ${theme.fonts.families.primary};\n`
-    css += `  ${prefix}-font-family-mono: ${theme.fonts.families.monospace};\n`
+    // Primary colors
+    css += `  --primary-400: ${theme.colors.primary};\n`
+    css += `  --primary-500: ${theme.colors.primary};\n`
+    css += `  --primary-600: ${theme.colors.secondary};\n`
+    
+    // Accent colors
+    css += `  --accent-400: ${theme.colors.accent};\n`
+    css += `  --accent-500: ${theme.colors.accent};\n`
+    
+    // Background and surface colors
+    css += `  --background: ${theme.colors.background};\n`
+    css += `  --surface: ${theme.colors.surface};\n`
+    css += `  --surface-elevated: ${theme.colors.surface};\n`
+    css += `  --surface-border: ${theme.colors.border};\n`
+    
+    // Text colors
+    css += `  --text-primary: ${theme.colors.text};\n`
+    css += `  --text-secondary: ${theme.colors.textSecondary};\n`
+    css += `  --text-muted: ${theme.colors.textSecondary};\n`
+    
+    // Terminal colors
+    css += `  --terminal-bg: ${theme.colors.background};\n`
+    css += `  --terminal-text: ${theme.colors.primary};\n`
+    css += `  --terminal-cursor: ${theme.colors.primary};\n`
+    css += `  --terminal-border: ${theme.colors.border};\n`
+    
+    // Status colors
+    css += `  --success: ${theme.colors.success};\n`
+    css += `  --warning: ${theme.colors.warning};\n`
+    css += `  --error: ${theme.colors.error};\n`
+    css += `  --info: ${theme.colors.info};\n`
 
     css += `}\n`
     return css

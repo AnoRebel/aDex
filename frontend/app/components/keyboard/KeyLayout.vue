@@ -71,7 +71,7 @@
     <div v-if="showLayoutSelector" class="keyboard-controls">
       <select
         v-model="selectedLayout"
-        :aria-label="Select keyboard layout"
+        aria-label="Select keyboard layout"
         class="layout-selector"
         :disabled="disabled"
       >
@@ -87,7 +87,7 @@
       <!-- Theme selector -->
       <select
         v-model="selectedTheme"
-        :aria-label="Select keyboard theme"
+        aria-label="Select keyboard theme"
         class="theme-selector"
         :disabled="disabled"
       >
@@ -99,7 +99,7 @@
       <!-- Size selector -->
       <select
         v-model="selectedSize"
-        :aria-label="Select keyboard size"
+        aria-label="Select keyboard size"
         class="size-selector"
         :disabled="disabled"
       >

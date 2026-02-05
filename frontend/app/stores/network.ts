@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import * as ServiceCoordinator from '~~/bindings/aDex-UI/backend/services/coordinator/servicecoordinator'
+import { StartMonitoring, StopMonitoring } from '~~/bindings'
 
 export const useNetworkStore = defineStore('network', {
   state: () => ({
@@ -42,7 +42,8 @@ export const useNetworkStore = defineStore('network', {
   actions: {
     async fetchMetrics() {
       try {
-        this.metrics = await ServiceCoordinator.GetService('network').then(s => s?.GetMetrics())
+        const service = await GetService('network')
+        this.metrics = service?.GetMetrics ? await service.GetMetrics() : null
         this.lastUpdateTime = new Date()
       } catch (error) {
         this.error = `Failed to fetch network metrics: ${error}`
@@ -52,7 +53,8 @@ export const useNetworkStore = defineStore('network', {
 
     async fetchConnections() {
       try {
-        this.connections = await ServiceCoordinator.GetService('network').then(s => s?.GetConnections())
+        const service = await GetService('network')
+        this.connections = service?.GetConnections ? await service.GetConnections() : []
         this.lastUpdateTime = new Date()
       } catch (error) {
         this.error = `Failed to fetch network connections: ${error}`
@@ -82,7 +84,8 @@ export const useNetworkStore = defineStore('network', {
 
     async fetchConfig() {
       try {
-        this.config = await ServiceCoordinator.GetService('network').then(s => s?.GetConfiguration())
+        const service = await GetService('network')
+        this.config = service?.GetConfiguration ? await service.GetConfiguration() : null
       } catch (error) {
         this.error = `Failed to fetch network config: ${error}`
         throw error
@@ -91,7 +94,8 @@ export const useNetworkStore = defineStore('network', {
 
     async fetchBandwidthData(interfaceName: string) {
       try {
-        const data = await ServiceCoordinator.GetService('network').then(s => s?.GetBandwidthData(interfaceName))
+        const service = await GetService('network')
+        const data = service?.GetBandwidthData ? await service.GetBandwidthData(interfaceName) : null
         this.bandwidthHistory = data?.bandwidthHistory || []
         this.lastUpdateTime = new Date()
         return data
@@ -103,7 +107,7 @@ export const useNetworkStore = defineStore('network', {
 
     async startMonitoring() {
       try {
-        await ServiceCoordinator.StartMonitoring()
+        await StartMonitoring()
         this.isMonitoring = true
       } catch (error) {
         this.error = `Failed to start monitoring: ${error}`
@@ -113,7 +117,7 @@ export const useNetworkStore = defineStore('network', {
 
     async stopMonitoring() {
       try {
-        await ServiceCoordinator.StopMonitoring()
+        await StopMonitoring()
         this.isMonitoring = false
       } catch (error) {
         this.error = `Failed to stop monitoring: ${error}`
@@ -147,7 +151,10 @@ export const useNetworkStore = defineStore('network', {
 
     async updateConfig(config: any) {
       try {
-        await ServiceCoordinator.GetService('network').then(s => s?.UpdateConfiguration(config))
+        const service = await GetService('network')
+        if (service?.UpdateConfiguration) {
+          await service.UpdateConfiguration(config)
+        }
         this.config = config
       } catch (error) {
         this.error = `Failed to update config: ${error}`
@@ -157,7 +164,10 @@ export const useNetworkStore = defineStore('network', {
 
     async resetService() {
       try {
-        await ServiceCoordinator.GetService('network').then(s => s?.Reset())
+        const service = await GetService('network')
+        if (service?.Reset) {
+          await service.Reset()
+        }
         // Reset local state
         this.metrics = null
         this.connections = []
@@ -197,7 +207,8 @@ export const useNetworkStore = defineStore('network', {
     // Update monitoring status
     async updateMonitoringStatus() {
       try {
-        this.isMonitoring = await this.serviceCoordinator.IsNetworkMonitoring()
+        const service = await GetService('network')
+        this.isMonitoring = service?.IsMonitoring ? await service.IsMonitoring() : false
       } catch (error) {
         this.error = `Failed to check monitoring status: ${error}`
       }

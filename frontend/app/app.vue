@@ -19,9 +19,8 @@
 </template>
 
 <script setup lang="ts">
-import "@wailsio/runtime";
 // App-level setup
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useThemeStore } from '~/stores/theme'
 import { useModalStore } from '~/stores/modal'
 
@@ -31,16 +30,20 @@ const modalStore = useModalStore()
 
 // Compute theme classes for the app
 const themeClasses = computed(() => ({
-  'theme-cyberpunk': themeStore.currentTheme === 'cyberpunk',
-  'theme-matrix': themeStore.currentTheme === 'matrix',
-  'theme-neon': themeStore.currentTheme === 'neon',
+  'theme-cyberpunk': themeStore.currentThemeId === 'cyberpunk',
+  'theme-matrix': themeStore.currentThemeId === 'matrix',
+  'theme-neon': themeStore.currentThemeId === 'neon',
   'theme-dark': themeStore.isDark,
   'theme-light': !themeStore.isDark,
 }))
 
 // Initialize theme on app start
 onMounted(async () => {
-  await themeStore.initializeTheme()
+  try {
+    await themeStore.initialize()
+  } catch (e) {
+    console.warn('Theme initialization warning:', e)
+  }
 })
 
 // SEO and meta

@@ -483,73 +483,38 @@ const goUp = () => {
   loadDirectory(currentPath.value)
 }
 
+// Import useWails composable
+import { useWails } from '~/composables/useWails'
+
+const { filesystem: filesystemService } = useWails()
+
 const loadDirectory = async (path: string) => {
   try {
-    // Simulate loading directory (replace with actual API call)
-    const mockFiles: FileItem[] = [
-      {
-        name: 'Documents',
-        path: path + '/Documents',
-        type: 'directory',
-        size: 4096,
-        modified: new Date('2024-01-15T10:30:00'),
-        permissions: 'drwxr-xr-x',
-        owner: 'user'
-      },
-      {
-        name: 'Downloads',
-        path: path + '/Downloads',
-        type: 'directory',
-        size: 4096,
-        modified: new Date('2024-01-16T14:20:00'),
-        permissions: 'drwxr-xr-x',
-        owner: 'user'
-      },
-      {
-        name: 'Projects',
-        path: path + '/Projects',
-        type: 'directory',
-        size: 4096,
-        modified: new Date('2024-01-17T09:15:00'),
-        permissions: 'drwxr-xr-x',
-        owner: 'user'
-      },
-      {
-        name: 'config.json',
-        path: path + '/config.json',
-        type: 'file',
-        size: 2048,
-        modified: new Date('2024-01-14T16:45:00'),
-        permissions: '-rw-r--r--',
+    // Call backend filesystem service
+    const entries = await filesystemService.readDirectory(path)
+    
+    if (entries && Array.isArray(entries)) {
+      files.value = entries.map((entry: any) => ({
+        name: entry.Name || entry.name,
+        path: entry.Path || entry.path || `${path}/${entry.Name || entry.name}`,
+        type: (entry.IsDir || entry.isDir) ? 'directory' : 'file',
+        size: entry.Size || entry.size || 0,
+        modified: new Date(entry.ModTime || entry.modTime || Date.now()),
+        permissions: '-rw-r--r--', // Default permissions
         owner: 'user',
-        extension: 'json'
-      },
-      {
-        name: 'readme.md',
-        path: path + '/readme.md',
-        type: 'file',
-        size: 1024,
-        modified: new Date('2024-01-13T11:30:00'),
-        permissions: '-rw-r--r--',
-        owner: 'user',
-        extension: 'md'
-      },
-      {
-        name: 'script.js',
-        path: path + '/script.js',
-        type: 'file',
-        size: 5120,
-        modified: new Date('2024-01-12T13:20:00'),
-        permissions: '-rwxr-xr-x',
-        owner: 'user',
-        extension: 'js'
-      }
-    ]
-
-    files.value = mockFiles
+        extension: entry.Extension || entry.extension || ''
+      }))
+    } else {
+      // Fallback to empty directory if no entries
+      files.value = []
+    }
+    
     selectedFiles.value = []
   } catch (error) {
     console.error('Failed to load directory:', error)
+    // Show empty directory on error
+    files.value = []
+    selectedFiles.value = []
   }
 }
 

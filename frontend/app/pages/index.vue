@@ -1,5 +1,12 @@
 <template>
-  <div class="adex-desktop" :class="desktopClasses">
+  <!-- Splash Screen -->
+  <SplashScreen 
+    v-if="showSplash" 
+    :min-duration="2500"
+    @complete="onSplashComplete"
+  />
+
+  <div v-show="!showSplash" class="adex-desktop" :class="desktopClasses">
     <!-- Background Effects -->
     <div class="background-effects">
       <div v-if="themeSettings.particles" class="particle-container">
@@ -55,15 +62,15 @@
           <div class="system-status">
             <div class="status-indicator cpu" :class="getCpuStatusClass()">
               <span class="status-label">CPU</span>
-              <span class="status-value">{{ systemData.cpu?.usage || 0 }}%</span>
+              <span class="status-value">{{ Math.round(systemData.cpu?.usage || 0) }}%</span>
             </div>
             <div class="status-indicator memory" :class="getMemoryStatusClass()">
               <span class="status-label">MEM</span>
-              <span class="status-value">{{ systemData.memory?.usagePercent || 0 }}%</span>
+              <span class="status-value">{{ Math.round(systemData.memory?.usagePercent || 0) }}%</span>
             </div>
             <div class="status-indicator network" :class="getNetworkStatusClass()">
               <span class="status-label">NET</span>
-              <span class="status-value">{{ formatBytes(networkData.speed) }}/s</span>
+              <span class="status-value">{{ formatBytes(networkData.speed || 0) }}/s</span>
             </div>
           </div>
         </div>
@@ -155,9 +162,10 @@
               v-if="windows.terminal.visible"
               class="desktop-window terminal-window"
               :class="{ active: activeWindow === 'terminal', maximized: windows.terminal.maximized }"
+              :style="getWindowStyle('terminal')"
               @mousedown="setActiveWindow('terminal')"
             >
-              <div class="window-header">
+              <div class="window-header" @mousedown="startDrag('terminal', $event)">
                 <div class="window-title">
                   <span class="window-icon">💻</span>
                   <span class="window-text">Terminal</span>
@@ -178,9 +186,10 @@
               v-if="windows.fileBrowser.visible"
               class="desktop-window file-browser-window"
               :class="{ active: activeWindow === 'fileBrowser', maximized: windows.fileBrowser.maximized }"
+              :style="getWindowStyle('fileBrowser')"
               @mousedown="setActiveWindow('fileBrowser')"
             >
-              <div class="window-header">
+              <div class="window-header" @mousedown="startDrag('fileBrowser', $event)">
                 <div class="window-title">
                   <span class="window-icon">📁</span>
                   <span class="window-text">File System</span>
@@ -201,9 +210,10 @@
               v-if="windows.systemMonitor.visible"
               class="desktop-window system-monitor-window"
               :class="{ active: activeWindow === 'systemMonitor', maximized: windows.systemMonitor.maximized }"
+              :style="getWindowStyle('systemMonitor')"
               @mousedown="setActiveWindow('systemMonitor')"
             >
-              <div class="window-header">
+              <div class="window-header" @mousedown="startDrag('systemMonitor', $event)">
                 <div class="window-title">
                   <span class="window-icon">📊</span>
                   <span class="window-text">System Monitor</span>
@@ -224,9 +234,10 @@
               v-if="windows.networkMonitor.visible"
               class="desktop-window network-monitor-window"
               :class="{ active: activeWindow === 'networkMonitor', maximized: windows.networkMonitor.maximized }"
+              :style="getWindowStyle('networkMonitor')"
               @mousedown="setActiveWindow('networkMonitor')"
             >
-              <div class="window-header">
+              <div class="window-header" @mousedown="startDrag('networkMonitor', $event)">
                 <div class="window-title">
                   <span class="window-icon">🌐</span>
                   <span class="window-text">Network Monitor</span>
@@ -363,16 +374,29 @@
     <!-- Global Components -->
     <Teleport to="body">
       <!-- Settings Modal -->
-      <SettingsModal ref="settingsModalRef" @settings-changed="handleSettingsChange" />
+      <SettingsModal 
+        v-if="showSettings"
+        ref="settingsModalRef" 
+        @settings-changed="handleSettingsChange"
+        @close="hideSettingsModal"
+      />
 
       <!-- Theme Manager -->
-      <ThemeManager ref="themeManagerRef" />
+      <ThemeManager 
+        v-if="showThemes"
+        ref="themeManagerRef"
+        @close="hideThemeManager"
+      />
 
       <!-- Sound System -->
       <SoundSystem ref="soundSystemRef" />
 
       <!-- Virtual Keyboard -->
-      <VirtualKeyboard ref="virtualKeyboardRef" />
+      <VirtualKeyboard 
+        v-if="showKeyboard"
+        ref="virtualKeyboardRef"
+        @close="toggleVirtualKeyboard"
+      />
     </Teleport>
   </div>
 </template>
@@ -388,6 +412,7 @@ import SettingsModal from '~/components/ui/SettingsModal.vue'
 import ThemeManager from '~/components/theme/ThemeManager.vue'
 import SoundSystem from '~/components/audio/SoundSystem.vue'
 import VirtualKeyboard from '~/components/ui/VirtualKeyboard.vue'
+import SplashScreen from '~/components/ui/SplashScreen.vue'
 import { useSystemStore } from '~/stores/system'
 import { useNetworkStore } from '~/stores/network'
 import { useFilesystemStore } from '~/stores/filesystem'
@@ -414,13 +439,78 @@ const soundEnabled = ref<boolean>(true)
 const networkStatus = ref<string>('connected')
 const activeServices = ref<number>(4)
 
-// Window state
+// Splash screen state
+const showSplash = ref<boolean>(true)
+
+// Modal/Panel visibility state
+const showSettings = ref<boolean>(false)
+const showThemes = ref<boolean>(false)
+const showKeyboard = ref<boolean>(false)
+
+// Window state with position (positions relative to workspace, not full screen)
 const windows = ref({
-  terminal: { visible: true, maximized: false },
-  fileBrowser: { visible: false, maximized: false },
-  systemMonitor: { visible: false, maximized: false },
-  networkMonitor: { visible: false, maximized: false }
+  terminal: { visible: false, maximized: false, x: 50, y: 20, width: 700, height: 450 },
+  fileBrowser: { visible: false, maximized: false, x: 100, y: 40, width: 600, height: 400 },
+  systemMonitor: { visible: false, maximized: false, x: 150, y: 60, width: 600, height: 450 },
+  networkMonitor: { visible: false, maximized: false, x: 200, y: 80, width: 550, height: 350 }
 })
+
+// Drag state
+const dragging = ref<string | null>(null)
+const dragOffset = ref({ x: 0, y: 0 })
+
+// Start dragging a window
+const startDrag = (windowId: string, event: MouseEvent) => {
+  // Ignore if clicking on window controls
+  if ((event.target as HTMLElement).closest('.window-controls')) return
+  
+  const win = windows.value[windowId as keyof typeof windows.value]
+  if (win.maximized) return
+  
+  // Prevent text selection during drag
+  event.preventDefault()
+  
+  dragging.value = windowId
+  dragOffset.value = {
+    x: event.clientX - win.x,
+    y: event.clientY - win.y
+  }
+  setActiveWindow(windowId)
+  
+  // Add dragging class to body for cursor styling
+  document.body.classList.add('window-dragging')
+  
+  document.addEventListener('mousemove', onDrag)
+  document.addEventListener('mouseup', stopDrag)
+}
+
+// Handle dragging
+const onDrag = (event: MouseEvent) => {
+  if (!dragging.value) return
+  const win = windows.value[dragging.value as keyof typeof windows.value]
+  win.x = Math.max(0, event.clientX - dragOffset.value.x)
+  win.y = Math.max(0, event.clientY - dragOffset.value.y)
+}
+
+// Stop dragging
+const stopDrag = () => {
+  dragging.value = null
+  document.body.classList.remove('window-dragging')
+  document.removeEventListener('mousemove', onDrag)
+  document.removeEventListener('mouseup', stopDrag)
+}
+
+// Get window style
+const getWindowStyle = (windowId: string) => {
+  const win = windows.value[windowId as keyof typeof windows.value]
+  if (win.maximized) return {}
+  return {
+    left: `${win.x}px`,
+    top: `${win.y}px`,
+    width: `${win.width}px`,
+    height: `${win.height}px`
+  }
+}
 
 // System data from stores
 const systemData = computed(() => systemStore.systemData)
@@ -575,22 +665,31 @@ const toggleSidebar = () => {
 }
 
 const showSettingsModal = () => {
-  settingsModalRef.value?.showModal()
-  soundSystemRef.value?.playUISound('click')
+  showSettings.value = true
+  console.log('Settings modal opened')
+}
+
+const hideSettingsModal = () => {
+  showSettings.value = false
 }
 
 const showThemeManager = () => {
-  themeManagerRef.value?.showSettings()
-  soundSystemRef.value?.playUISound('click')
+  showThemes.value = true
+  console.log('Theme manager opened')
+}
+
+const hideThemeManager = () => {
+  showThemes.value = false
 }
 
 const toggleSoundPanel = () => {
   soundEnabled.value = !soundEnabled.value
-  soundSystemRef.value?.toggleMute()
+  console.log('Sound toggled:', soundEnabled.value)
 }
 
 const toggleVirtualKeyboard = () => {
-  virtualKeyboardRef.value?.toggleKeyboard()
+  showKeyboard.value = !showKeyboard.value
+  console.log('Keyboard toggled:', showKeyboard.value)
 }
 
 const handleSettingsChange = (settings: any) => {
@@ -598,25 +697,73 @@ const handleSettingsChange = (settings: any) => {
   // Apply settings changes
 }
 
+// Splash screen completion handler
+const onSplashComplete = () => {
+  showSplash.value = false
+  console.log('Splash screen complete, app ready')
+}
+
 // Application controls
 const minimizeApp = () => {
-  // Implementation for minimizing the entire application
+  // Use Wails v2 runtime to minimize the window
+  try {
+    const runtime = (window as any).runtime
+    if (runtime?.WindowMinimise) {
+      runtime.WindowMinimise()
+    }
+  } catch (e) {
+    console.error('Failed to minimize app:', e)
+  }
   soundSystemRef.value?.playUISound('click')
 }
 
 const toggleFullscreen = () => {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen()
-  } else {
-    document.exitFullscreen()
+  try {
+    const runtime = (window as any).runtime
+    if (runtime?.WindowToggleMaximise) {
+      runtime.WindowToggleMaximise()
+    } else if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen()
+    } else {
+      document.exitFullscreen()
+    }
+  } catch (e) {
+    console.error('Failed to toggle fullscreen:', e)
   }
   soundSystemRef.value?.playUISound('click')
 }
 
 const closeApp = () => {
   if (confirm('Are you sure you want to close aDex-UI?')) {
-    window.close()
+    // Use Wails v2 runtime to quit (window.runtime.Quit)
+    try {
+      const runtime = (window as any).runtime
+      if (runtime?.Quit) {
+        runtime.Quit()
+      } else {
+        // Fallback for browser testing
+        window.close()
+      }
+    } catch (e) {
+      console.error('Failed to close app:', e)
+      window.close()
+    }
   }
+}
+
+const handleQuit = () => {
+  closeApp()
+}
+
+const toggleWindow = (windowId: string) => {
+  const win = windows.value[windowId as keyof typeof windows.value]
+  if (win) {
+    win.visible = !win.visible
+    if (win.visible) {
+      activeWindow.value = windowId
+    }
+  }
+  soundSystemRef.value?.playUISound('click')
 }
 
 // Event listeners for component communication
@@ -826,10 +973,44 @@ useHead({
   right: 0;
   bottom: 0;
   background-image:
-    linear-gradient(rgba(14, 165, 233, 0.1) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(14, 165, 233, 0.1) 1px, transparent 1px);
-  background-size: 50px 50px;
-  animation: grid-move 10s linear infinite;
+    linear-gradient(rgba(0, 255, 255, 0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 255, 0.15) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: grid-move 20s linear infinite;
+  pointer-events: none;
+}
+
+/* Additional sci-fi overlay effects */
+.background-effects::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(ellipse at 20% 20%, rgba(0, 255, 255, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(0, 255, 128, 0.03) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* Scanlines effect like eDex-UI */
+.background-effects::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.1),
+    rgba(0, 0, 0, 0.1) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  pointer-events: none;
+  opacity: 0.3;
 }
 
 @keyframes grid-move {
@@ -851,11 +1032,12 @@ useHead({
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 40px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--surface-border);
-  padding: 0 20px;
+  height: 32px;
+  background: rgba(5, 10, 15, 0.98);
+  border-bottom: 1px solid rgba(0, 255, 255, 0.3);
+  padding: 0 15px;
   z-index: 100;
+  box-shadow: 0 2px 10px rgba(0, 255, 255, 0.1);
 }
 
 .top-bar-left,
@@ -991,12 +1173,15 @@ useHead({
 
 /* Sidebars */
 .sidebar {
-  background: var(--surface);
-  border-right: 1px solid var(--surface-border);
+  background: rgba(5, 10, 15, 0.98);
+  border-right: 1px solid rgba(0, 255, 255, 0.3);
   display: flex;
   flex-direction: column;
   transition: all 0.3s ease;
   z-index: 50;
+  box-shadow: 
+    inset -5px 0 15px rgba(0, 255, 255, 0.05),
+    0 0 20px rgba(0, 255, 255, 0.1);
 }
 
 .left-sidebar {
@@ -1188,19 +1373,36 @@ useHead({
 /* Desktop Windows */
 .desktop-window {
   position: absolute;
-  background: var(--surface);
-  border: 1px solid var(--surface-border);
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  background: rgba(10, 15, 20, 0.95);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  border-radius: 4px;
+  box-shadow: 
+    0 0 20px rgba(0, 255, 255, 0.1),
+    inset 0 0 20px rgba(0, 255, 255, 0.02);
   overflow: hidden;
-  transition: all 0.2s ease;
+  /* Only transition non-position properties to allow smooth dragging */
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, width 0.2s ease, height 0.2s ease;
   min-width: 400px;
   min-height: 300px;
 }
 
+/* Dragging state */
+body.window-dragging {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
+body.window-dragging * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
 .desktop-window.active {
-  border-color: var(--primary-500);
-  box-shadow: 0 0 30px rgba(14, 165, 233, 0.3);
+  border-color: rgba(0, 255, 255, 0.6);
+  box-shadow: 
+    0 0 30px rgba(0, 255, 255, 0.2),
+    0 0 60px rgba(0, 255, 255, 0.1),
+    inset 0 0 30px rgba(0, 255, 255, 0.03);
   z-index: 10;
 }
 
@@ -1222,7 +1424,12 @@ useHead({
   background: var(--surface-elevated);
   border-bottom: 1px solid var(--surface-border);
   padding: 0 15px;
-  cursor: move;
+  cursor: grab;
+  user-select: none;
+}
+
+.window-header:active {
+  cursor: grabbing;
 }
 
 .window-title {

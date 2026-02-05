@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch, readonly } from 'vue'
 import { Terminal } from 'xterm'
 import { WebglAddon } from 'xterm-addon-webgl'
 import { FitAddon } from 'xterm-addon-fit'
@@ -208,7 +208,7 @@ export function useXTerm(options: XTermOptions) {
       convertEol: config.convertEol ?? currentSettings.value.convertEol ?? false,
       termName: config.termName ?? 'xterm-256color',
       fastScrollModifier: currentSettings.value.fastScrollModifier || 'alt',
-      wordSeparator: currentSettings.value.wordSeparator || ' ()[]{}\'"`,
+      wordSeparator: currentSettings.value.wordSeparator || ' ()[]{}',
       altClickMovesCursor: true,
       rightClickSelectsWord: true,
       rendererType: 'dom' as const, // Will be overridden by addons
@@ -219,9 +219,9 @@ export function useXTerm(options: XTermOptions) {
         backend: 'conpty',
         buildNumber: 22621
       },
-      fontFeatureSettings
+      fontFeatureSettings: fontFeatureSettings
     }
-  }))
+  })
 
   // Methods
   const initialize = async (): Promise<void> => {

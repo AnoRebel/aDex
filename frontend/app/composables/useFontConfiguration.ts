@@ -1,26 +1,24 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import type { FontConfiguration, FontSettings, SystemFont, FontValidationResult } from '~/types/font'
 
-// ServiceCoordinator will be loaded asynchronously
-let ServiceCoordinator: any = null
-
-// Helper to check if we have real service available
-const hasRealService = () => ServiceCoordinator !== null
-
-// Helper to load ServiceCoordinator when available
-const loadServiceCoordinator = async () => {
-  if (ServiceCoordinator !== null) return true
-
-  try {
-    // This import will work when bindings are regenerated with font service methods
-    const module = await import('~~/bindings/aDex-UI/backend/services/coordinator')
-    ServiceCoordinator = module.ServiceCoordinator
-    return true
-  } catch (error) {
-    console.warn('ServiceCoordinator bindings not available, using mock data:', error)
-    return false
-  }
-}
+// Import from bindings
+import {
+  GetFontConfigurations,
+  GetFontConfiguration,
+  CreateFontConfiguration,
+  UpdateFontConfiguration,
+  DeleteFontConfiguration,
+  GetSystemFonts,
+  GetMonospaceFonts,
+  ScanSystemFonts,
+  ImportFont,
+  ValidateFont,
+  GetFontMetrics,
+  GetFontSettings,
+  UpdateFontSettings,
+  GetDefaultFontConfiguration,
+  SetDefaultFontConfiguration
+} from '~~/bindings'
 
 // Wails bindings would be generated - for now we'll define the interface
 interface FontService {
@@ -129,142 +127,135 @@ const mockFontService: FontService = {
   SetDefaultConfiguration: async () => {}
 }
 
-// Default font service - would be replaced with actual Wails binding
-// Create a service that uses real ServiceCoordinator when available, falls back to mock
+// Default font service - uses imported bindings
 const fontService: FontService = {
   GetConfigurations: async () => {
-    await loadServiceCoordinator()
-    if (hasRealService() && ServiceCoordinator.GetFontConfigurations) {
-      const result = await ServiceCoordinator.GetFontConfigurations()
+    try {
+      const result = await GetFontConfigurations()
       return result as Record<string, FontConfiguration>
+    } catch {
+      return mockFontService.GetConfigurations()
     }
-    return mockFontService.GetConfigurations()
   },
 
   GetConfiguration: async (id: string) => {
-    await loadServiceCoordinator()
-    if (hasRealService() && ServiceCoordinator.GetFontConfiguration) {
-      const result = await ServiceCoordinator.GetFontConfiguration(id)
+    try {
+      const result = await GetFontConfiguration(id)
       return result as FontConfiguration | null
+    } catch {
+      return mockFontService.GetConfiguration(id)
     }
-    return mockFontService.GetConfiguration(id)
   },
 
   CreateConfiguration: async (config: FontConfiguration) => {
-    await loadServiceCoordinator()
-    if (hasRealService() && ServiceCoordinator.CreateFontConfiguration) {
-      await ServiceCoordinator.CreateFontConfiguration(config)
-      return
+    try {
+      await CreateFontConfiguration(config)
+    } catch {
+      return mockFontService.CreateConfiguration(config)
     }
-    return mockFontService.CreateConfiguration(config)
   },
 
   UpdateConfiguration: async (config: FontConfiguration) => {
-    await loadServiceCoordinator()
-    if (hasRealService() && ServiceCoordinator.UpdateFontConfiguration) {
-      await ServiceCoordinator.UpdateFontConfiguration(config)
-      return
+    try {
+      await UpdateFontConfiguration(config)
+    } catch {
+      return mockFontService.UpdateConfiguration(config)
     }
-    return mockFontService.UpdateConfiguration(config)
   },
 
   DeleteConfiguration: async (id: string) => {
-    await loadServiceCoordinator()
-    if (hasRealService() && ServiceCoordinator.DeleteFontConfiguration) {
-      await ServiceCoordinator.DeleteFontConfiguration(id)
-      return
+    try {
+      await DeleteFontConfiguration(id)
+    } catch {
+      return mockFontService.DeleteConfiguration(id)
     }
-    return mockFontService.DeleteConfiguration(id)
   },
 
   GetSystemFonts: async () => {
-    await loadServiceCoordinator()
-    if (hasRealService() && ServiceCoordinator.GetSystemFonts) {
-      const result = await ServiceCoordinator.GetSystemFonts()
+    try {
+      const result = await GetSystemFonts()
       return result as Record<string, SystemFont>
+    } catch {
+      return mockFontService.GetSystemFonts()
     }
-    return mockFontService.GetSystemFonts()
   },
 
   GetMonospaceFonts: async () => {
-    await loadServiceCoordinator()
-    if (hasRealService() && ServiceCoordinator.GetMonospaceFonts) {
-      const result = await ServiceCoordinator.GetMonospaceFonts()
+    try {
+      const result = await GetMonospaceFonts()
       return result as SystemFont[]
+    } catch {
+      return mockFontService.GetMonospaceFonts()
     }
-    return mockFontService.GetMonospaceFonts()
   },
 
   ScanSystemFonts: async () => {
-    await loadServiceCoordinator()
-    if (hasRealService() && ServiceCoordinator.ScanSystemFonts) {
-      await ServiceCoordinator.ScanSystemFonts()
-      return
+    try {
+      await ScanSystemFonts()
+    } catch {
+      return mockFontService.ScanSystemFonts()
     }
-    return mockFontService.ScanSystemFonts()
   },
 
   ImportFont: async (request: FontImportRequest) => {
-    await loadServiceCoordinator()
-    if (hasRealService() && ServiceCoordinator.ImportFont) {
-      const result = await ServiceCoordinator.ImportFont(request)
+    try {
+      const result = await ImportFont(request)
       return result as FontImportResult
+    } catch {
+      return mockFontService.ImportFont(request)
     }
-    return mockFontService.ImportFont(request)
   },
 
   ValidateFont: async (config: FontConfiguration) => {
-    await loadServiceCoordinator()
-    if (hasRealService() && ServiceCoordinator.ValidateFont) {
-      const result = await ServiceCoordinator.ValidateFont(config)
+    try {
+      const result = await ValidateFont(config)
       return result as FontValidationResult
+    } catch {
+      return mockFontService.ValidateFont(config)
     }
-    return mockFontService.ValidateFont(config)
   },
 
   GetFontMetrics: async (family: string, size: number) => {
-    await loadServiceCoordinator()
-    if (hasRealService() && ServiceCoordinator.GetFontMetrics) {
-      const result = await ServiceCoordinator.GetFontMetrics(family, size)
+    try {
+      const result = await GetFontMetrics(family, size)
       return result as FontMetrics
+    } catch {
+      return mockFontService.GetFontMetrics(family, size)
     }
-    return mockFontService.GetFontMetrics(family, size)
   },
 
   GetSettings: async () => {
-    await loadServiceCoordinator()
-    if (hasRealService() && ServiceCoordinator.GetFontSettings) {
-      const result = await ServiceCoordinator.GetFontSettings()
+    try {
+      const result = await GetFontSettings()
       return result as FontSettings
+    } catch {
+      return mockFontService.GetSettings()
     }
-    return mockFontService.GetSettings()
   },
 
   UpdateSettings: async (newSettings: FontSettings) => {
-    await loadServiceCoordinator()
-    if (hasRealService() && ServiceCoordinator.UpdateFontSettings) {
-      await ServiceCoordinator.UpdateFontSettings(newSettings)
-      return
+    try {
+      await UpdateFontSettings(newSettings)
+    } catch {
+      return mockFontService.UpdateSettings(newSettings)
     }
-    return mockFontService.UpdateSettings(newSettings)
   },
 
   GetDefaultConfiguration: async () => {
-    await loadServiceCoordinator()
-    if (hasRealService() && ServiceCoordinator.GetDefaultFontConfiguration) {
-      const result = await ServiceCoordinator.GetDefaultFontConfiguration()
+    try {
+      const result = await GetDefaultFontConfiguration()
       return result as FontConfiguration
+    } catch {
+      return mockFontService.GetDefaultConfiguration()
     }
-    return mockFontService.GetDefaultConfiguration()
   },
 
   SetDefaultConfiguration: async (id: string) => {
-    await loadServiceCoordinator()
-    if (hasRealService() && ServiceCoordinator.SetDefaultFontConfiguration) {
-      await ServiceCoordinator.SetDefaultFontConfiguration(id)
-      return
+    try {
+      await SetDefaultFontConfiguration(id)
+    } catch {
+      return mockFontService.SetDefaultConfiguration(id)
     }
-    return mockFontService.SetDefaultConfiguration(id)
   }
 }
 

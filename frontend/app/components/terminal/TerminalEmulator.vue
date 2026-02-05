@@ -4,6 +4,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
+import { useWails } from '~/composables/useWails'
 
 interface TerminalSettings {
   fontSize: number
@@ -16,7 +17,7 @@ interface TerminalSettings {
 }
 
 interface Props {
-  sessionId: string
+  sessionId?: string
   onData?: (data: string) => void
   onResize?: (cols: number, rows: number) => void
   onTitle?: (title: string) => void
@@ -24,6 +25,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  sessionId: 'default',
   settings: () => ({}),
 })
 
@@ -40,6 +42,10 @@ const terminalRef = ref<HTMLElement>()
 // Terminal instance (will be initialized later)
 let terminal: any = null
 let fitAddon: any = null
+let backendTerminalId: string | null = null
+
+// Wails terminal service
+const { terminal: terminalService } = useWails()
 
 // Default terminal settings
 const defaultSettings: TerminalSettings = {
@@ -54,6 +60,9 @@ const defaultSettings: TerminalSettings = {
 
 const terminalSettings = computed(() => ({ ...defaultSettings, ...props.settings }))
 
+// Import Wails runtime for events
+import { Events } from '~/lib/wailsjs/runtime'
+
 // Initialize terminal
 const initializeTerminal = async () => {
   if (!terminalRef.value) return
@@ -62,8 +71,6 @@ const initializeTerminal = async () => {
   try {
     const { Terminal } = await import('xterm')
     const { FitAddon } = await import('xterm-addon-fit')
-    const { WebglAddon } = await import('xterm-addon-webgl')
-    const { LigaturesAddon } = await import('xterm-addon-ligatures')
 
     // Create terminal instance
     terminal = new Terminal({
@@ -92,30 +99,77 @@ const initializeTerminal = async () => {
       cols: 80,
     })
 
-    // Addons
+    // Add fit addon
     fitAddon = new FitAddon()
-    const ligaturesAddon = new LigaturesAddon()
-    
     terminal.loadAddon(fitAddon)
-    terminal.loadAddon(ligaturesAddon)
 
-    // Try to enable WebGL renderer
+    // Try to create backend terminal
     try {
-      const webglAddon = new WebglAddon()
-      terminal.loadAddon(webglAddon)
+      const dims = fitAddon.proposeDimensions()
+      const cols = dims?.cols || 80
+      const rows = dims?.rows || 24
+      
+      const result = await terminalService.create(cols, rows)
+      if (result && result.id) {
+        backendTerminalId = result.id
+        console.log('Backend terminal created:', backendTerminalId)
+        
+        // Subscribe to terminal output events from backend
+        // Wails v2 EventsOn passes data as separate arguments
+        Events.On('terminal.output', (...args: any[]) => {
+          const event = args[0]
+          if (event && event.terminalId === backendTerminalId) {
+            let text = ''
+            if (event.data) {
+              if (event.data instanceof Uint8Array || Array.isArray(event.data)) {
+                // Convert array of bytes back to string
+                const bytes = new Uint8Array(event.data)
+                text = new TextDecoder().decode(bytes)
+              } else if (typeof event.data === 'string') {
+                text = event.data
+              }
+            }
+            if (text) {
+              terminal?.write(text)
+            }
+          }
+        })
+      }
     } catch (e) {
-      console.warn('WebGL addon not supported, using DOM renderer')
+      console.warn('Failed to create backend terminal:', e)
+      // Continue with local-only terminal
     }
 
     // Event handlers
-    terminal.onData((data: string) => {
+    terminal.onData(async (data: string) => {
       emit('data', data)
       props.onData?.(data)
+      
+      // Send to backend if available
+      if (backendTerminalId) {
+        try {
+          await terminalService.write(backendTerminalId, data)
+        } catch (e) {
+          // Backend write failed, ignore
+        }
+      } else {
+        // Local echo mode (demo)
+        handleLocalInput(data)
+      }
     })
 
-    terminal.onResize((size: any) => {
+    terminal.onResize(async (size: any) => {
       emit('resize', size.cols, size.rows)
       props.onResize?.(size.cols, size.rows)
+      
+      // Resize backend terminal if available
+      if (backendTerminalId) {
+        try {
+          await terminalService.resize(backendTerminalId, size.cols, size.rows)
+        } catch (e) {
+          // Ignore resize errors
+        }
+      }
     })
 
     terminal.onTitleChange((title: string) => {
@@ -132,9 +186,97 @@ const initializeTerminal = async () => {
       fitAddon.fit()
     }
 
+    // Write welcome message
+    if (!backendTerminalId) {
+      // Only write banner and fake prompt in local/demo mode
+      terminal.writeln('\x1b[36m╔════════════════════════════════════════════════════════╗\x1b[0m')
+      terminal.writeln('\x1b[36m║\x1b[0m  \x1b[1;32maDex-UI Terminal\x1b[0m                                      \x1b[36m║\x1b[0m')
+      terminal.writeln('\x1b[36m║\x1b[0m  \x1b[33mAdvanced Desktop Environment\x1b[0m                          \x1b[36m║\x1b[0m')
+      terminal.writeln('\x1b[36m╚════════════════════════════════════════════════════════╝\x1b[0m')
+      terminal.writeln('')
+      terminal.writeln('\x1b[90mLocal terminal mode. Type "help" for commands.\x1b[0m')
+      terminal.writeln('')
+      terminal.write('\x1b[32muser@adex\x1b[0m:\x1b[34m~\x1b[0m$ ')
+    }
+    // When connected to backend, the shell will send its own prompt
+
     emit('ready')
   } catch (error) {
     console.error('Failed to initialize terminal:', error)
+  }
+}
+
+// Local input handler for demo mode
+let currentLine = ''
+const handleLocalInput = (data: string) => {
+  if (!terminal) return
+  
+  // Handle Enter key
+  if (data === '\r') {
+    terminal.writeln('')
+    handleCommand(currentLine.trim())
+    currentLine = ''
+    terminal.write('\x1b[32muser@adex\x1b[0m:\x1b[34m~\x1b[0m$ ')
+  }
+  // Handle Backspace
+  else if (data === '\x7f') {
+    if (currentLine.length > 0) {
+      currentLine = currentLine.slice(0, -1)
+      terminal.write('\b \b')
+    }
+  }
+  // Handle regular characters
+  else if (data >= ' ') {
+    currentLine += data
+    terminal.write(data)
+  }
+}
+
+// Handle demo commands
+const handleCommand = (cmd: string) => {
+  if (!terminal) return
+  
+  const commands: Record<string, () => void> = {
+    'help': () => {
+      terminal.writeln('\x1b[1;36mAvailable commands:\x1b[0m')
+      terminal.writeln('  \x1b[33mhelp\x1b[0m     - Show this help message')
+      terminal.writeln('  \x1b[33mclear\x1b[0m    - Clear the terminal')
+      terminal.writeln('  \x1b[33mdate\x1b[0m     - Show current date and time')
+      terminal.writeln('  \x1b[33mwhoami\x1b[0m   - Show current user')
+      terminal.writeln('  \x1b[33mhostname\x1b[0m - Show system hostname')
+      terminal.writeln('  \x1b[33muptime\x1b[0m   - Show system uptime')
+      terminal.writeln('  \x1b[33mecho\x1b[0m     - Echo text back')
+      terminal.writeln('  \x1b[33mversion\x1b[0m  - Show aDex-UI version')
+    },
+    'clear': () => {
+      terminal.clear()
+    },
+    'date': () => {
+      terminal.writeln(new Date().toString())
+    },
+    'whoami': () => {
+      terminal.writeln('user')
+    },
+    'hostname': () => {
+      terminal.writeln('adex-desktop')
+    },
+    'uptime': () => {
+      terminal.writeln('System up for 1 hour, 23 minutes')
+    },
+    'version': () => {
+      terminal.writeln('aDex-UI v2.0.0')
+    }
+  }
+  
+  if (cmd === '') return
+  
+  if (cmd.startsWith('echo ')) {
+    terminal.writeln(cmd.substring(5))
+  } else if (commands[cmd]) {
+    commands[cmd]()
+  } else {
+    terminal.writeln(`\x1b[31mCommand not found: ${cmd}\x1b[0m`)
+    terminal.writeln('Type "help" for available commands')
   }
 }
 
@@ -188,6 +330,15 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
+  
+  // Unsubscribe from terminal output events
+  Events.Off('terminal.output')
+  
+  // Close backend terminal if exists
+  if (backendTerminalId) {
+    terminalService.close(backendTerminalId).catch(() => {})
+  }
+  
   if (terminal) {
     terminal.dispose()
   }
