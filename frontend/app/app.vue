@@ -43,7 +43,7 @@ const themeVars = computed(() => {
 function parseColor(color: string): { r: number; g: number; b: number } | null {
   // Hex format: #rrggbb
   const hex = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(color)
-  if (hex) {
+  if (hex && hex[1] && hex[2] && hex[3]) {
     return {
       r: parseInt(hex[1], 16),
       g: parseInt(hex[2], 16),
@@ -52,7 +52,7 @@ function parseColor(color: string): { r: number; g: number; b: number } | null {
   }
   // rgb() format
   const rgbMatch = /rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/.exec(color)
-  if (rgbMatch) {
+  if (rgbMatch && rgbMatch[1] && rgbMatch[2] && rgbMatch[3]) {
     return {
       r: parseInt(rgbMatch[1]),
       g: parseInt(rgbMatch[2]),

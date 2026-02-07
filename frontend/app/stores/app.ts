@@ -455,32 +455,21 @@ export const useAppStore = defineStore('app', {
 
     async checkForUpdates(): Promise<{ hasUpdate: boolean; version?: string }> {
       try {
-        const response = await fetch('/api/updates/check')
-        if (!response.ok) {
-          throw new Error(`Update check failed: ${response.status}`)
+        // Use Wails bindings if available
+        const go = (window as any).go
+        if (go?.main?.ServiceCoordinator?.CheckForUpdates) {
+          const data = await go.main.ServiceCoordinator.CheckForUpdates()
+          if (data?.hasUpdate && data?.version) {
+            this.addAlert({
+              type: 'info',
+              title: 'Update Available',
+              message: `Version ${data.version} is available for download`,
+            })
+          }
+          return { hasUpdate: data?.hasUpdate ?? false, version: data?.version }
         }
-
-        const data = await response.json()
-        if (data.hasUpdate && data.version) {
-          this.addAlert({
-            type: 'info',
-            title: 'Update Available',
-            message: `Version ${data.version} is available for download`,
-            actions: [
-              {
-                label: 'Download',
-                action: () => window.open(data.downloadUrl, '_blank'),
-                primary: true,
-              },
-              {
-                label: 'Dismiss',
-                action: () => {},
-              },
-            ],
-          })
-        }
-
-        return { hasUpdate: data.hasUpdate, version: data.version }
+        // No update checking available in current environment
+        return { hasUpdate: false }
       } catch (error) {
         console.error('Failed to check for updates:', error)
         return { hasUpdate: false }
@@ -489,14 +478,16 @@ export const useAppStore = defineStore('app', {
 
     async quit(): Promise<void> {
       try {
-        // Cleanup before quitting
         await this.cleanup()
 
-        // Call backend quit endpoint
-        await fetch('/api/app/quit', { method: 'POST' })
+        // Use Wails runtime to quit the application
+        if (typeof window !== 'undefined' && window.runtime?.Quit) {
+          window.runtime.Quit()
+        } else {
+          window.close()
+        }
       } catch (error) {
         console.error('Error during quit:', error)
-        // Fallback: force quit
         if (typeof window !== 'undefined') {
           window.close()
         }
@@ -519,7 +510,11 @@ export const useAppStore = defineStore('app', {
     async restart(): Promise<void> {
       try {
         await this.cleanup()
-        await fetch('/api/app/restart', { method: 'POST' })
+
+        // Use Wails runtime to reload the application
+        if (typeof window !== 'undefined' && window.runtime?.WindowReloadApp) {
+          window.runtime.WindowReloadApp()
+        }
       } catch (error) {
         console.error('Error during restart:', error)
       }

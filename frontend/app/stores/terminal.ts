@@ -238,38 +238,17 @@ export const useTerminalStore = defineStore('terminal', () => {
     }
 
     try {
-      const response = await fetch(`/api/terminal/sessions/${targetSessionId}/execute`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ command }),
-      })
+      // Send command via Wails terminal write binding (appends newline to execute)
+      await WriteToTerminal(targetSessionId, command + '\n')
 
-      if (!response.ok) {
-        throw new Error(`Command execution failed: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      // Add command to history
+      // Track the command in local history
       addCommand({
-        id: result.commandId,
+        id: `cmd-${Date.now()}`,
         sessionId: targetSessionId,
         command,
         status: 'running',
         timestamp: new Date(),
       })
-
-      // Add initial output if available
-      if (result.output) {
-        addOutput(targetSessionId, {
-          type: 'stdout',
-          content: result.output,
-          timestamp: new Date(),
-        })
-      }
-
     } catch (error) {
       console.error('Failed to execute command:', error)
       setError(error instanceof Error ? error.message : 'Unknown error')
@@ -298,15 +277,9 @@ export const useTerminalStore = defineStore('terminal', () => {
     if (!targetSessionId) return false
 
     try {
-      const response = await fetch(`/api/terminal/sessions/${targetSessionId}/interrupt`, {
-        method: 'POST',
-      })
+      // Send SIGINT (Ctrl+C = ETX character \x03) via Wails terminal write
+      await WriteToTerminal(targetSessionId, '\x03')
 
-      if (!response.ok) {
-        throw new Error(`Failed to interrupt: ${response.status}`)
-      }
-
-      // Add interrupt signal to output
       addOutput(targetSessionId, {
         type: 'signal',
         content: '^C',
@@ -314,7 +287,6 @@ export const useTerminalStore = defineStore('terminal', () => {
       })
 
       return true
-
     } catch (error) {
       console.error('Failed to interrupt process:', error)
       setError(error instanceof Error ? error.message : 'Unknown error')

@@ -236,7 +236,8 @@ const resolveKeyChar = (keyData: KeyData): string => {
     'PageDown': '\x1b[6~',
   }
 
-  if (specialMap[keyData.key]) return specialMap[keyData.key]
+  const mapped = specialMap[keyData.key]
+  if (mapped) return mapped
 
   // Function keys
   if (keyData.type === 'function') {
@@ -372,19 +373,19 @@ const loadLayouts = async () => {
         type: 'standard',
         rows: [
           [
-            { key: 'Escape', width: 1, type: 'function' },
-            { key: 'F1', width: 1, type: 'function' },
-            { key: 'F2', width: 1, type: 'function' },
-            { key: 'F3', width: 1, type: 'function' },
-            { key: 'F4', width: 1, type: 'function' },
-            { key: 'F5', width: 1, type: 'function' },
-            { key: 'F6', width: 1, type: 'function' },
-            { key: 'F7', width: 1, type: 'function' },
-            { key: 'F8', width: 1, type: 'function' },
-            { key: 'F9', width: 1, type: 'function' },
-            { key: 'F10', width: 1, type: 'function' },
-            { key: 'F11', width: 1, type: 'function' },
-            { key: 'F12', width: 1, type: 'function' }
+            { key: 'Escape', width: 1, type: 'function' as const },
+            { key: 'F1', width: 1, type: 'function' as const },
+            { key: 'F2', width: 1, type: 'function' as const },
+            { key: 'F3', width: 1, type: 'function' as const },
+            { key: 'F4', width: 1, type: 'function' as const },
+            { key: 'F5', width: 1, type: 'function' as const },
+            { key: 'F6', width: 1, type: 'function' as const },
+            { key: 'F7', width: 1, type: 'function' as const },
+            { key: 'F8', width: 1, type: 'function' as const },
+            { key: 'F9', width: 1, type: 'function' as const },
+            { key: 'F10', width: 1, type: 'function' as const },
+            { key: 'F11', width: 1, type: 'function' as const },
+            { key: 'F12', width: 1, type: 'function' as const },
           ],
           [
             { key: '`', shift: '~', width: 1 },
@@ -400,10 +401,10 @@ const loadLayouts = async () => {
             { key: '0', shift: ')', width: 1 },
             { key: '-', shift: '_', width: 1 },
             { key: '=', shift: '+', width: 1 },
-            { key: 'Backspace', width: 2, type: 'special' }
+            { key: 'Backspace', width: 2, type: 'special' as const },
           ],
           [
-            { key: 'Tab', width: 1.5, type: 'special' },
+            { key: 'Tab', width: 1.5, type: 'special' as const },
             { key: 'q', shift: 'Q', width: 1 },
             { key: 'w', shift: 'W', width: 1 },
             { key: 'e', shift: 'E', width: 1 },
@@ -416,10 +417,10 @@ const loadLayouts = async () => {
             { key: 'p', shift: 'P', width: 1 },
             { key: '[', shift: '{', width: 1 },
             { key: ']', shift: '}', width: 1 },
-            { key: '\\', shift: '|', width: 1.5 }
+            { key: '\\', shift: '|', width: 1.5 },
           ],
           [
-            { key: 'CapsLock', width: 1.75, type: 'special' },
+            { key: 'CapsLock', width: 1.75, type: 'special' as const },
             { key: 'a', shift: 'A', width: 1 },
             { key: 's', shift: 'S', width: 1 },
             { key: 'd', shift: 'D', width: 1 },
@@ -431,10 +432,10 @@ const loadLayouts = async () => {
             { key: 'l', shift: 'L', width: 1 },
             { key: ';', shift: ':', width: 1 },
             { key: "'", shift: '"', width: 1 },
-            { key: 'Enter', width: 2.25, type: 'special' }
+            { key: 'Enter', width: 2.25, type: 'special' as const },
           ],
           [
-            { key: 'Shift', width: 2.25, type: 'modifier', side: 'left' },
+            { key: 'Shift', width: 2.25, type: 'modifier' as const, side: 'left' as const },
             { key: 'z', shift: 'Z', width: 1 },
             { key: 'x', shift: 'X', width: 1 },
             { key: 'c', shift: 'C', width: 1 },
@@ -445,18 +446,18 @@ const loadLayouts = async () => {
             { key: ',', shift: '<', width: 1 },
             { key: '.', shift: '>', width: 1 },
             { key: '/', shift: '?', width: 1 },
-            { key: 'Shift', width: 2.75, type: 'modifier', side: 'right' }
+            { key: 'Shift', width: 2.75, type: 'modifier' as const, side: 'right' as const },
           ],
           [
-            { key: 'Ctrl', width: 1.5, type: 'modifier', side: 'left' },
-            { key: 'Alt', width: 1.5, type: 'modifier', side: 'left' },
-            { key: 'Space', width: 7, type: 'space' },
-            { key: 'Alt', width: 1.5, type: 'modifier', side: 'right' },
-            { key: 'Ctrl', width: 1.5, type: 'modifier', side: 'right' }
-          ]
-        ]
-      }
-    }
+            { key: 'Ctrl', width: 1.5, type: 'modifier' as const, side: 'left' as const },
+            { key: 'Alt', width: 1.5, type: 'modifier' as const, side: 'left' as const },
+            { key: 'Space', width: 7, type: 'space' as const },
+            { key: 'Alt', width: 1.5, type: 'modifier' as const, side: 'right' as const },
+            { key: 'Ctrl', width: 1.5, type: 'modifier' as const, side: 'right' as const },
+          ],
+        ],
+      },
+    } satisfies Record<string, KeyboardLayout>
   }
 }
 

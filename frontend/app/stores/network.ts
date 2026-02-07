@@ -64,21 +64,23 @@ export const useNetworkStore = defineStore('network', {
 
     async fetchAlerts() {
       try {
-        // Network alerts would be fetched from the network service
+        const service = await GetService('network')
+        this.alerts = service?.GetAlerts ? await service.GetAlerts() : []
         this.lastUpdateTime = new Date()
-      } catch (error) {
-        this.error = `Failed to fetch network alerts: ${error}`
-        throw error
+      } catch {
+        // Non-critical: alerts may not be available on all backends
+        this.lastUpdateTime = new Date()
       }
     },
 
     async fetchStatistics() {
       try {
-        // Statistics would be fetched from the network service
+        const service = await GetService('network')
+        this.statistics = service?.GetStatistics ? await service.GetStatistics() : null
         this.lastUpdateTime = new Date()
-      } catch (error) {
-        this.error = `Failed to fetch network statistics: ${error}`
-        throw error
+      } catch {
+        // Non-critical: statistics may not be available on all backends
+        this.lastUpdateTime = new Date()
       }
     },
 

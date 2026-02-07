@@ -82,14 +82,14 @@ const cpuModelName = computed(() => {
 })
 
 const temperatureDisplay = computed(() => {
-  // From temperature metrics
   const tempMetrics = systemStore.temperatureMetrics
   if (tempMetrics?.sensors && tempMetrics.sensors.length > 0) {
-    // Find CPU sensor
     const cpuSensor = tempMetrics.sensors.find(
-      s => s.name.toLowerCase().includes('cpu') || s.name.toLowerCase().includes('core')
+      (s: any) => s.name.toLowerCase().includes('cpu') || s.name.toLowerCase().includes('core')
     ) || tempMetrics.sensors[0]
-    cachedTemperature.value = cpuSensor.temperature
+    if (cpuSensor?.temperature != null) {
+      return `${Math.round(cpuSensor.temperature)}C`
+    }
   }
   if (cachedTemperature.value !== null) {
     return `${cachedTemperature.value.toFixed(0)}C`
@@ -247,9 +247,16 @@ function sampleLoad() {
 }
 
 function sampleTemperature() {
-  // Reading temperatureDisplay computed is enough to trigger cache update.
-  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-  temperatureDisplay.value
+  // Refresh cached temperature from store metrics
+  const tempMetrics = systemStore.temperatureMetrics
+  if (tempMetrics?.sensors && tempMetrics.sensors.length > 0) {
+    const cpuSensor = tempMetrics.sensors.find(
+      (s: any) => s.name.toLowerCase().includes('cpu') || s.name.toLowerCase().includes('core')
+    ) || tempMetrics.sensors[0]
+    if (cpuSensor?.temperature != null) {
+      cachedTemperature.value = cpuSensor.temperature
+    }
+  }
 }
 
 // ---- Lifecycle ----
