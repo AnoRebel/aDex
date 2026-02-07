@@ -145,21 +145,21 @@ describe('Index Page Layout', () => {
         plugins: [pinia],
         stubs: {
           // Stub child components to isolate layout tests and avoid deep component tree
-          EdexClock: { template: '<div class="mod-clock-stub">CLOCK</div>' },
-          EdexSysinfo: { template: '<div class="mod-sysinfo-stub">SYSINFO</div>' },
-          EdexHardware: { template: '<div class="mod-hardware-stub">HARDWARE</div>' },
-          EdexCpuInfo: { template: '<div class="mod-cpuinfo-stub">CPUINFO</div>' },
-          EdexRamWatcher: { template: '<div class="mod-ram-stub">RAM</div>' },
-          EdexToplist: { template: '<div class="mod-toplist-stub">TOPLIST</div>' },
-          EdexNetstat: { template: '<div class="mod-netstat-stub">NETSTAT</div>' },
-          EdexGlobe: { template: '<div class="mod-globe-stub">GLOBE</div>' },
-          EdexTraffic: { template: '<div class="mod-traffic-stub">TRAFFIC</div>' },
-          EdexFilesystem: { template: '<div class="edex-filesystem-stub">FILESYSTEM</div>' },
-          EdexKeyboard: { template: '<div class="edex-keyboard-stub">KEYBOARD</div>' },
-          EdexTerminal: { template: '<div class="edex-terminal-stub">TERMINAL</div>' },
-          EdexSettingsModal: { template: '<div class="edex-settings-stub">SETTINGS</div>' },
-          // Stub EdexBootScreen to bypass boot animation in most tests
-          EdexBootScreen: {
+          AdexClock: { template: '<div class="mod-clock-stub">CLOCK</div>' },
+          AdexSysinfo: { template: '<div class="mod-sysinfo-stub">SYSINFO</div>' },
+          AdexHardware: { template: '<div class="mod-hardware-stub">HARDWARE</div>' },
+          AdexCpuInfo: { template: '<div class="mod-cpuinfo-stub">CPUINFO</div>' },
+          AdexRamWatcher: { template: '<div class="mod-ram-stub">RAM</div>' },
+          AdexToplist: { template: '<div class="mod-toplist-stub">TOPLIST</div>' },
+          AdexNetstat: { template: '<div class="mod-netstat-stub">NETSTAT</div>' },
+          AdexGlobe: { template: '<div class="mod-globe-stub">GLOBE</div>' },
+          AdexTraffic: { template: '<div class="mod-traffic-stub">TRAFFIC</div>' },
+          AdexFilesystem: { template: '<div class="adex-filesystem-stub">FILESYSTEM</div>' },
+          AdexKeyboard: { template: '<div class="adex-keyboard-stub">KEYBOARD</div>' },
+          AdexTerminal: { template: '<div class="adex-terminal-stub">TERMINAL</div>' },
+          AdexSettingsModal: { template: '<div class="adex-settings-stub">SETTINGS</div>' },
+          // Stub AdexBootScreen to bypass boot animation in most tests
+          AdexBootScreen: {
             template: '<div class="boot-overlay-stub" @click="$emit(\'complete\')">BOOT</div>',
             emits: ['complete'],
           },
@@ -193,30 +193,30 @@ describe('Index Page Layout', () => {
       await bootScreen.trigger('click')
       await wrapper.vm.$nextTick()
 
-      expect(wrapper.find('.edex-app').exists()).toBe(true)
+      expect(wrapper.find('.adex-app').exists()).toBe(true)
     })
   })
 
   describe('Background', () => {
-    it('has edex-background div', async () => {
+    it('has adex-background div', async () => {
       mountLayout()
       // Complete boot first
       const bootScreen = wrapper.find('.boot-overlay-stub')
       await bootScreen.trigger('click')
       await wrapper.vm.$nextTick()
 
-      expect(wrapper.find('.edex-background').exists()).toBe(true)
+      expect(wrapper.find('.adex-background').exists()).toBe(true)
     })
   })
 
   describe('Top bar', () => {
-    it('has edex-topbar navigation', async () => {
+    it('has adex-topbar navigation', async () => {
       mountLayout()
       const bootScreen = wrapper.find('.boot-overlay-stub')
       await bootScreen.trigger('click')
       await wrapper.vm.$nextTick()
 
-      expect(wrapper.find('.edex-topbar').exists()).toBe(true)
+      expect(wrapper.find('.adex-topbar').exists()).toBe(true)
     })
 
     it('has PANEL section label', async () => {
@@ -269,7 +269,7 @@ describe('Index Page Layout', () => {
       await bootScreen.trigger('click')
       await wrapper.vm.$nextTick()
 
-      const topbar = wrapper.find('.edex-topbar')
+      const topbar = wrapper.find('.adex-topbar')
       expect(topbar.attributes('role')).toBe('navigation')
     })
 
@@ -285,13 +285,13 @@ describe('Index Page Layout', () => {
   })
 
   describe('Three-column layout', () => {
-    it('has edex-main container for the three columns', async () => {
+    it('has adex-main container for the three columns', async () => {
       mountLayout()
       const bootScreen = wrapper.find('.boot-overlay-stub')
       await bootScreen.trigger('click')
       await wrapper.vm.$nextTick()
 
-      expect(wrapper.find('.edex-main').exists()).toBe(true)
+      expect(wrapper.find('.adex-main').exists()).toBe(true)
     })
 
     it('has left column', async () => {
@@ -310,7 +310,7 @@ describe('Index Page Layout', () => {
       await bootScreen.trigger('click')
       await wrapper.vm.$nextTick()
 
-      expect(wrapper.find('.edex-center').exists()).toBe(true)
+      expect(wrapper.find('.adex-center').exists()).toBe(true)
     })
 
     it('has right column', async () => {
@@ -484,13 +484,13 @@ describe('Index Page Layout', () => {
   })
 
   describe('Bottom section', () => {
-    it('has edex-bottom container', async () => {
+    it('has adex-bottom container', async () => {
       mountLayout()
       const bootScreen = wrapper.find('.boot-overlay-stub')
       await bootScreen.trigger('click')
       await wrapper.vm.$nextTick()
 
-      expect(wrapper.find('.edex-bottom').exists()).toBe(true)
+      expect(wrapper.find('.adex-bottom').exists()).toBe(true)
     })
 
     it('contains Filesystem component', async () => {
@@ -499,8 +499,8 @@ describe('Index Page Layout', () => {
       await bootScreen.trigger('click')
       await wrapper.vm.$nextTick()
 
-      const bottom = wrapper.find('.edex-bottom')
-      expect(bottom.find('.edex-filesystem-stub').exists()).toBe(true)
+      const bottom = wrapper.find('.adex-bottom')
+      expect(bottom.find('.adex-filesystem-stub').exists()).toBe(true)
     })
 
     it('contains Keyboard component', async () => {
@@ -509,19 +509,19 @@ describe('Index Page Layout', () => {
       await bootScreen.trigger('click')
       await wrapper.vm.$nextTick()
 
-      const bottom = wrapper.find('.edex-bottom')
-      expect(bottom.find('.edex-keyboard-stub').exists()).toBe(true)
+      const bottom = wrapper.find('.adex-bottom')
+      expect(bottom.find('.adex-keyboard-stub').exists()).toBe(true)
     })
   })
 
   describe('Settings modal', () => {
-    it('has EdexSettingsModal component', async () => {
+    it('has AdexSettingsModal component', async () => {
       mountLayout()
       const bootScreen = wrapper.find('.boot-overlay-stub')
       await bootScreen.trigger('click')
       await wrapper.vm.$nextTick()
 
-      expect(wrapper.find('.edex-settings-stub').exists()).toBe(true)
+      expect(wrapper.find('.adex-settings-stub').exists()).toBe(true)
     })
   })
 

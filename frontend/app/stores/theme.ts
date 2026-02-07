@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { useTheme } from '~/composables/useTheme'
-import edexThemesData from '~/assets/data/themes.json'
+import adexThemesData from '~/assets/data/themes.json'
 
 // Import types from composable for now (until types/theme.ts is created)
 import type {
@@ -13,8 +13,8 @@ import type {
   ThemeServiceConfig
 } from '~/composables/useTheme'
 
-// eDex-UI theme format (loaded from themes.json)
-interface EdexTheme {
+// aDex-UI theme format (loaded from themes.json)
+interface AdexTheme {
   id: string
   name: string
   colors: {
@@ -52,9 +52,9 @@ interface ThemeState {
   availableThemes: Theme[]
   customThemes: CustomTheme[]
 
-  // eDex-UI themes (loaded from themes.json)
-  edexThemes: EdexTheme[]
-  currentEdexTheme: EdexTheme | null
+  // aDex-UI themes (loaded from themes.json)
+  adexThemes: AdexTheme[]
+  currentAdexTheme: AdexTheme | null
   injectedStyleElement: HTMLStyleElement | null
 
   // UI state
@@ -81,9 +81,9 @@ export const useThemeStore = defineStore('theme', {
     availableThemes: [],
     customThemes: [],
 
-    // eDex-UI themes
-    edexThemes: [],
-    currentEdexTheme: null,
+    // aDex-UI themes
+    adexThemes: [],
+    currentAdexTheme: null,
     injectedStyleElement: null,
 
     // UI state
@@ -520,8 +520,8 @@ export const useThemeStore = defineStore('theme', {
         this.isLoading = true
         this.error = null
 
-        // Load eDex-UI themes from themes.json
-        this.loadEdexThemes()
+        // Load aDex-UI themes from themes.json
+        this.loadAdexThemes()
 
         const themeComposable = this.themeComposable
 
@@ -547,8 +547,8 @@ export const useThemeStore = defineStore('theme', {
           }
         })
 
-        // Apply eDex-UI theme CSS variables for the current theme
-        this.applyEdexTheme(this.currentThemeId)
+        // Apply aDex-UI theme CSS variables for the current theme
+        this.applyAdexTheme(this.currentThemeId)
 
         this.isInitialized = true
       } catch (error) {
@@ -582,8 +582,8 @@ export const useThemeStore = defineStore('theme', {
         // Sync state
         this.syncWithComposable()
 
-        // Apply eDex-UI theme CSS variables and injectCSS
-        this.applyEdexTheme(themeId)
+        // Apply aDex-UI theme CSS variables and injectCSS
+        this.applyAdexTheme(themeId)
 
         // Save to localStorage for backward compatibility
         if (typeof localStorage !== 'undefined') {
@@ -859,43 +859,43 @@ export const useThemeStore = defineStore('theme', {
       this.initialize()
     },
 
-    // eDex-UI theme support: load themes from themes.json
-    loadEdexThemes() {
+    // aDex-UI theme support: load themes from themes.json
+    loadAdexThemes() {
       try {
-        const data = edexThemesData as { themes: EdexTheme[] }
-        this.edexThemes = data.themes || []
+        const data = adexThemesData as { themes: AdexTheme[] }
+        this.adexThemes = data.themes || []
       } catch (error) {
-        console.error('Failed to load eDex-UI themes:', error)
-        this.edexThemes = []
+        console.error('Failed to load aDex-UI themes:', error)
+        this.adexThemes = []
       }
     },
 
-    // Apply eDex-UI theme colors as CSS variables and inject custom CSS
-    applyEdexTheme(themeId: string) {
-      const edexTheme = this.edexThemes.find(t => t.id === themeId)
-      if (!edexTheme) return
+    // Apply aDex-UI theme colors as CSS variables and inject custom CSS
+    applyAdexTheme(themeId: string) {
+      const adexTheme = this.adexThemes.find(t => t.id === themeId)
+      if (!adexTheme) return
 
-      this.currentEdexTheme = edexTheme
+      this.currentAdexTheme = adexTheme
 
       // Apply color CSS variables to document root
       const root = document.documentElement
-      root.style.setProperty('--color_r', String(edexTheme.colors.r))
-      root.style.setProperty('--color_g', String(edexTheme.colors.g))
-      root.style.setProperty('--color_b', String(edexTheme.colors.b))
-      root.style.setProperty('--color_black', edexTheme.colors.black)
-      root.style.setProperty('--color_light_black', edexTheme.colors.light_black)
-      root.style.setProperty('--color_grey', edexTheme.colors.grey)
+      root.style.setProperty('--color_r', String(adexTheme.colors.r))
+      root.style.setProperty('--color_g', String(adexTheme.colors.g))
+      root.style.setProperty('--color_b', String(adexTheme.colors.b))
+      root.style.setProperty('--color_black', adexTheme.colors.black)
+      root.style.setProperty('--color_light_black', adexTheme.colors.light_black)
+      root.style.setProperty('--color_grey', adexTheme.colors.grey)
 
       // Apply font CSS variables
-      root.style.setProperty('--font_main', edexTheme.cssvars.font_main)
-      root.style.setProperty('--font_main_light', edexTheme.cssvars.font_main_light)
+      root.style.setProperty('--font_main', adexTheme.cssvars.font_main)
+      root.style.setProperty('--font_main_light', adexTheme.cssvars.font_main_light)
 
       // Apply terminal CSS variables
-      root.style.setProperty('--terminal_foreground', edexTheme.terminal.foreground)
-      root.style.setProperty('--terminal_background', edexTheme.terminal.background)
-      root.style.setProperty('--terminal_cursor', edexTheme.terminal.cursor)
-      root.style.setProperty('--terminal_selection', edexTheme.terminal.selection)
-      root.style.setProperty('--terminal_font_family', edexTheme.terminal.fontFamily)
+      root.style.setProperty('--terminal_foreground', adexTheme.terminal.foreground)
+      root.style.setProperty('--terminal_background', adexTheme.terminal.background)
+      root.style.setProperty('--terminal_cursor', adexTheme.terminal.cursor)
+      root.style.setProperty('--terminal_selection', adexTheme.terminal.selection)
+      root.style.setProperty('--terminal_font_family', adexTheme.terminal.fontFamily)
 
       // Remove previous injected CSS
       if (this.injectedStyleElement) {
@@ -904,10 +904,10 @@ export const useThemeStore = defineStore('theme', {
       }
 
       // Inject custom CSS from theme if present
-      if (edexTheme.injectCSS) {
+      if (adexTheme.injectCSS) {
         const style = document.createElement('style')
-        style.setAttribute('data-edex-theme', themeId)
-        style.textContent = edexTheme.injectCSS
+        style.setAttribute('data-adex-theme', themeId)
+        style.textContent = adexTheme.injectCSS
         document.head.appendChild(style)
         this.injectedStyleElement = style
       }
@@ -915,7 +915,7 @@ export const useThemeStore = defineStore('theme', {
 
     // Cleanup
     cleanup() {
-      // Remove injected eDex-UI CSS
+      // Remove injected aDex-UI CSS
       if (this.injectedStyleElement) {
         this.injectedStyleElement.remove()
         this.injectedStyleElement = null

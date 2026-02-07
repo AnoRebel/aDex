@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import EdexToplist from '~/app/components/edex/EdexToplist.vue'
+import AdexToplist from '~/app/components/adex/AdexToplist.vue'
 import { useSystemStore } from '~/stores/system'
 
 // Mock the useWails composable
@@ -44,7 +44,7 @@ const mockProcesses = [
   { pid: 1007, name: 'slack', cpu: 2.0, memory: 4.3, status: 'running', user: 'user', command: 'slack' },
 ]
 
-describe('EdexToplist Component', () => {
+describe('AdexToplist Component', () => {
   let wrapper: VueWrapper
 
   beforeEach(() => {
@@ -77,7 +77,7 @@ describe('EdexToplist Component', () => {
       enableDetailedInfo: true,
     }
 
-    wrapper = mount(EdexToplist, {
+    wrapper = mount(AdexToplist, {
       global: { plugins: [pinia] }
     })
 

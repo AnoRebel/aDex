@@ -1,5 +1,5 @@
 <template>
-  <div class="edex-filesystem">
+  <div class="adex-filesystem">
     <!-- Header -->
     <div class="fs-header">
       <div class="fs-header-left">
@@ -471,7 +471,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* The parent CSS classes (edex-filesystem, fs-header, fs-display, fs-grid, fs-item,
+/* The parent CSS classes (adex-filesystem, fs-header, fs-display, fs-grid, fs-item,
    fs-list, fs-list-item, fs-disk-bar) are defined in main.css.
    Below are component-specific overrides and additions. */
 

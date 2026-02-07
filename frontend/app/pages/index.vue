@@ -1,18 +1,18 @@
 <template>
   <!-- Boot / splash overlay -->
-  <EdexBootScreen
+  <AdexBootScreen
     v-if="booting"
     @complete="onBootComplete"
   />
 
   <!-- Main application (hidden while booting) -->
-  <div v-show="!booting" class="edex-app">
+  <div v-show="!booting" class="adex-app">
 
     <!-- Grid background pattern -->
-    <div class="edex-background" :class="{ solidBackground: solidBg }" />
+    <div class="adex-background" :class="{ solidBackground: solidBg }" />
 
     <!-- TOP NAVIGATION BAR -->
-    <nav class="edex-topbar" role="navigation" aria-label="Section navigation">
+    <nav class="adex-topbar" role="navigation" aria-label="Section navigation">
       <div
         class="topbar-section"
         :class="{ active: topSection === 'panel' }"
@@ -63,20 +63,20 @@
     </nav>
 
     <!-- MAIN THREE-COLUMN AREA -->
-    <div class="edex-main">
+    <div class="adex-main">
 
       <!-- LEFT COLUMN -->
       <aside class="mod-column left">
-        <EdexClock />
-        <EdexSysinfo />
-        <EdexHardware />
-        <EdexCpuInfo />
-        <EdexRamWatcher />
-        <EdexToplist />
+        <AdexClock />
+        <AdexSysinfo />
+        <AdexHardware />
+        <AdexCpuInfo />
+        <AdexRamWatcher />
+        <AdexToplist />
       </aside>
 
       <!-- CENTER: MAIN SHELL -->
-      <section class="edex-center">
+      <section class="adex-center">
         <div class="main-shell">
           <!-- Tab strip inside the shell -->
           <div class="shell-tabs">
@@ -103,7 +103,7 @@
 
           <!-- Terminal emulator surface (one per tab, only active is visible) -->
           <div class="shell-terminal">
-            <EdexTerminal
+            <AdexTerminal
               v-for="(tab, idx) in shellTabs"
               v-show="activeTabIndex === idx"
               :key="tab.id"
@@ -123,20 +123,20 @@
 
       <!-- RIGHT COLUMN -->
       <aside class="mod-column right">
-        <EdexNetstat />
-        <EdexGlobe />
-        <EdexTraffic />
+        <AdexNetstat />
+        <AdexGlobe />
+        <AdexTraffic />
       </aside>
     </div>
 
     <!-- BOTTOM SECTION: FILESYSTEM + KEYBOARD -->
-    <div class="edex-bottom">
-      <EdexFilesystem @navigate="onFsNavigate" @open="onFsOpen" />
-      <EdexKeyboard @key="onVirtualKey" />
+    <div class="adex-bottom">
+      <AdexFilesystem @navigate="onFsNavigate" @open="onFsOpen" />
+      <AdexKeyboard @key="onVirtualKey" />
     </div>
 
     <!-- Settings modal (toggled via keyboard shortcut or menu) -->
-    <EdexSettingsModal
+    <AdexSettingsModal
       v-model="showSettings"
       @settings-changed="onSettingsChanged"
     />
@@ -403,7 +403,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.edex-main {
+.adex-main {
   min-height: 0;
 }
 
@@ -412,7 +412,7 @@ onUnmounted(() => {
   overflow-x: hidden;
 }
 
-.edex-app {
+.adex-app {
   animation: fadeIn 0.4s cubic-bezier(0.19, 1, 0.22, 1) forwards;
 }
 </style>

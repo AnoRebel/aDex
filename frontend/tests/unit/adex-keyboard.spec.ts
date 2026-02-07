@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises, VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import EdexKeyboard from '~/app/components/edex/EdexKeyboard.vue'
+import AdexKeyboard from '~/app/components/adex/AdexKeyboard.vue'
 import { useTerminalStore } from '~/stores/terminal'
 
 // Mock layout data
@@ -65,7 +65,7 @@ vi.mock('~~/bindings', () => ({
   CloseTerminal: vi.fn().mockResolvedValue(undefined),
 }))
 
-describe('EdexKeyboard Component', () => {
+describe('AdexKeyboard Component', () => {
   let wrapper: VueWrapper
 
   beforeEach(() => {
@@ -96,7 +96,7 @@ describe('EdexKeyboard Component', () => {
     })
     termStore.setActiveSession('test-session')
 
-    wrapper = mount(EdexKeyboard, {
+    wrapper = mount(AdexKeyboard, {
       global: { plugins: [pinia] }
     })
 
@@ -116,9 +116,9 @@ describe('EdexKeyboard Component', () => {
   }
 
   describe('Rendering', () => {
-    it('renders with edex-keyboard class', async () => {
+    it('renders with adex-keyboard class', async () => {
       await mountComponent()
-      expect(wrapper.find('.edex-keyboard').exists()).toBe(true)
+      expect(wrapper.find('.adex-keyboard').exists()).toBe(true)
     })
 
     it('has kb-row classes for each keyboard row', async () => {
@@ -325,7 +325,7 @@ describe('EdexKeyboard Component', () => {
       // The component has fallback logic in loadLayouts catch block
       // Even without data, the keyboard should still render its root element
       await mountComponent()
-      expect(wrapper.find('.edex-keyboard').exists()).toBe(true)
+      expect(wrapper.find('.adex-keyboard').exists()).toBe(true)
     })
   })
 })

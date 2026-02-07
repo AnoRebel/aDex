@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import EdexRamWatcher from '~/app/components/edex/EdexRamWatcher.vue'
+import AdexRamWatcher from '~/app/components/adex/AdexRamWatcher.vue'
 import { useSystemStore } from '~/stores/system'
 
 // Mock the useWails composable
@@ -34,7 +34,7 @@ vi.mock('~/utils/loadingStates', () => ({
   completeLoading: vi.fn(),
 }))
 
-describe('EdexRamWatcher Component', () => {
+describe('AdexRamWatcher Component', () => {
   let wrapper: VueWrapper
 
   beforeEach(() => {
@@ -99,7 +99,7 @@ describe('EdexRamWatcher Component', () => {
       timestamp: '',
     }
 
-    wrapper = mount(EdexRamWatcher, {
+    wrapper = mount(AdexRamWatcher, {
       global: { plugins: [pinia] }
     })
 

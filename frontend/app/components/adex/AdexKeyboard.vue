@@ -1,5 +1,5 @@
 <template>
-  <div class="edex-keyboard" @mousedown.prevent>
+  <div class="adex-keyboard" @mousedown.prevent>
     <div
       v-for="(row, rowIndex) in layoutRows"
       :key="rowIndex"
@@ -474,10 +474,10 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* The parent CSS classes (edex-keyboard, kb-row, kb-key) are defined in main.css.
+/* The parent CSS classes (adex-keyboard, kb-row, kb-key) are defined in main.css.
    Below are component-specific additions. */
 
-.edex-keyboard {
+.adex-keyboard {
   user-select: none;
   -webkit-user-select: none;
 }

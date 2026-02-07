@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import EdexFilesystem from '~/app/components/edex/EdexFilesystem.vue'
+import AdexFilesystem from '~/app/components/adex/AdexFilesystem.vue'
 import { useFilesystemStore } from '~/stores/filesystem'
 import { useTerminalStore } from '~/stores/terminal'
 
@@ -73,7 +73,7 @@ const mockFiles = [
   { name: '.bashrc', path: '/home/user/.bashrc', size: 512, modified: '2026-01-05T06:00:00Z', type: 'file', extension: 'bashrc' },
 ]
 
-describe('EdexFilesystem Component', () => {
+describe('AdexFilesystem Component', () => {
   let wrapper: VueWrapper
 
   beforeEach(() => {
@@ -125,7 +125,7 @@ describe('EdexFilesystem Component', () => {
       lastActivity: new Date(),
     })
 
-    wrapper = mount(EdexFilesystem, {
+    wrapper = mount(AdexFilesystem, {
       global: { plugins: [pinia] }
     })
 
@@ -133,9 +133,9 @@ describe('EdexFilesystem Component', () => {
   }
 
   describe('Rendering', () => {
-    it('renders with edex-filesystem class', () => {
+    it('renders with adex-filesystem class', () => {
       mountComponent()
-      expect(wrapper.find('.edex-filesystem').exists()).toBe(true)
+      expect(wrapper.find('.adex-filesystem').exists()).toBe(true)
     })
 
     it('shows FILESYSTEM header', () => {

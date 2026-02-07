@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, VueWrapper } from '@vue/test-utils'
-import EdexBootScreen from '~/app/components/edex/EdexBootScreen.vue'
+import AdexBootScreen from '~/app/components/adex/AdexBootScreen.vue'
 
-describe('EdexBootScreen Component', () => {
+describe('AdexBootScreen Component', () => {
   let wrapper: VueWrapper
 
   beforeEach(() => {
@@ -16,7 +16,7 @@ describe('EdexBootScreen Component', () => {
   })
 
   function mountComponent(props?: { minDuration?: number; enableAudio?: boolean }) {
-    wrapper = mount(EdexBootScreen, {
+    wrapper = mount(AdexBootScreen, {
       props: {
         minDuration: props?.minDuration ?? 100, // Use short duration for tests
         enableAudio: props?.enableAudio ?? false,

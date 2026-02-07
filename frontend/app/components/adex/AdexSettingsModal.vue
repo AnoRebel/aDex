@@ -78,7 +78,7 @@
                   <option value="tron">Tron</option>
                   <option value="tron-disrupted">Tron Disrupted</option>
                   <option value="blade">Blade</option>
-                  <option value="eDex-UI">eDex-UI Classic</option>
+                  <option value="aDex-UI">aDex-UI Classic</option>
                   <option value="interstellar">Interstellar</option>
                   <option value="red-alert">Red Alert</option>
                   <option value="forest">Forest</option>

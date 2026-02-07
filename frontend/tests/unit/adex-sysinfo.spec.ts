@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import EdexSysinfo from '~/app/components/edex/EdexSysinfo.vue'
+import AdexSysinfo from '~/app/components/adex/AdexSysinfo.vue'
 import { useSystemStore } from '~/stores/system'
 
 // Mock the useWails composable used by the system store
@@ -36,7 +36,7 @@ vi.mock('~/utils/loadingStates', () => ({
   completeLoading: vi.fn(),
 }))
 
-describe('EdexSysinfo Component', () => {
+describe('AdexSysinfo Component', () => {
   let wrapper: VueWrapper
 
   beforeEach(() => {
@@ -72,7 +72,7 @@ describe('EdexSysinfo Component', () => {
       numProcs: 250,
     }
 
-    wrapper = mount(EdexSysinfo, {
+    wrapper = mount(AdexSysinfo, {
       global: {
         plugins: [pinia],
       }
@@ -210,7 +210,7 @@ describe('EdexSysinfo Component', () => {
       const store = useSystemStore()
       store.systemInfo = null
 
-      wrapper = mount(EdexSysinfo, {
+      wrapper = mount(AdexSysinfo, {
         global: { plugins: [pinia] }
       })
 
@@ -226,7 +226,7 @@ describe('EdexSysinfo Component', () => {
       const store = useSystemStore()
       store.systemInfo = null
 
-      wrapper = mount(EdexSysinfo, {
+      wrapper = mount(AdexSysinfo, {
         global: { plugins: [pinia] }
       })
 

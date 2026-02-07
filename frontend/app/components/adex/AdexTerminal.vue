@@ -1,12 +1,12 @@
 <template>
-  <div ref="containerRef" class="edex-terminal-instance">
+  <div ref="containerRef" class="adex-terminal-instance">
     <div ref="xtermRef" class="xterm-container" />
   </div>
 </template>
 
 <script setup lang="ts">
 /**
- * EdexTerminal -- renders a single xterm.js terminal for one shell tab.
+ * AdexTerminal -- renders a single xterm.js terminal for one shell tab.
  *
  * Props:
  *   sessionId  – the backend terminal session id
@@ -222,7 +222,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.edex-terminal-instance {
+.adex-terminal-instance {
   width: 100%;
   height: 100%;
   position: absolute;
@@ -235,7 +235,7 @@ onBeforeUnmount(() => {
   height: 100%;
 }
 
-/* xterm.js overrides for eDex-UI look */
+/* xterm.js overrides for aDex-UI look */
 .xterm-container :deep(.xterm) {
   height: 100%;
   padding: 0.3vh 0.3vw;

@@ -1,6 +1,6 @@
 <template>
   <UApp>
-    <div id="edex-app" :style="themeVars">
+    <div id="adex-app" :style="themeVars">
       <NuxtPage />
     </div>
   </UApp>
@@ -83,7 +83,7 @@ useHead({
 <style>
 /* The root container fills the viewport. All layout is handled by
    pages/index.vue and main.css -- no header, footer, or scrolling here. */
-#edex-app {
+#adex-app {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
