@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { StartMonitoring, StopMonitoring } from '~~/bindings'
+import { StartMonitoring, StopMonitoring, GetService } from '~~/bindings'
 
 export const useNetworkStore = defineStore('network', {
   state: () => ({
@@ -211,6 +211,21 @@ export const useNetworkStore = defineStore('network', {
         this.isMonitoring = service?.IsMonitoring ? await service.IsMonitoring() : false
       } catch (error) {
         this.error = `Failed to check monitoring status: ${error}`
+      }
+    },
+
+    // Initialize store: start monitoring and fetch initial data
+    async initialize() {
+      try {
+        this.loading = true
+        this.error = null
+        await this.startMonitoring()
+        await this.fetchMetrics()
+      } catch (error) {
+        this.error = `Failed to initialize network store: ${error}`
+        console.error('Network store initialization failed:', error)
+      } finally {
+        this.loading = false
       }
     }
   }

@@ -1,310 +1,877 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
-/* aDex-UI - Science Fiction Theme */
+/* aDex-UI - eDEX-UI Inspired Science Fiction Theme
+ * All measurements use viewport-relative units (vh/vw) for proportional scaling.
+ * Theme colors use RGB components via CSS variables for dynamic theming.
+ */
 
-/* CSS Variables for Theme */
 :root {
-  /* Primary Colors - TRON inspired */
-  --primary-50: #f0f9ff;
-  --primary-100: #e0f2fe;
-  --primary-200: #bae6fd;
-  --primary-300: #7dd3fc;
-  --primary-400: #38bdf8;
-  --primary-500: #0ea5e9;
-  --primary-600: #0284c7;
-  --primary-700: #0369a1;
-  --primary-800: #075985;
-  --primary-900: #0c4a6e;
+  /* Theme accent color (RGB components for rgba() composition) */
+  --color_r: 170;
+  --color_g: 207;
+  --color_b: 209;
 
-  /* Accent Colors - Orange/Amber */
-  --accent-50: #fffbeb;
-  --accent-100: #fef3c7;
-  --accent-200: #fde68a;
-  --accent-300: #fcd34d;
-  --accent-400: #fbbf24;
-  --accent-500: #f59e0b;
-  --accent-600: #d97706;
-  --accent-700: #b45309;
-  --accent-800: #92400e;
-  --accent-900: #78350f;
+  /* Derived solid colors */
+  --color_accent: rgb(var(--color_r), var(--color_g), var(--color_b));
+  --color_accent_dimmed: rgba(var(--color_r), var(--color_g), var(--color_b), 0.5);
+  --color_accent_glow: rgba(var(--color_r), var(--color_g), var(--color_b), 0.15);
 
-  /* Dark Theme Colors */
-  --background: #000000;
-  --surface: #0a0a0a;
-  --surface-elevated: #1a1a1a;
-  --surface-border: #333333;
+  /* Background colors */
+  --color_black: #000000;
+  --color_light_black: #05080d;
+  --color_grey: #262828;
 
-  /* Text Colors */
-  --text-primary: #ffffff;
-  --text-secondary: #a3a3a3;
-  --text-muted: #737373;
-  --text-accent: var(--accent-400);
+  /* Fonts */
+  --font_main: 'Fira Code', 'Consolas', 'Monaco', monospace;
+  --font_main_light: 'Fira Code', 'Consolas', monospace;
 
-  /* Terminal Colors */
-  --terminal-bg: rgba(0, 0, 0, 0.8);
-  --terminal-text: #00ff41;
-  --terminal-cursor: #00ff41;
-  --terminal-border: var(--primary-500);
+  /* Terminal defaults */
+  --terminal_font: 'Fira Code', monospace;
+  --terminal_bg: #05080d;
+  --terminal_fg: rgb(var(--color_r), var(--color_g), var(--color_b));
+  --terminal_cursor: rgb(var(--color_r), var(--color_g), var(--color_b));
+  --terminal_selection: rgba(var(--color_r), var(--color_g), var(--color_b), 0.3);
 
-  /* System Colors */
+  /* UI measurements */
+  --section_title_height: 2.2vh;
+  --border_width: 0.092vh;
+  --border_color: rgba(var(--color_r), var(--color_g), var(--color_b), 0.5);
+  --module_padding: 0.645vh;
+  --column_width: 17vw;
+
+  /* Status colors */
   --success: #10b981;
   --warning: #f59e0b;
   --error: #ef4444;
-  --info: var(--primary-500);
+  --info: var(--color_accent);
 }
 
-/* Base Styles */
-* {
+/* Reset & Base */
+*, *::before, *::after {
   box-sizing: border-box;
-}
-
-html,
-body {
   margin: 0;
   padding: 0;
-  background-color: var(--background);
-  color: var(--text-primary);
-  font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
-  overflow: hidden;
 }
 
-/* Application Layout */
-.adex-app {
+html, body {
   width: 100vw;
   height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: linear-gradient(135deg, var(--background) 0%, var(--surface) 100%);
+  overflow: hidden;
+  background: var(--color_black);
+  color: var(--color_accent);
+  font-family: var(--font_main);
+  font-size: 1.48vh;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  cursor: default;
+  user-select: none;
 }
 
-/* Header/Top Bar */
-.adex-header {
-  height: 60px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--surface-border);
+/* Grid Background Pattern (eDEX-UI signature look) */
+.edex-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent calc(2.04vh - var(--border_width)),
+      rgba(var(--color_r), var(--color_g), var(--color_b), 0.03) calc(2.04vh - var(--border_width)),
+      rgba(var(--color_r), var(--color_g), var(--color_b), 0.03) 2.04vh
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent calc(2.04vh - var(--border_width)),
+      rgba(var(--color_r), var(--color_g), var(--color_b), 0.03) calc(2.04vh - var(--border_width)),
+      rgba(var(--color_r), var(--color_g), var(--color_b), 0.03) 2.04vh
+    );
+  background-color: var(--color_black);
+  pointer-events: none;
+}
+
+.edex-background.solidBackground {
+  background: var(--color_black) !important;
+}
+
+/* Main Application Layout */
+.edex-app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  padding-top: 1.85vh;
+}
+
+/* Top Navigation Bar */
+.edex-topbar {
+  display: flex;
+  width: 100vw;
+  height: 2.5vh;
+  font-size: 1.2vh;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  border-bottom: var(--border_width) solid var(--border_color);
+  flex-shrink: 0;
+}
+
+.edex-topbar .topbar-section {
   display: flex;
   align-items: center;
-  padding: 0 20px;
-  position: relative;
+  padding: 0 1vw;
+  cursor: pointer;
+  border-right: var(--border_width) solid var(--border_color);
+  transition: background-color 0.2s, color 0.2s;
+  white-space: nowrap;
+}
+
+.edex-topbar .topbar-section:last-child {
+  border-right: none;
+}
+
+.edex-topbar .topbar-section:hover {
+  background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.1);
+}
+
+.edex-topbar .topbar-section.active {
+  background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.15);
+  color: var(--color_accent);
+}
+
+.edex-topbar .topbar-spacer {
+  flex: 1;
+}
+
+/* Main Content Area */
+.edex-main {
+  display: flex;
+  flex: 1;
   overflow: hidden;
 }
 
-.adex-header::before {
+/* Module Column (Left / Right) */
+.mod-column {
+  width: var(--column_width);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0.5vh 0.5vw;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.mod-column.left {
+  align-items: flex-end;
+}
+
+.mod-column.right {
+  align-items: flex-start;
+}
+
+/* Module Panel (individual component containers) */
+.mod-panel {
+  width: 100%;
+  position: relative;
+  padding: var(--module_padding);
+  margin-bottom: 0.3vh;
+}
+
+.mod-panel::before,
+.mod-panel::after {
+  content: '';
+  position: absolute;
+  width: var(--border_width);
+  height: 40%;
+  background: var(--border_color);
+}
+
+.mod-panel::before {
+  top: 0;
+  left: 0;
+}
+
+.mod-panel::after {
+  bottom: 0;
+  right: 0;
+}
+
+/* Section Title (used on all panels) */
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: var(--section_title_height);
+  font-size: 1.1vh;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--color_accent);
+  margin-bottom: 0.3vh;
+  position: relative;
+}
+
+.section-title::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--border_width);
+  background: var(--border_color);
+}
+
+.section-title .title-left {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.section-title .title-right {
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 1vh;
+  opacity: 0.7;
+}
+
+/* Center Section (Terminal) */
+.edex-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0.5vh 0;
+  overflow: hidden;
+}
+
+/* Main Shell Container */
+.main-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border: var(--border_width) solid var(--border_color);
+  position: relative;
+  overflow: hidden;
+  /* Augmented UI style corner clips */
+  clip-path: polygon(
+    0% 0.8vh,
+    0.8vh 0%,
+    calc(100% - 2vh) 0%,
+    100% 2vh,
+    100% 100%,
+    0% 100%
+  );
+  background: var(--color_light_black);
+}
+
+.main-shell::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--primary-500), var(--accent-500), var(--primary-500));
-  animation: glow 3s ease-in-out infinite;
+  bottom: 0;
+  border: var(--border_width) solid var(--border_color);
+  clip-path: polygon(
+    0% 0.8vh,
+    0.8vh 0%,
+    calc(100% - 2vh) 0%,
+    100% 2vh,
+    100% 100%,
+    0% 100%
+  );
+  pointer-events: none;
+  z-index: 10;
 }
 
-/* Main Content Area */
-.adex-main {
-  flex: 1;
+/* Shell Tabs */
+.shell-tabs {
   display: flex;
+  align-items: stretch;
+  height: 3vh;
+  background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.05);
+  border-bottom: var(--border_width) solid var(--border_color);
+  flex-shrink: 0;
   overflow: hidden;
 }
 
-/* Sidebar */
-.adex-sidebar {
-  width: 300px;
-  background: var(--surface);
-  border-right: 1px solid var(--surface-border);
-  overflow-y: auto;
-}
-
-/* Content Area */
-.adex-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-/* Terminal Section */
-.adex-terminal-section {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: var(--terminal-bg);
-  border: 1px solid var(--terminal-border);
-  border-radius: 8px;
-  margin: 10px;
-  overflow: hidden;
-}
-
-/* Terminal Tabs */
-.adex-terminal-tabs {
-  height: 40px;
-  background: var(--surface-elevated);
-  border-bottom: 1px solid var(--surface-border);
+.shell-tab {
   display: flex;
   align-items: center;
-  padding: 0 10px;
-}
-
-.adex-terminal-tab {
-  padding: 8px 16px;
-  margin-right: 4px;
-  background: var(--surface);
-  border: 1px solid var(--surface-border);
-  border-radius: 4px 4px 0 0;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 12px;
-}
-
-.adex-terminal-tab:hover {
-  background: var(--surface-elevated);
-  border-color: var(--primary-500);
-}
-
-.adex-terminal-tab.active {
-  background: var(--terminal-bg);
-  border-color: var(--primary-500);
-  color: var(--primary-400);
-}
-
-/* System Monitor Panel */
-.adex-system-monitor {
-  position: absolute;
-  top: 80px;
-  right: 20px;
-  width: 250px;
-  background: rgba(10, 10, 10, 0.9);
-  border: 1px solid var(--surface-border);
-  border-radius: 8px;
-  padding: 15px;
-  backdrop-filter: blur(10px);
-}
-
-/* Sci-Fi Animations */
-@keyframes glow {
-  0%, 100% {
-    opacity: 0.8;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-@keyframes pulse {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateX(-100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-/* Glitch Effect */
-.glitch {
-  position: relative;
-  color: var(--primary-400);
-  font-size: 14px;
-  font-weight: bold;
+  justify-content: center;
+  padding: 0 1.5vw;
+  font-size: 1.1vh;
   text-transform: uppercase;
-  text-shadow: 2px 2px 0 var(--accent-500), -2px -2px 0 var(--primary-600);
-  animation: glitch 2s infinite;
+  letter-spacing: 0.15em;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.19, 1, 0.22, 1);
+  border-right: var(--border_width) solid var(--border_color);
+  transform: skewX(-35deg);
+  white-space: nowrap;
+  position: relative;
+  color: rgba(var(--color_r), var(--color_g), var(--color_b), 0.5);
+}
+
+.shell-tab > span {
+  transform: skewX(35deg);
+}
+
+.shell-tab:hover {
+  background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.1);
+  color: var(--color_accent);
+}
+
+.shell-tab.active {
+  background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.2);
+  color: var(--color_accent);
+  transform: skewX(-35deg) scaleY(1.2);
+}
+
+.shell-tab-sep {
+  width: var(--border_width);
+  background: var(--border_color);
+  flex-shrink: 0;
+}
+
+/* Shell Terminal Container */
+.shell-terminal {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.shell-terminal .xterm {
+  height: 100%;
+}
+
+/* Shell Status Bar */
+.shell-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 2.2vh;
+  padding: 0 1vw;
+  font-size: 1vh;
+  border-top: var(--border_width) solid var(--border_color);
+  background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.03);
+  flex-shrink: 0;
+}
+
+/* Bottom Section */
+.edex-bottom {
+  display: flex;
+  height: 32vh;
+  flex-shrink: 0;
+  border-top: var(--border_width) solid var(--border_color);
+}
+
+/* Filesystem Section */
+.edex-filesystem {
+  width: 43vw;
+  display: flex;
+  flex-direction: column;
+  border-right: var(--border_width) solid var(--border_color);
+  overflow: hidden;
+}
+
+.fs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 2.5vh;
+  padding: 0 0.8vw;
+  font-size: 1.1vh;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  border-bottom: var(--border_width) solid var(--border_color);
+  flex-shrink: 0;
+}
+
+.fs-display {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.5vh 0.5vw;
+}
+
+/* Filesystem Grid View */
+.fs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5vh, 1fr));
+  gap: 0.5vh;
+}
+
+.fs-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5vh;
+  cursor: pointer;
+  border: var(--border_width) solid transparent;
+  transition: all 0.15s;
+  text-align: center;
+  min-height: 7vh;
+}
+
+.fs-item:hover {
+  border-color: var(--border_color);
+  background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.05);
+}
+
+.fs-item.active {
+  border-color: var(--color_accent);
+  background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.1);
+  animation: blink 0.5s ease-in-out;
+}
+
+.fs-item-icon {
+  font-size: 3vh;
+  margin-bottom: 0.3vh;
+  opacity: 0.8;
+}
+
+.fs-item-name {
+  font-size: 1vh;
+  word-break: break-all;
+  max-width: 8vh;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Filesystem List View */
+.fs-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.fs-list-item {
+  display: flex;
+  align-items: center;
+  gap: 1vw;
+  padding: 0.3vh 0.5vw;
+  font-size: 1.1vh;
+  cursor: pointer;
+  border-bottom: var(--border_width) solid rgba(var(--color_r), var(--color_g), var(--color_b), 0.05);
+  transition: all 0.15s;
+}
+
+.fs-list-item:hover {
+  background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.05);
+}
+
+.fs-list-item .list-name { flex: 2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fs-list-item .list-type { flex: 1; opacity: 0.6; }
+.fs-list-item .list-size { flex: 1; text-align: right; opacity: 0.6; }
+.fs-list-item .list-date { flex: 1.5; text-align: right; opacity: 0.6; }
+
+/* Disk Usage Bar */
+.fs-disk-bar {
+  height: 2vh;
+  display: flex;
+  align-items: center;
+  padding: 0 0.8vw;
+  font-size: 1vh;
+  border-top: var(--border_width) solid var(--border_color);
+  flex-shrink: 0;
+}
+
+.fs-disk-bar .disk-fill {
+  height: 0.6vh;
+  flex: 1;
+  background: var(--color_grey);
+  margin: 0 0.5vw;
+  position: relative;
+  overflow: hidden;
+}
+
+.fs-disk-bar .disk-fill-inner {
+  height: 100%;
+  background: var(--color_accent);
+  transition: width 0.5s;
+}
+
+/* Keyboard Section */
+.edex-keyboard {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0.5vh 0.5vw;
+  overflow: hidden;
+}
+
+.kb-row {
+  display: flex;
+  justify-content: center;
+  gap: 0.2vw;
+  margin-bottom: 0.2vh;
+}
+
+.kb-key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.7vw;
+  height: 3.52vh;
+  border: var(--border_width) solid var(--border_color);
+  background: transparent;
+  color: var(--color_accent);
+  font-family: var(--font_main);
+  font-size: 1.2vh;
+  cursor: pointer;
+  transition: all 0.1s;
+  position: relative;
+  overflow: hidden;
+}
+
+.kb-key:hover {
+  background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.1);
+}
+
+.kb-key.active,
+.kb-key.pressed {
+  background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.6);
+  color: var(--color_black);
+}
+
+.kb-key.wide-1 { width: 3.8vw; }
+.kb-key.wide-2 { width: 5vw; }
+.kb-key.wide-3 { width: 7vw; }
+.kb-key.wide-enter { width: 5.5vw; height: 7.2vh; }
+.kb-key.spacebar { width: 30vw; }
+.kb-key.fn-key { font-size: 0.9vh; }
+
+/* Clock Module */
+.mod-clock {
+  font-size: 3.9vh;
+  font-family: var(--font_main_light);
+  letter-spacing: 0.3vh;
+  text-align: right;
+}
+
+.mod-clock em {
+  font-style: normal;
+  opacity: 0.6;
+}
+
+/* System Info Module */
+.mod-sysinfo {
+  font-size: 1.1vh;
+  line-height: 1.6;
+}
+
+.mod-sysinfo .sysinfo-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5vw;
+}
+
+.mod-sysinfo .sysinfo-label {
+  opacity: 0.6;
+  text-transform: uppercase;
+}
+
+/* Hardware Inspector */
+.mod-hardware {
+  font-size: 1.1vh;
+}
+
+.mod-hardware .hw-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.mod-hardware .hw-label {
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+/* CPU Info Module */
+.mod-cpu {
+  font-size: 1.1vh;
+}
+
+.mod-cpu .cpu-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.3vh;
+}
+
+.mod-cpu .cpu-chart-container {
+  height: 6vh;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 0.3vh;
+}
+
+.mod-cpu .cpu-chart-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.mod-cpu .cpu-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1vh;
+}
+
+.mod-cpu .cpu-stats .stat-label {
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+/* RAM Watcher Module */
+.mod-ram {
+  font-size: 1.1vh;
+}
+
+.mod-ram .ram-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.3vh;
+}
+
+.mod-ram .ram-grid {
+  display: grid;
+  grid-template-columns: repeat(40, 1fr);
+  grid-template-rows: repeat(11, 1fr);
+  gap: 0.1vh;
+  height: 6vh;
+  margin-bottom: 0.3vh;
+}
+
+.mod-ram .ram-cell {
+  transition: background-color 0.3s;
+}
+
+.mod-ram .ram-cell.used {
+  background: var(--color_accent);
+}
+
+.mod-ram .ram-cell.available {
+  background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.2);
+}
+
+.mod-ram .ram-cell.free {
+  background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.05);
+}
+
+.mod-ram .swap-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5vw;
+  font-size: 1vh;
+}
+
+.mod-ram .swap-bar .bar-track {
+  flex: 1;
+  height: 0.5vh;
+  background: var(--color_grey);
+  position: relative;
+}
+
+.mod-ram .swap-bar .bar-fill {
+  height: 100%;
+  background: var(--color_accent);
+  transition: width 0.5s;
+}
+
+/* Top Processes Module */
+.mod-toplist {
+  font-size: 1vh;
+}
+
+.mod-toplist .toplist-header {
+  display: flex;
+  gap: 0.5vw;
+  padding-bottom: 0.2vh;
+  border-bottom: var(--border_width) solid var(--border_color);
+  opacity: 0.6;
+  text-transform: uppercase;
+}
+
+.mod-toplist .toplist-row {
+  display: flex;
+  gap: 0.5vw;
+  padding: 0.15vh 0;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.mod-toplist .toplist-row:hover {
+  background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.05);
+}
+
+.mod-toplist .col-pid { width: 3vw; text-align: right; }
+.mod-toplist .col-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mod-toplist .col-cpu { width: 3vw; text-align: right; }
+.mod-toplist .col-mem { width: 3vw; text-align: right; }
+
+/* Network Status Module */
+.mod-netstat {
+  font-size: 1.1vh;
+}
+
+.mod-netstat .netstat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.15vh 0;
+}
+
+.mod-netstat .netstat-label {
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.mod-netstat .netstat-value {
+  text-align: right;
+}
+
+/* Network Traffic Module */
+.mod-traffic {
+  font-size: 1vh;
+}
+
+.mod-traffic .traffic-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.3vh;
+}
+
+.mod-traffic .traffic-chart {
+  height: 8vh;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 0.3vh;
+}
+
+.mod-traffic .traffic-chart canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.mod-traffic .traffic-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9vh;
+  opacity: 0.7;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(1vh); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
 }
 
 @keyframes glitch {
   0%, 90%, 100% {
-    text-shadow: 2px 2px 0 var(--accent-500), -2px -2px 0 var(--primary-600);
+    clip-path: none;
+    transform: translate(0);
   }
-  95% {
-    text-shadow: -2px 2px 0 var(--accent-500), 2px -2px 0 var(--primary-600);
+  92% {
+    clip-path: inset(0 0 50% 0);
+    transform: translate(-2px, 1px);
+  }
+  94% {
+    clip-path: inset(50% 0 0 0);
+    transform: translate(2px, -1px);
+  }
+  96% {
+    clip-path: inset(20% 0 30% 0);
+    transform: translate(-1px, 0);
   }
 }
 
-/* Loading Animation */
-.loading-dots {
-  display: inline-block;
+@keyframes scanline {
+  from { top: -100%; }
+  to { top: 100%; }
 }
 
-.loading-dots::after {
-  content: '';
-  animation: dots 1.5s steps(4, end) infinite;
+@keyframes glow {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
 }
 
-@keyframes dots {
-  0% { content: ''; }
-  25% { content: '.'; }
-  50% { content: '..'; }
-  75% { content: '...'; }
-  100% { content: ''; }
+@keyframes typeIn {
+  from { width: 0; }
+  to { width: 100%; }
 }
 
-/* Scrollbar Styling */
+/* Boot Animations */
+.boot-fadeIn {
+  animation: fadeIn 0.3s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+}
+
+.boot-fadeInUp {
+  animation: fadeInUp 0.5s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+}
+
+/* Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 0.5vw;
+  height: 0.5vh;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--surface);
+  background: var(--color_light_black);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--surface-border);
-  border-radius: 4px;
+  background: var(--color_grey);
+  border-radius: 0;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--primary-600);
+  background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.4);
 }
 
-/* Utility Classes */
-.text-primary { color: var(--text-primary); }
-.text-secondary { color: var(--text-secondary); }
-.text-accent { color: var(--text-accent); }
-.text-success { color: var(--success); }
-.text-warning { color: var(--warning); }
-.text-error { color: var(--error); }
-.text-info { color: var(--info); }
+/* Selection */
+::selection {
+  background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.3);
+  color: var(--color_accent);
+}
 
-.bg-surface { background-color: var(--surface); }
-.bg-surface-elevated { background-color: var(--surface-elevated); }
+/* Utility */
+.text-accent { color: var(--color_accent); }
+.text-dimmed { opacity: 0.5; }
+.text-uppercase { text-transform: uppercase; }
+.font-light { font-family: var(--font_main_light); }
 
-.border-primary { border-color: var(--primary-500); }
-.border-accent { border-color: var(--accent-500); }
-.border-surface { border-color: var(--surface-border); }
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .adex-sidebar {
-    width: 250px;
+/* Aspect Ratio Adjustments */
+@media (min-aspect-ratio: 64/27) {
+  :root {
+    --column_width: 15vw;
   }
-
-  .adex-system-monitor {
-    position: relative;
-    top: auto;
-    right: auto;
-    width: 100%;
-    margin: 10px;
+  .edex-bottom {
+    height: 28vh;
   }
 }
 
-@media (max-width: 640px) {
-  .adex-sidebar {
+@media (max-aspect-ratio: 4/3) {
+  :root {
+    --column_width: 20vw;
+  }
+  .edex-keyboard {
     display: none;
   }
-
-  .adex-main {
-    flex-direction: column;
+  .edex-filesystem {
+    width: 100%;
+    border-right: none;
   }
 }

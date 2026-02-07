@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, readonly } from 'vue'
 import { CreateTerminal, WriteToTerminal, ResizeTerminal, CloseTerminal } from '~~/bindings'
 import type { TerminalSession, TerminalCommand, TerminalOutput } from '~/types/terminal'
 

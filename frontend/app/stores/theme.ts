@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { useTheme } from '~/composables/useTheme'
+import edexThemesData from '~/assets/data/themes.json'
 
 // Import types from composable for now (until types/theme.ts is created)
 import type {
@@ -12,6 +13,34 @@ import type {
   ThemeServiceConfig
 } from '~/composables/useTheme'
 
+// eDex-UI theme format (loaded from themes.json)
+interface EdexTheme {
+  id: string
+  name: string
+  colors: {
+    r: number
+    g: number
+    b: number
+    black: string
+    light_black: string
+    grey: string
+  }
+  cssvars: {
+    font_main: string
+    font_main_light: string
+  }
+  terminal: {
+    fontFamily: string
+    cursorStyle: string
+    foreground: string
+    background: string
+    cursor: string
+    cursorAccent: string
+    selection: string
+  }
+  injectCSS: string
+}
+
 interface ThemeState {
   // Current state
   currentThemeId: string
@@ -22,6 +51,11 @@ interface ThemeState {
   // Collections
   availableThemes: Theme[]
   customThemes: CustomTheme[]
+
+  // eDex-UI themes (loaded from themes.json)
+  edexThemes: EdexTheme[]
+  currentEdexTheme: EdexTheme | null
+  injectedStyleElement: HTMLStyleElement | null
 
   // UI state
   isLoading: boolean
@@ -46,6 +80,11 @@ export const useThemeStore = defineStore('theme', {
     // Collections
     availableThemes: [],
     customThemes: [],
+
+    // eDex-UI themes
+    edexThemes: [],
+    currentEdexTheme: null,
+    injectedStyleElement: null,
 
     // UI state
     isLoading: false,
@@ -481,6 +520,9 @@ export const useThemeStore = defineStore('theme', {
         this.isLoading = true
         this.error = null
 
+        // Load eDex-UI themes from themes.json
+        this.loadEdexThemes()
+
         const themeComposable = this.themeComposable
 
         // Initialize theme composable
@@ -504,6 +546,9 @@ export const useThemeStore = defineStore('theme', {
             }
           }
         })
+
+        // Apply eDex-UI theme CSS variables for the current theme
+        this.applyEdexTheme(this.currentThemeId)
 
         this.isInitialized = true
       } catch (error) {
@@ -536,6 +581,9 @@ export const useThemeStore = defineStore('theme', {
 
         // Sync state
         this.syncWithComposable()
+
+        // Apply eDex-UI theme CSS variables and injectCSS
+        this.applyEdexTheme(themeId)
 
         // Save to localStorage for backward compatibility
         if (typeof localStorage !== 'undefined') {
@@ -811,8 +859,68 @@ export const useThemeStore = defineStore('theme', {
       this.initialize()
     },
 
+    // eDex-UI theme support: load themes from themes.json
+    loadEdexThemes() {
+      try {
+        const data = edexThemesData as { themes: EdexTheme[] }
+        this.edexThemes = data.themes || []
+      } catch (error) {
+        console.error('Failed to load eDex-UI themes:', error)
+        this.edexThemes = []
+      }
+    },
+
+    // Apply eDex-UI theme colors as CSS variables and inject custom CSS
+    applyEdexTheme(themeId: string) {
+      const edexTheme = this.edexThemes.find(t => t.id === themeId)
+      if (!edexTheme) return
+
+      this.currentEdexTheme = edexTheme
+
+      // Apply color CSS variables to document root
+      const root = document.documentElement
+      root.style.setProperty('--color_r', String(edexTheme.colors.r))
+      root.style.setProperty('--color_g', String(edexTheme.colors.g))
+      root.style.setProperty('--color_b', String(edexTheme.colors.b))
+      root.style.setProperty('--color_black', edexTheme.colors.black)
+      root.style.setProperty('--color_light_black', edexTheme.colors.light_black)
+      root.style.setProperty('--color_grey', edexTheme.colors.grey)
+
+      // Apply font CSS variables
+      root.style.setProperty('--font_main', edexTheme.cssvars.font_main)
+      root.style.setProperty('--font_main_light', edexTheme.cssvars.font_main_light)
+
+      // Apply terminal CSS variables
+      root.style.setProperty('--terminal_foreground', edexTheme.terminal.foreground)
+      root.style.setProperty('--terminal_background', edexTheme.terminal.background)
+      root.style.setProperty('--terminal_cursor', edexTheme.terminal.cursor)
+      root.style.setProperty('--terminal_selection', edexTheme.terminal.selection)
+      root.style.setProperty('--terminal_font_family', edexTheme.terminal.fontFamily)
+
+      // Remove previous injected CSS
+      if (this.injectedStyleElement) {
+        this.injectedStyleElement.remove()
+        this.injectedStyleElement = null
+      }
+
+      // Inject custom CSS from theme if present
+      if (edexTheme.injectCSS) {
+        const style = document.createElement('style')
+        style.setAttribute('data-edex-theme', themeId)
+        style.textContent = edexTheme.injectCSS
+        document.head.appendChild(style)
+        this.injectedStyleElement = style
+      }
+    },
+
     // Cleanup
     cleanup() {
+      // Remove injected eDex-UI CSS
+      if (this.injectedStyleElement) {
+        this.injectedStyleElement.remove()
+        this.injectedStyleElement = null
+      }
+
       const themeComposable = this.themeComposable
       themeComposable.cleanup()
     }

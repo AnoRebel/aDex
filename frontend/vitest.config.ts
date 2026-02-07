@@ -18,18 +18,7 @@ export default defineConfig({
         '**/.output/**'
       ]
     },
-    globals: {
-      // Mock browser APIs that are not available in jsdom
-      document: true,
-      window: true,
-      navigator: true,
-      console: true,
-      CustomEvent: true,
-      Event: true,
-      HTMLElement: true,
-      MouseEvent: true,
-      DragEvent: true
-    },
+    globals: true,
     include: [
       'tests/**/*.{test,spec}.{js,mjs,cjs,ts,jsx,tsx}'
     ],
@@ -42,6 +31,13 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      '~/stores': resolve(__dirname, 'app/stores'),
+      '~/composables': resolve(__dirname, 'app/composables'),
+      '~/utils': resolve(__dirname, 'app/utils'),
+      '~/types': resolve(__dirname, 'app/types'),
+      '~/assets': resolve(__dirname, 'app/assets'),
+      '~/lib': resolve(__dirname, 'app/lib'),
+      '~~': resolve(__dirname, '.'),
       '@': resolve(__dirname, '.'),
       '~': resolve(__dirname, '.')
     }
