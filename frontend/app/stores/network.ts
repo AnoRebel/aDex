@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { StartMonitoring, StopMonitoring } from '~~/bindings'
+import { StartMonitoring, StopMonitoring, GetService } from '~~/bindings'
 
 export const useNetworkStore = defineStore('network', {
   state: () => ({
@@ -64,21 +64,23 @@ export const useNetworkStore = defineStore('network', {
 
     async fetchAlerts() {
       try {
-        // Network alerts would be fetched from the network service
+        const service = await GetService('network')
+        this.alerts = service?.GetAlerts ? await service.GetAlerts() : []
         this.lastUpdateTime = new Date()
-      } catch (error) {
-        this.error = `Failed to fetch network alerts: ${error}`
-        throw error
+      } catch {
+        // Non-critical: alerts may not be available on all backends
+        this.lastUpdateTime = new Date()
       }
     },
 
     async fetchStatistics() {
       try {
-        // Statistics would be fetched from the network service
+        const service = await GetService('network')
+        this.statistics = service?.GetStatistics ? await service.GetStatistics() : null
         this.lastUpdateTime = new Date()
-      } catch (error) {
-        this.error = `Failed to fetch network statistics: ${error}`
-        throw error
+      } catch {
+        // Non-critical: statistics may not be available on all backends
+        this.lastUpdateTime = new Date()
       }
     },
 
@@ -211,6 +213,21 @@ export const useNetworkStore = defineStore('network', {
         this.isMonitoring = service?.IsMonitoring ? await service.IsMonitoring() : false
       } catch (error) {
         this.error = `Failed to check monitoring status: ${error}`
+      }
+    },
+
+    // Initialize store: start monitoring and fetch initial data
+    async initialize() {
+      try {
+        this.loading = true
+        this.error = null
+        await this.startMonitoring()
+        await this.fetchMetrics()
+      } catch (error) {
+        this.error = `Failed to initialize network store: ${error}`
+        console.error('Network store initialization failed:', error)
+      } finally {
+        this.loading = false
       }
     }
   }

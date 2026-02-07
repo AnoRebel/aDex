@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { useTheme } from '~/composables/useTheme'
+import adexThemesData from '~/assets/data/themes.json'
 
 // Import types from composable for now (until types/theme.ts is created)
 import type {
@@ -12,6 +13,34 @@ import type {
   ThemeServiceConfig
 } from '~/composables/useTheme'
 
+// aDex-UI theme format (loaded from themes.json)
+interface AdexTheme {
+  id: string
+  name: string
+  colors: {
+    r: number
+    g: number
+    b: number
+    black: string
+    light_black: string
+    grey: string
+  }
+  cssvars: {
+    font_main: string
+    font_main_light: string
+  }
+  terminal: {
+    fontFamily: string
+    cursorStyle: string
+    foreground: string
+    background: string
+    cursor: string
+    cursorAccent: string
+    selection: string
+  }
+  injectCSS: string
+}
+
 interface ThemeState {
   // Current state
   currentThemeId: string
@@ -22,6 +51,11 @@ interface ThemeState {
   // Collections
   availableThemes: Theme[]
   customThemes: CustomTheme[]
+
+  // aDex-UI themes (loaded from themes.json)
+  adexThemes: AdexTheme[]
+  currentAdexTheme: AdexTheme | null
+  injectedStyleElement: HTMLStyleElement | null
 
   // UI state
   isLoading: boolean
@@ -46,6 +80,11 @@ export const useThemeStore = defineStore('theme', {
     // Collections
     availableThemes: [],
     customThemes: [],
+
+    // aDex-UI themes
+    adexThemes: [],
+    currentAdexTheme: null,
+    injectedStyleElement: null,
 
     // UI state
     isLoading: false,
@@ -481,6 +520,9 @@ export const useThemeStore = defineStore('theme', {
         this.isLoading = true
         this.error = null
 
+        // Load aDex-UI themes from themes.json
+        this.loadAdexThemes()
+
         const themeComposable = this.themeComposable
 
         // Initialize theme composable
@@ -504,6 +546,9 @@ export const useThemeStore = defineStore('theme', {
             }
           }
         })
+
+        // Apply aDex-UI theme CSS variables for the current theme
+        this.applyAdexTheme(this.currentThemeId)
 
         this.isInitialized = true
       } catch (error) {
@@ -536,6 +581,9 @@ export const useThemeStore = defineStore('theme', {
 
         // Sync state
         this.syncWithComposable()
+
+        // Apply aDex-UI theme CSS variables and injectCSS
+        this.applyAdexTheme(themeId)
 
         // Save to localStorage for backward compatibility
         if (typeof localStorage !== 'undefined') {
@@ -811,8 +859,68 @@ export const useThemeStore = defineStore('theme', {
       this.initialize()
     },
 
+    // aDex-UI theme support: load themes from themes.json
+    loadAdexThemes() {
+      try {
+        const data = adexThemesData as { themes: AdexTheme[] }
+        this.adexThemes = data.themes || []
+      } catch (error) {
+        console.error('Failed to load aDex-UI themes:', error)
+        this.adexThemes = []
+      }
+    },
+
+    // Apply aDex-UI theme colors as CSS variables and inject custom CSS
+    applyAdexTheme(themeId: string) {
+      const adexTheme = this.adexThemes.find(t => t.id === themeId)
+      if (!adexTheme) return
+
+      this.currentAdexTheme = adexTheme
+
+      // Apply color CSS variables to document root
+      const root = document.documentElement
+      root.style.setProperty('--color_r', String(adexTheme.colors.r))
+      root.style.setProperty('--color_g', String(adexTheme.colors.g))
+      root.style.setProperty('--color_b', String(adexTheme.colors.b))
+      root.style.setProperty('--color_black', adexTheme.colors.black)
+      root.style.setProperty('--color_light_black', adexTheme.colors.light_black)
+      root.style.setProperty('--color_grey', adexTheme.colors.grey)
+
+      // Apply font CSS variables
+      root.style.setProperty('--font_main', adexTheme.cssvars.font_main)
+      root.style.setProperty('--font_main_light', adexTheme.cssvars.font_main_light)
+
+      // Apply terminal CSS variables
+      root.style.setProperty('--terminal_foreground', adexTheme.terminal.foreground)
+      root.style.setProperty('--terminal_background', adexTheme.terminal.background)
+      root.style.setProperty('--terminal_cursor', adexTheme.terminal.cursor)
+      root.style.setProperty('--terminal_selection', adexTheme.terminal.selection)
+      root.style.setProperty('--terminal_font_family', adexTheme.terminal.fontFamily)
+
+      // Remove previous injected CSS
+      if (this.injectedStyleElement) {
+        this.injectedStyleElement.remove()
+        this.injectedStyleElement = null
+      }
+
+      // Inject custom CSS from theme if present
+      if (adexTheme.injectCSS) {
+        const style = document.createElement('style')
+        style.setAttribute('data-adex-theme', themeId)
+        style.textContent = adexTheme.injectCSS
+        document.head.appendChild(style)
+        this.injectedStyleElement = style
+      }
+    },
+
     // Cleanup
     cleanup() {
+      // Remove injected aDex-UI CSS
+      if (this.injectedStyleElement) {
+        this.injectedStyleElement.remove()
+        this.injectedStyleElement = null
+      }
+
       const themeComposable = this.themeComposable
       themeComposable.cleanup()
     }
