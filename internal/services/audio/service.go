@@ -1,1077 +1,769 @@
 package audio
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"aDex-UI/internal/events"
-	"aDex-UI/internal/models"
+	"github.com/ebitengine/oto/v3"
+	"aDex-UI/internal/utils"
 )
 
-// Service manages audio effects and sound playback
+// Service handles audio operations
 type Service struct {
-	// Configuration
-	config ServiceConfig
-
-	// Audio state
-	settings      *models.AudioSettings
-	mu            sync.RWMutex
-	soundpacks    map[string]*models.Soundpack
-	audioEvents   map[string]*models.AudioEvent
-	eventMappings []models.AudioEventMapping
-	stats         *models.AudioStats
-
-	// Playback management
-	playbackQueue chan string
-	isPlaying     bool
-	currentEvent  *models.AudioEvent
-	audioPlayers  map[string]Player
-
-	// Event system
-	eventBus events.IEventBus
-
-	// Background processing
-	stopChan chan struct{}
-	wg       sync.WaitGroup
+	platform       *utils.FeatureDetection
+	otoCtx         *oto.Context
+	readyChan      <-chan struct{}
+	players        map[string]*oto.Player
+	soundFiles     map[string]string
+	sessions       map[string]*AudioSession
+	isMonitoring   bool
+	stopChan       chan struct{}
+	mu             sync.RWMutex
+	isInitialized  bool
 }
 
-// ServiceConfig holds configuration for the audio service
-type ServiceConfig struct {
-	AudioDirectory      string        `json:"audio_directory"`
-	SoundpacksDirectory string        `json:"soundpacks_directory"`
-	SupportedFormats    []string      `json:"supported_formats"`
-	MaxConcurrentSounds int           `json:"max_concurrent_sounds"`
-	DefaultVolume       float64       `json:"default_volume"`
-	CacheSize           int           `json:"cache_size"`
-	MaxEventQueue       int           `json:"max_event_queue"`
-	EnableAnalytics     bool          `json:"enable_analytics"`
-	AnalyticsRetention  time.Duration `json:"analytics_retention"`
-}
-
-// Player interface for audio playback
-type Player interface {
-	Play(event *models.AudioEvent, volume float64) error
-	Stop() error
-	IsPlaying() bool
-	GetDuration() time.Duration
-	SetVolume(volume float64) error
-	Cleanup() error
-}
-
-// DefaultServiceConfig returns the default configuration for the audio service
-func DefaultServiceConfig() ServiceConfig {
-	return ServiceConfig{
-		AudioDirectory:      "audio",
-		SoundpacksDirectory: "soundpacks",
-		SupportedFormats:    []string{"mp3", "wav", "ogg", "flac"},
-		MaxConcurrentSounds: 3,
-		DefaultVolume:       0.5,
-		CacheSize:           100,
-		MaxEventQueue:       100,
-		EnableAnalytics:     true,
-		AnalyticsRetention:  30 * 24 * time.Hour, // 30 days
-	}
-}
-
-// NewService creates a new audio service with the given configuration
-func NewService(config ServiceConfig, eventBus *events.EventBus) *Service {
+// NewService creates a new audio service instance.
+//
+// Setting ADEX_DISABLE_AUDIO=1 in the environment skips PCM context creation,
+// which is required for headless test runs where the oto/v3 PCM writer
+// goroutine would otherwise outlive the test binary.
+func NewService() *Service {
 	service := &Service{
-		config:        config,
-		settings:      models.DefaultAudioSettings(),
-		soundpacks:    make(map[string]*models.Soundpack),
-		audioEvents:   make(map[string]*models.AudioEvent),
-		eventMappings: models.DefaultEventMappings(),
-		stats: &models.AudioStats{
-			EventsPlayed:     make(map[string]int),
-			CategoriesPlayed: make(map[string]int),
-			Settings:         make(map[string]interface{}),
-			GeneratedAt:      time.Now(),
-		},
-		playbackQueue: make(chan string, config.MaxEventQueue),
-		audioPlayers:  make(map[string]Player),
-		eventBus:      eventBus,
-		stopChan:      make(chan struct{}),
+		platform:   utils.DetectPlatform(),
+		players:    make(map[string]*oto.Player),
+		soundFiles: make(map[string]string),
+		sessions:   make(map[string]*AudioSession),
+		stopChan:   make(chan struct{}),
+	}
+
+	if os.Getenv("ADEX_DISABLE_AUDIO") == "1" {
+		service.isInitialized = false
+		return service
+	}
+
+	// Try to initialize audio context
+	if err := service.initializeAudio(); err != nil {
+		// Audio not available, but service can still be used for file management
+		service.isInitialized = false
 	}
 
 	return service
 }
 
-// Initialize initializes the audio service
-func (s *Service) Initialize() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Create audio directories if they don't exist
-	if err := os.MkdirAll(s.config.AudioDirectory, 0755); err != nil {
-		return fmt.Errorf("failed to create audio directory: %w", err)
+// initializeAudio sets up the OTO audio context
+func (s *Service) initializeAudio() error {
+	// Configure audio context options
+	op := &oto.NewContextOptions{
+		SampleRate:   44100,
+		ChannelCount: 2,
+		Format:       oto.FormatFloat32LE,
 	}
 
-	if err := os.MkdirAll(s.config.SoundpacksDirectory, 0755); err != nil {
-		return fmt.Errorf("failed to create soundpacks directory: %w", err)
+	// Create audio context
+	otoCtx, readyChan, err := oto.NewContext(op)
+	if err != nil {
+		return fmt.Errorf("failed to create audio context: %w", err)
 	}
 
-	// Load built-in soundpacks
-	if err := s.loadBuiltinSoundpacks(); err != nil {
-		return fmt.Errorf("failed to load built-in soundpacks: %w", err)
-	}
+	s.otoCtx = otoCtx
+	s.readyChan = readyChan
+	s.isInitialized = true
 
-	// Load custom soundpacks from directory
-	if err := s.loadSoundpacksFromDirectory(); err != nil {
-		return fmt.Errorf("failed to load soundpacks from directory: %w", err)
-	}
-
-	// Load settings from file
-	if err := s.loadSettings(); err != nil {
-		// If settings don't exist, create default ones
-		if os.IsNotExist(err) {
-			if err := s.saveSettings(); err != nil {
-				return fmt.Errorf("failed to save default settings: %w", err)
-			}
-		} else {
-			return fmt.Errorf("failed to load settings: %w", err)
-		}
-	}
-
-	// Load analytics data if analytics is enabled
-	if s.config.EnableAnalytics {
-		s.loadAnalytics()
-	}
-
-	// Start background audio processor
-	s.wg.Add(1)
-	go s.audioProcessor()
-
-	// Start analytics processor if enabled
-	if s.config.EnableAnalytics {
-		s.wg.Add(1)
-		go s.analyticsProcessor()
-	}
+	// Start a goroutine to wait for audio to be ready
+	go func() {
+		<-readyChan
+	}()
 
 	return nil
 }
 
-// loadBuiltinSoundpacks loads built-in soundpacks
-func (s *Service) loadBuiltinSoundpacks() error {
-	builtinSoundpacks := models.BuiltinSoundpacks()
-
-	for _, soundpack := range builtinSoundpacks {
-		// Add built-in audio events
-		soundpack.Events = s.createBuiltinAudioEvents(soundpack.ID)
-		s.soundpacks[soundpack.ID] = &soundpack
-
-		// Add audio events to the main map
-		for _, event := range soundpack.Events {
-			s.audioEvents[event.ID] = &event
-		}
-	}
-
-	return nil
+// AudioDevice represents an audio device
+type AudioDevice struct {
+	ID          string
+	Name        string
+	Type        string // input, output, or both
+	IsDefault   bool
+	SampleRate  int
+	Channels    int
+	BufferSize  int
 }
 
-// createBuiltinAudioEvents creates built-in audio events for a soundpack
-func (s *Service) createBuiltinAudioEvents(soundpackID string) []models.AudioEvent {
-	now := time.Now()
-	events := []models.AudioEvent{}
-
-	// Common audio events across all soundpacks
-	baseEvents := []struct {
-		id          string
-		name        string
-		description string
-		category    models.AudioEventType
-		filePath    string
-		duration    int
-	}{
-		{"startup_sound", "Startup Sound", "Application startup sound", models.AudioEventTypeSystem, "startup.mp3", 500},
-		{"shutdown_sound", "Shutdown Sound", "Application shutdown sound", models.AudioEventTypeSystem, "shutdown.mp3", 300},
-		{"terminal_bell", "Terminal Bell", "Terminal bell notification", models.AudioEventTypeNotification, "bell.mp3", 200},
-		{"command_success", "Command Success", "Command executed successfully", models.AudioEventTypeSuccess, "success.mp3", 150},
-		{"command_error", "Command Error", "Command execution failed", models.AudioTypeError, "error.mp3", 400},
-		{"button_click", "Button Click", "Button click sound", models.AudioEventTypeInteraction, "click.mp3", 50},
-		{"menu_open", "Menu Open", "Menu opening sound", models.AudioEventTypeInteraction, "menu_open.mp3", 100},
-		{"notification", "Notification", "System notification sound", models.AudioEventTypeNotification, "notification.mp3", 300},
-		{"file_complete", "File Operation Complete", "File operation completed successfully", models.AudioEventTypeSuccess, "file_complete.mp3", 200},
-		{"file_error", "File Operation Error", "File operation failed", models.AudioTypeError, "file_error.mp3", 350},
-		{"network_connected", "Network Connected", "Network connection established", models.AudioEventTypeNotification, "network_connected.mp3", 250},
-		{"network_disconnected", "Network Disconnected", "Network connection lost", models.AudioEventTypeNotification, "network_disconnected.mp3", 300},
-		{"system_alert", "System Alert", "Important system alert", models.AudioEventTypeSystem, "alert.mp3", 600},
-	}
-
-	for _, event := range baseEvents {
-		audioEvent := models.AudioEvent{
-			ID:          event.id,
-			Name:        event.name,
-			Description: event.description,
-			FilePath:    filepath.Join(s.config.AudioDirectory, soundpackID, event.filePath),
-			Duration:    event.duration,
-			Volume:      75,
-			Category:    event.category,
-			Enabled:     true,
-			CreatedAt:   now,
-		}
-		events = append(events, audioEvent)
-	}
-
-	// Add soundpack-specific events
-	switch soundpackID {
-	case "minimal":
-		for i := range events {
-			events[i].Volume = 50 // Lower volume for minimal pack
-		}
-	case "retro":
-		// Retro-specific events could be added here
-		events = append(events, models.AudioEvent{
-			ID:          "retro_powerup",
-			Name:        "Retro Power Up",
-			Description: "8-bit power up sound",
-			FilePath:    filepath.Join(s.config.AudioDirectory, soundpackID, "powerup.mp3"),
-			Duration:    400,
-			Volume:      80,
-			Category:    models.AudioEventTypeSystem,
-			Enabled:     true,
-			CreatedAt:   now,
-		})
-	case "cyberpunk":
-		// Cyberpunk-specific events could be added here
-		events = append(events, models.AudioEvent{
-			ID:          "cyber_startup",
-			Name:        "Cyber Startup",
-			Description: "Cyberpunk startup sequence",
-			FilePath:    filepath.Join(s.config.AudioDirectory, soundpackID, "cyber_startup.mp3"),
-			Duration:    1200,
-			Volume:      90,
-			Category:    models.AudioEventTypeSystem,
-			Enabled:     true,
-			CreatedAt:   now,
-		})
-	}
-
-	return events
+// AudioSession represents an active audio session
+type AudioSession struct {
+	ID         string
+	DeviceID   string
+	ProcessID  int
+	ProcessName string
+	State      string // playing, paused, stopped
+	Volume     float64
 }
 
-// loadSoundpacksFromDirectory loads custom soundpacks from the directory
-func (s *Service) loadSoundpacksFromDirectory() error {
-	return filepath.WalkDir(s.config.SoundpacksDirectory, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if d.IsDir() {
-			return nil
-		}
-
-		if d.Name() == "" {
-			return nil
-		}
-
-		if filepath.Ext(d.Name()) != ".json" {
-			return nil
-		}
-
-		// Load soundpack from file
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("failed to read soundpack file '%s': %w", path, err)
-		}
-
-		var soundpack models.Soundpack
-		if err := json.Unmarshal(data, &soundpack); err != nil {
-			return fmt.Errorf("failed to unmarshal soundpack from '%s': %w", path, err)
-		}
-
-		// Add soundpack
-		s.soundpacks[soundpack.ID] = &soundpack
-
-		// Add audio events to the main map
-		for _, event := range soundpack.Events {
-			s.audioEvents[event.ID] = &event
-		}
-
-		return nil
-	})
-}
-
-// PlaySound plays a sound effect by ID
-func (s *Service) PlaySound(soundID string) error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	// Check if audio is enabled
-	if !s.settings.Enabled || s.settings.Muted {
-		return nil // Silently fail if audio is disabled
+// GetDevices retrieves available audio devices
+func (s *Service) GetDevices(ctx context.Context) ([]AudioDevice, error) {
+	if !s.platform.HasFeature("audio") {
+		return nil, fmt.Errorf("audio not supported on this platform")
 	}
 
-	// Check if the sound event exists
-	event, exists := s.audioEvents[soundID]
-	if !exists {
-		return fmt.Errorf("audio event '%s' not found", soundID)
-	}
-
-	// Check if the event is enabled
-	if !event.Enabled {
-		return nil
-	}
-
-	// Add to playback queue (non-blocking)
-	select {
-	case s.playbackQueue <- soundID:
-		return nil
+	switch s.platform.Platform.OS {
+	case "windows":
+		return s.getWindowsDevices(ctx)
+	case "darwin":
+		return s.getMacOSDevices(ctx)
 	default:
-		return fmt.Errorf("audio queue is full")
+		return s.getLinuxDevices(ctx)
 	}
 }
 
-// PlayUIEvent plays a sound for a UI event
-func (s *Service) PlayUIEvent(uiEvent string) error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	// Find the audio event mapping for this UI event
-	var highestPriority int = -1
-	var selectedMapping *models.AudioEventMapping
-
-	for i := range s.eventMappings {
-		mapping := &s.eventMappings[i]
-		if mapping.UIEvent == uiEvent && s.settings.IsEventEnabled(mapping.AudioEventID) {
-			if mapping.Priority > highestPriority && mapping.CanPlay() {
-				highestPriority = mapping.Priority
-				selectedMapping = mapping
-			}
-		}
+// PlaySound plays a sound file using oto
+func (s *Service) PlaySound(ctx context.Context, soundPath string) error {
+	if !s.isInitialized {
+		return fmt.Errorf("audio context not initialized")
 	}
 
-	if selectedMapping == nil {
-		return nil // No mapping found or none can play
+	// Check if audio context is ready
+	select {
+	case <-s.readyChan:
+		// Ready to play
+	case <-time.After(5 * time.Second):
+		return fmt.Errorf("audio context not ready")
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 
-	// Update last played time
-	selectedMapping.UpdateLastPlayed()
+	// Open the sound file
+	file, err := os.Open(soundPath)
+	if err != nil {
+		return fmt.Errorf("failed to open sound file: %w", err)
+	}
+	defer file.Close()
+
+	// Create a new player for this sound
+	player := s.otoCtx.NewPlayer(file)
+	if player == nil {
+		return fmt.Errorf("failed to create audio player")
+	}
+
+	// Store the player for management
+	playerID := filepath.Base(soundPath)
+	s.mu.Lock()
+	s.players[playerID] = player
+	s.mu.Unlock()
 
 	// Play the sound
-	return s.PlaySound(selectedMapping.AudioEventID)
+	player.Play()
+
+	// Start a goroutine to clean up when done
+	go func() {
+		for player.IsPlaying() {
+			time.Sleep(100 * time.Millisecond)
+		}
+		player.Close()
+
+		s.mu.Lock()
+		delete(s.players, playerID)
+		s.mu.Unlock()
+	}()
+
+	return nil
 }
 
-// GetSettings returns the current audio settings
-func (s *Service) GetSettings() *models.AudioSettings {
+// PlaySoundFromBytes plays sound from byte data
+func (s *Service) PlaySoundFromBytes(ctx context.Context, soundData []byte, format string) error {
+	if !s.isInitialized {
+		return fmt.Errorf("audio context not initialized")
+	}
+
+	// Check if audio context is ready
+	select {
+	case <-s.readyChan:
+		// Ready to play
+	case <-time.After(5 * time.Second):
+		return fmt.Errorf("audio context not ready")
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	// Create a reader from byte data
+	reader := bytes.NewReader(soundData)
+
+	// Create a new player
+	player := s.otoCtx.NewPlayer(reader)
+	if player == nil {
+		return fmt.Errorf("failed to create audio player")
+	}
+
+	// Store the player
+	playerID := fmt.Sprintf("byte-sound-%d", time.Now().UnixNano())
+	s.mu.Lock()
+	s.players[playerID] = player
+	s.mu.Unlock()
+
+	// Play the sound
+	player.Play()
+
+	// Clean up when done
+	go func() {
+		for player.IsPlaying() {
+			time.Sleep(100 * time.Millisecond)
+		}
+		player.Close()
+
+		s.mu.Lock()
+		delete(s.players, playerID)
+		s.mu.Unlock()
+	}()
+
+	return nil
+}
+
+// StopAllSounds stops all currently playing sounds
+func (s *Service) StopAllSounds() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for id, player := range s.players {
+		player.Close()
+		delete(s.players, id)
+	}
+}
+
+// LoadSoundFile loads a sound file for later playback
+func (s *Service) LoadSoundFile(name, filePath string) error {
+	if _, err := os.Stat(filePath); err != nil {
+		return fmt.Errorf("sound file not found: %w", err)
+	}
+
+	s.mu.Lock()
+	s.soundFiles[name] = filePath
+	s.mu.Unlock()
+
+	return nil
+}
+
+// PlayLoadedSound plays a previously loaded sound
+func (s *Service) PlayLoadedSound(ctx context.Context, soundName string) error {
 	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	// Return a copy to prevent external modifications
-	settingsCopy := *s.settings
-	return &settingsCopy
-}
-
-// UpdateSettings updates the audio settings
-func (s *Service) UpdateSettings(settings *models.AudioSettings) error {
-	if settings == nil {
-		return fmt.Errorf("settings cannot be nil")
-	}
-
-	// Validate settings
-	if err := settings.Validate(); err != nil {
-		return fmt.Errorf("invalid settings: %w", err)
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.settings = settings
-	s.settings.UpdatedAt = time.Now()
-
-	// Save settings to file
-	if err := s.saveSettings(); err != nil {
-		return fmt.Errorf("failed to save settings: %w", err)
-	}
-
-	// Emit settings changed event
-	if s.eventBus != nil {
-		s.eventBus.Publish(context.Background(), "audio:settings_changed", map[string]interface{}{
-			"settings":  settings,
-			"timestamp": time.Now(),
-		}, "audio")
-	}
-
-	return nil
-}
-
-// SetVolume sets the master volume
-func (s *Service) SetVolume(volume int) error {
-	if volume < 0 || volume > 100 {
-		return fmt.Errorf("volume must be between 0 and 100")
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.settings.Volume = volume
-	s.settings.UpdatedAt = time.Now()
-
-	// Save settings
-	if err := s.saveSettings(); err != nil {
-		return fmt.Errorf("failed to save settings: %w", err)
-	}
-
-	// Update all audio players if needed
-	s.updatePlayersVolume()
-
-	return nil
-}
-
-// SetMuted sets the muted state
-func (s *Service) SetMuted(muted bool) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.settings.Muted = muted
-	s.settings.UpdatedAt = time.Now()
-
-	// Save settings
-	if err := s.saveSettings(); err != nil {
-		return fmt.Errorf("failed to save settings: %w", err)
-	}
-
-	// Update all audio players
-	s.updatePlayersVolume()
-
-	return nil
-}
-
-// ToggleMute toggles the muted state
-func (s *Service) ToggleMute() error {
-	s.mu.RLock()
-	currentMuted := s.settings.Muted
+	filePath, exists := s.soundFiles[soundName]
 	s.mu.RUnlock()
 
-	return s.SetMuted(!currentMuted)
-}
-
-// GetSoundpacks returns all available soundpacks
-func (s *Service) GetSoundpacks() []*models.Soundpack {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	soundpacks := make([]*models.Soundpack, 0, len(s.soundpacks))
-	for _, soundpack := range s.soundpacks {
-		soundpacks = append(soundpacks, soundpack)
-	}
-
-	return soundpacks
-}
-
-// GetActiveSoundpack returns the currently active soundpack
-func (s *Service) GetActiveSoundpack() *models.Soundpack {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	return s.soundpacks[s.settings.Soundpack]
-}
-
-// SetSoundpack sets the active soundpack
-func (s *Service) SetSoundpack(soundpackID string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if _, exists := s.soundpacks[soundpackID]; !exists {
-		return fmt.Errorf("soundpack '%s' not found", soundpackID)
-	}
-
-	s.settings.Soundpack = soundpackID
-	s.settings.UpdatedAt = time.Now()
-
-	// Save settings
-	if err := s.saveSettings(); err != nil {
-		return fmt.Errorf("failed to save settings: %w", err)
-	}
-
-	return nil
-}
-
-// GetAudioEvents returns all audio events from the active soundpack
-func (s *Service) GetAudioEvents() []*models.AudioEvent {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	soundpack := s.soundpacks[s.settings.Soundpack]
-	if soundpack == nil {
-		return nil
-	}
-
-	// Return a copy of the events
-	events := make([]*models.AudioEvent, len(soundpack.Events))
-	for i, event := range soundpack.Events {
-		eventCopy := event
-		events[i] = &eventCopy
-	}
-
-	return events
-}
-
-// GetPlaybackStatus returns the current playback status
-func (s *Service) GetPlaybackStatus() *models.AudioPlaybackStatus {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	loadedEvents := make([]string, 0, len(s.audioEvents))
-	for id := range s.audioEvents {
-		loadedEvents = append(loadedEvents, id)
-	}
-
-	return &models.AudioPlaybackStatus{
-		IsPlaying:        s.isPlaying,
-		CurrentEvent:     s.currentEvent,
-		Volume:           float64(s.settings.Volume) / 100.0,
-		Muted:            s.settings.Muted,
-		LoadedEvents:     loadedEvents,
-		SupportedFormats: s.config.SupportedFormats,
-	}
-}
-
-// GetStats returns audio usage statistics
-func (s *Service) GetStats() *models.AudioStats {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	// Return a copy of the stats
-	statsCopy := *s.stats
-	stats := &statsCopy
-
-	// Add current settings
-	stats.Settings = map[string]interface{}{
-		"enabled":              s.settings.Enabled,
-		"volume":               s.settings.Volume,
-		"muted":                s.settings.Muted,
-		"soundpack":            s.settings.Soundpack,
-		"global_volume":        s.settings.GlobalVolume,
-		"effects_volume":       s.settings.EffectsVolume,
-		"notification_volume":  s.settings.NotificationVolume,
-		"auto_play":            s.settings.AutoPlay,
-		"enabled_events_count": len(s.settings.EnabledEvents),
-	}
-
-	return stats
-}
-
-// ResetStats resets the audio statistics
-func (s *Service) ResetStats() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.stats = &models.AudioStats{
-		EventsPlayed:     make(map[string]int),
-		CategoriesPlayed: make(map[string]int),
-		Settings:         make(map[string]interface{}),
-		GeneratedAt:      time.Now(),
-	}
-
-	// Save analytics
-	if s.config.EnableAnalytics {
-		return s.saveAnalytics()
-	}
-
-	return nil
-}
-
-// EnableAudio enables or disables audio
-func (s *Service) EnableAudio(enabled bool) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.settings.Enabled = enabled
-	s.settings.UpdatedAt = time.Now()
-
-	// Save settings
-	if err := s.saveSettings(); err != nil {
-		return fmt.Errorf("failed to save settings: %w", err)
-	}
-
-	return nil
-}
-
-// audioProcessor processes the audio playback queue
-func (s *Service) audioProcessor() {
-	defer s.wg.Done()
-
-	for {
-		select {
-		case soundID := <-s.playbackQueue:
-			s.processAudioEvent(soundID)
-		case <-s.stopChan:
-			return
-		}
-	}
-}
-
-// processAudioEvent processes a single audio event
-func (s *Service) processAudioEvent(soundID string) {
-	s.mu.Lock()
-	event, exists := s.audioEvents[soundID]
 	if !exists {
-		s.mu.Unlock()
-		return
+		return fmt.Errorf("sound not loaded: %s", soundName)
 	}
 
-	// Check if audio is enabled
-	if !s.settings.Enabled || s.settings.Muted {
-		s.mu.Unlock()
-		return
+	return s.PlaySound(ctx, filePath)
+}
+
+// GetActiveSessions retrieves active audio sessions
+func (s *Service) GetActiveSessions(ctx context.Context) ([]AudioSession, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var sessions []AudioSession
+	for _, session := range s.sessions {
+		sessions = append(sessions, *session)
 	}
 
-	s.isPlaying = true
-	s.currentEvent = event
-	s.mu.Unlock()
+	return sessions, nil
+}
 
-	// Update statistics
-	if s.config.EnableAnalytics {
-		s.updateStats(event)
+// SetDeviceVolume sets the volume for a device
+func (s *Service) SetDeviceVolume(ctx context.Context, deviceID string, volume float64) error {
+	if volume < 0 || volume > 1 {
+		return fmt.Errorf("volume must be between 0 and 1")
 	}
 
-	// Create player if it doesn't exist
-	player, exists := s.audioPlayers[soundID]
-	if !exists {
-		player = NewPlayer(event) // Implementation needed
-		s.audioPlayers[soundID] = player
-	}
-
-	// Calculate effective volume
-	effectiveVolume := s.settings.CalculateEffectiveVolume(event.Category)
-
-	// Play the audio
-	if err := player.Play(event, effectiveVolume); err != nil {
-		// Log error but don't crash
-		fmt.Printf("Failed to play audio '%s': %v\n", soundID, err)
-	}
-
-	s.mu.Lock()
-	s.isPlaying = false
-	s.currentEvent = nil
-	s.mu.Unlock()
-}
-
-// updateStats updates audio statistics
-func (s *Service) updateStats(event *models.AudioEvent) {
-	s.stats.TotalPlays++
-	s.stats.EventsPlayed[event.ID]++
-	s.stats.CategoriesPlayed[string(event.Category)]++
-	s.stats.LastPlayed = time.Now()
-
-	// Update most played event
-	if s.stats.EventsPlayed[event.ID] > s.stats.EventsPlayed[s.stats.MostPlayedEvent] {
-		s.stats.MostPlayedEvent = event.ID
-	}
-
-	// Update average volume (simplified calculation)
-	totalEvents := len(s.stats.EventsPlayed)
-	if totalEvents > 0 {
-		s.stats.AverageVolume = (s.stats.AverageVolume*float64(totalEvents-1) + float64(event.Volume)/100.0) / float64(totalEvents)
-	}
-}
-
-// updatePlayersVolume updates volume for all active audio players
-func (s *Service) updatePlayersVolume() {
-	// Implementation would update volume for all players
-	// This is a simplified version - in practice you'd iterate through players
-}
-
-// saveSettings saves audio settings to file
-func (s *Service) saveSettings() error {
-	settingsPath := filepath.Join(s.config.AudioDirectory, "settings.json")
-	data, err := json.MarshalIndent(s.settings, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal settings: %w", err)
-	}
-
-	if err := os.WriteFile(settingsPath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write settings file: %w", err)
-	}
-
-	return nil
-}
-
-// loadSettings loads audio settings from file
-func (s *Service) loadSettings() error {
-	settingsPath := filepath.Join(s.config.AudioDirectory, "settings.json")
-	data, err := os.ReadFile(settingsPath)
-	if err != nil {
-		return err
-	}
-
-	var settings models.AudioSettings
-	if err := json.Unmarshal(data, &settings); err != nil {
-		return err
-	}
-
-	s.settings = &settings
-	return nil
-}
-
-// analyticsProcessor processes analytics data periodically
-func (s *Service) analyticsProcessor() {
-	defer s.wg.Done()
-
-	ticker := time.NewTicker(1 * time.Hour)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			s.cleanupAnalytics()
-		case <-s.stopChan:
-			return
-		}
-	}
-}
-
-// cleanupAnalytics removes old analytics data
-func (s *Service) cleanupAnalytics() {
-	// Remove analytics data older than retention period
-	// Implementation would clean up old analytics data
-}
-
-// loadAnalytics loads analytics data from file
-func (s *Service) loadAnalytics() {
-	analyticsPath := filepath.Join(s.config.AudioDirectory, "analytics.json")
-	data, err := os.ReadFile(analyticsPath)
-	if err != nil {
-		// Analytics file doesn't exist yet, that's OK
-		return
-	}
-
-	var stats models.AudioStats
-	if err := json.Unmarshal(data, &stats); err != nil {
-		// Invalid analytics file, ignore it
-		return
-	}
-
-	s.stats = &stats
-}
-
-// saveAnalytics saves analytics data to file
-func (s *Service) saveAnalytics() error {
-	analyticsPath := filepath.Join(s.config.AudioDirectory, "analytics.json")
-	data, err := json.MarshalIndent(s.stats, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal analytics: %w", err)
-	}
-
-	if err := os.WriteFile(analyticsPath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write analytics file: %w", err)
-	}
-
-	return nil
-}
-
-// Cleanup stops the audio service and cleans up resources
-func (s *Service) Cleanup() error {
-	// Stop background processors
-	close(s.stopChan)
-	s.wg.Wait()
-
-	// Stop all audio players
-	s.mu.Lock()
-	for _, player := range s.audioPlayers {
-		player.Stop()
-		player.Cleanup()
-	}
-	s.audioPlayers = make(map[string]Player)
-	s.mu.Unlock()
-
-	// Save final analytics and settings
-	if s.config.EnableAnalytics {
-		if err := s.saveAnalytics(); err != nil {
-			fmt.Printf("Warning: failed to save analytics: %v\n", err)
-		}
-	}
-
-	if err := s.saveSettings(); err != nil {
-		fmt.Printf("Warning: failed to save settings: %v\n", err)
-	}
-
-	return nil
-}
-
-// NewPlayer creates a new audio player (placeholder implementation)
-func NewPlayer(event *models.AudioEvent) Player {
-	// This would be implemented with actual audio playback logic
-	// For now, return a no-op player
-	return &NoOpPlayer{}
-}
-
-// NoOpPlayer is a placeholder player that does nothing
-type NoOpPlayer struct{}
-
-func (p *NoOpPlayer) Play(event *models.AudioEvent, volume float64) error {
-	return nil
-}
-
-func (p *NoOpPlayer) Stop() error {
-	return nil
-}
-
-func (p *NoOpPlayer) IsPlaying() bool {
-	return false
-}
-
-func (p *NoOpPlayer) GetDuration() time.Duration {
-	return 0
-}
-
-func (p *NoOpPlayer) SetVolume(volume float64) error {
-	return nil
-}
-
-func (p *NoOpPlayer) Cleanup() error {
-	return nil
-}
-
-// AudioSessionDetector handles detection of audio sessions and background state
-type AudioSessionDetector struct {
-	isAppInBackground bool
-	otherAppsPlaying  bool
-	lastCheckTime     time.Time
-	checkInterval     time.Duration
-	mu                sync.RWMutex
-}
-
-// NewAudioSessionDetector creates a new audio session detector
-func NewAudioSessionDetector() *AudioSessionDetector {
-	return &AudioSessionDetector{
-		checkInterval: 1 * time.Second,
-	}
-}
-
-// IsAppInBackground checks if the application is in the background
-func (d *AudioSessionDetector) IsAppInBackground() bool {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.isAppInBackground
-}
-
-// SetAppInBackground sets the background state of the application
-func (d *AudioSessionDetector) SetAppInBackground(inBackground bool) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	d.isAppInBackground = inBackground
-}
-
-// IsOtherAppsPlaying checks if other applications are playing audio
-func (d *AudioSessionDetector) IsOtherAppsPlaying() bool {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.otherAppsPlaying
-}
-
-// CheckAudioSessions checks if other applications are playing audio
-func (d *AudioSessionDetector) CheckAudioSessions(ctx context.Context) (bool, error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	// Check if we need to update
-	if time.Since(d.lastCheckTime) < d.checkInterval {
-		return d.otherAppsPlaying, nil
-	}
-
-	d.lastCheckTime = time.Now()
-
-	// Platform-specific audio session detection
-	var playing bool
-	var err error
-
-	switch runtime.GOOS {
-	case "linux":
-		playing, err = d.checkLinuxAudioSessions(ctx)
-	case "darwin":
-		playing, err = d.checkMacOSAudioSessions(ctx)
+	switch s.platform.Platform.OS {
 	case "windows":
-		playing, err = d.checkWindowsAudioSessions(ctx)
+		return s.setWindowsVolume(ctx, deviceID, volume)
+	case "darwin":
+		return s.setMacOSVolume(ctx, deviceID, volume)
 	default:
-		return false, fmt.Errorf("audio session detection not supported on %s", runtime.GOOS)
-	}
-
-	if err == nil {
-		d.otherAppsPlaying = playing
-	}
-
-	return playing, err
-}
-
-// checkLinuxAudioSessions checks for active audio sessions on Linux
-func (d *AudioSessionDetector) checkLinuxAudioSessions(ctx context.Context) (bool, error) {
-	// Try PulseAudio first
-	cmd := exec.CommandContext(ctx, "pactl", "list", "sink-inputs", "short")
-	output, err := cmd.Output()
-	if err == nil {
-		// If there are any sink inputs, audio is playing
-		lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-		if len(lines) > 0 && lines[0] != "" {
-			return true, nil
-		}
-		return false, nil
-	}
-
-	// Try PipeWire
-	cmd = exec.CommandContext(ctx, "pw-cli", "list-objects")
-	output, err = cmd.Output()
-	if err == nil {
-		// Check for active streams
-		if strings.Contains(string(output), "type: PipeWire:Interface:Node") {
-			// Simplified check - in production would parse more carefully
-			return true, nil
-		}
-		return false, nil
-	}
-
-	// Neither PulseAudio nor PipeWire available
-	return false, fmt.Errorf("no audio system detected (tried PulseAudio and PipeWire)")
-}
-
-// checkMacOSAudioSessions checks for active audio sessions on macOS
-func (d *AudioSessionDetector) checkMacOSAudioSessions(ctx context.Context) (bool, error) {
-	// Use coreaudiod status or check for active audio streams
-	// This is a simplified implementation - full implementation would use CoreAudio API
-
-	// Check if any application is outputting audio using pmset
-	cmd := exec.CommandContext(ctx, "pmset", "-g", "assertions")
-	output, err := cmd.Output()
-	if err == nil {
-		// Check for audio-related assertions
-		if strings.Contains(string(output), "PreventUserIdleSystemSleep") ||
-			strings.Contains(string(output), "Audio") {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-// checkWindowsAudioSessions checks for active audio sessions on Windows
-func (d *AudioSessionDetector) checkWindowsAudioSessions(ctx context.Context) (bool, error) {
-	// On Windows, we would use WASAPI to check for active audio sessions
-	// This requires CGO bindings to Windows APIs
-	// For now, return an error indicating full implementation is needed
-
-	// PowerShell command to check for active audio sessions
-	cmd := exec.CommandContext(ctx, "powershell", "-Command",
-		`Get-AudioDevice -PlaybackMute`)
-	_, err := cmd.Output()
-	if err != nil {
-		// AudioDevice cmdlet not available, use alternative method
-		// Check if any process has audio enabled (simplified)
-		return false, fmt.Errorf("Windows audio session detection requires AudioDevice module")
-	}
-
-	return false, nil
-}
-
-// GetAudioSessionInfo returns information about current audio sessions
-func (d *AudioSessionDetector) GetAudioSessionInfo() map[string]interface{} {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-
-	return map[string]interface{}{
-		"app_in_background":  d.isAppInBackground,
-		"other_apps_playing": d.otherAppsPlaying,
-		"last_check_time":    d.lastCheckTime,
-		"check_interval_ms":  d.checkInterval.Milliseconds(),
-		"platform":           runtime.GOOS,
+		return s.setLinuxVolume(ctx, deviceID, volume)
 	}
 }
 
-// HandleBackgroundStateChange handles application background state changes
-func (s *Service) HandleBackgroundStateChange(inBackground bool) error {
+// GetDeviceVolume gets the current volume for a device
+func (s *Service) GetDeviceVolume(ctx context.Context, deviceID string) (float64, error) {
+	switch s.platform.Platform.OS {
+	case "windows":
+		return s.getWindowsVolume(ctx, deviceID)
+	case "darwin":
+		return s.getMacOSVolume(ctx, deviceID)
+	default:
+		return s.getLinuxVolume(ctx, deviceID)
+	}
+}
+
+// MuteDevice mutes/unmutes a device
+func (s *Service) MuteDevice(ctx context.Context, deviceID string, muted bool) error {
+	switch s.platform.Platform.OS {
+	case "windows":
+		return s.muteWindowsDevice(ctx, deviceID, muted)
+	case "darwin":
+		return s.muteMacOSDevice(ctx, deviceID, muted)
+	default:
+		return s.muteLinuxDevice(ctx, deviceID, muted)
+	}
+}
+
+// SetDefaultDevice sets a device as default
+func (s *Service) SetDefaultDevice(ctx context.Context, deviceID string) error {
+	switch s.platform.Platform.OS {
+	case "windows":
+		return s.setWindowsDefaultDevice(ctx, deviceID)
+	case "darwin":
+		return s.setMacOSDefaultDevice(ctx, deviceID)
+	default:
+		return s.setLinuxDefaultDevice(ctx, deviceID)
+	}
+}
+
+// StartMonitoring starts audio monitoring
+func (s *Service) StartMonitoring(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Check if we should mute in background
-	if s.settings.MuteInBackground {
-		if inBackground && !s.settings.Muted {
-			// Store current mute state and mute
-			s.settings.Muted = true
-
-			// Emit event
-			if s.eventBus != nil {
-				s.eventBus.Publish(context.Background(), "audio:muted_background", map[string]interface{}{
-					"muted":     true,
-					"reason":    "app_in_background",
-					"timestamp": time.Now(),
-				}, "audio")
-			}
-		} else if !inBackground && s.settings.Muted {
-			// Restore audio when coming to foreground
-			s.settings.Muted = false
-
-			// Emit event
-			if s.eventBus != nil {
-				s.eventBus.Publish(context.Background(), "audio:unmuted_foreground", map[string]interface{}{
-					"muted":     false,
-					"reason":    "app_in_foreground",
-					"timestamp": time.Now(),
-				}, "audio")
-			}
-		}
+	if s.isMonitoring {
+		return fmt.Errorf("audio monitoring is already running")
 	}
 
-	return nil
-}
+	s.isMonitoring = true
+	ticker := time.NewTicker(5 * time.Second)
 
-// StartBackgroundMonitor starts monitoring for background state and audio sessions
-func (s *Service) StartBackgroundMonitor(detector *AudioSessionDetector, checkInterval time.Duration) {
-	s.wg.Add(1)
 	go func() {
-		defer s.wg.Done()
-
-		ticker := time.NewTicker(checkInterval)
 		defer ticker.Stop()
+		defer func() { s.isMonitoring = false }()
 
 		for {
 			select {
 			case <-ticker.C:
-				// Check audio sessions
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				_, _ = detector.CheckAudioSessions(ctx)
-				cancel()
+				s.updateAudioSessions(ctx)
 
-				// Handle background state
-				if detector.IsAppInBackground() && s.settings.MuteInBackground {
-					s.HandleBackgroundStateChange(true)
-				}
 			case <-s.stopChan:
+				return
+
+			case <-ctx.Done():
 				return
 			}
 		}
 	}()
+
+	return nil
 }
 
-// GetActiveAudioSessions returns a list of active audio session names (Linux only for now)
-func GetActiveAudioSessions(ctx context.Context) ([]string, error) {
-	if runtime.GOOS != "linux" {
-		return nil, fmt.Errorf("active session listing only supported on Linux")
+// StopMonitoring stops audio monitoring
+func (s *Service) StopMonitoring() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if !s.isMonitoring {
+		return nil
 	}
 
-	cmd := exec.CommandContext(ctx, "pactl", "list", "sink-inputs")
+	close(s.stopChan)
+	s.stopChan = make(chan struct{})
+	s.isMonitoring = false
+
+	return nil
+}
+
+// Shutdown stops monitoring, closes any active players, and suspends the
+// oto PCM context so its CGO writer goroutine winds down. Without this,
+// the goroutine outlives the test binary on Linux ALSA and `go test` hangs.
+//
+// Suspend() is the closest oto/v3 offers to a teardown — it stops the
+// writei loop until Resume() is called. We don't Resume in the same
+// process; a fresh NewService() will create a new context.
+func (s *Service) Shutdown(ctx context.Context) error {
+	// Stop the monitoring goroutine first (uses its own lock).
+	_ = s.StopMonitoring()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, p := range s.players {
+		p.Close()
+	}
+	s.players = nil
+
+	if s.otoCtx != nil {
+		// Best-effort suspend; we don't fail Shutdown on a suspend error
+		// because the PCM device may already be in an unrecoverable state.
+		_ = s.otoCtx.Suspend()
+		s.otoCtx = nil
+	}
+	s.isInitialized = false
+	return nil
+}
+
+// Platform-specific device detection methods
+
+// getWindowsDevices retrieves audio devices on Windows
+func (s *Service) getWindowsDevices(ctx context.Context) ([]AudioDevice, error) {
+	var devices []AudioDevice
+
+	// Try to use PowerShell to get audio devices
+	cmd := exec.CommandContext(ctx, "powershell", "-Command",
+		"Get-WmiObject -Class Win32_SoundDevice | Select-Object Name, DeviceID | ConvertTo-Json")
+
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list audio sessions: %w", err)
+		// Fallback: return default devices
+		return []AudioDevice{
+			{
+				ID:         "default",
+				Name:       "Default Audio Device",
+				Type:       "output",
+				IsDefault:  true,
+				SampleRate: 44100,
+				Channels:   2,
+				BufferSize: 1024,
+			},
+		}, nil
 	}
 
-	var sessions []string
+	// Parse PowerShell output (simplified)
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
-		if strings.Contains(line, "application.name") {
-			parts := strings.Split(line, "=")
-			if len(parts) >= 2 {
-				name := strings.Trim(strings.TrimSpace(parts[1]), "\"")
-				sessions = append(sessions, name)
+		if strings.Contains(line, "Name") {
+			// Extract device name (simplified parsing)
+			name := strings.TrimSpace(strings.Split(line, ":")[1])
+			if name != "" {
+				devices = append(devices, AudioDevice{
+					ID:         fmt.Sprintf("windows-%d", len(devices)),
+					Name:       strings.Trim(name, `",`),
+					Type:       "output",
+					IsDefault:  len(devices) == 0,
+					SampleRate: 44100,
+					Channels:   2,
+					BufferSize: 1024,
+				})
 			}
 		}
 	}
 
-	return sessions, nil
+	return devices, nil
+}
+
+// getMacOSDevices retrieves audio devices on macOS
+func (s *Service) getMacOSDevices(ctx context.Context) ([]AudioDevice, error) {
+	var devices []AudioDevice
+
+	// Use system_profiler to get audio devices
+	cmd := exec.CommandContext(ctx, "system_profiler", "SPAudioDataType", "-json")
+	output, err := cmd.Output()
+	if err != nil {
+		// Fallback: use switchaudio-osx or return default
+		return []AudioDevice{
+			{
+				ID:         "default",
+				Name:       "Built-in Output",
+				Type:       "output",
+				IsDefault:  true,
+				SampleRate: 44100,
+				Channels:   2,
+				BufferSize: 1024,
+			},
+		}, nil
+	}
+
+	// Parse system_profiler output (simplified)
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "_name") && !strings.Contains(line, "Device") {
+			name := strings.TrimSpace(strings.Split(line, ":")[1])
+			if name != "" && name != `""` {
+				devices = append(devices, AudioDevice{
+					ID:         fmt.Sprintf("macos-%d", len(devices)),
+					Name:       strings.Trim(name, `",`),
+					Type:       "output",
+					IsDefault:  len(devices) == 0,
+					SampleRate: 44100,
+					Channels:   2,
+					BufferSize: 1024,
+				})
+			}
+		}
+	}
+
+	return devices, nil
+}
+
+// getLinuxDevices retrieves audio devices on Linux
+func (s *Service) getLinuxDevices(ctx context.Context) ([]AudioDevice, error) {
+	// Try to use pactl (PulseAudio) first
+	cmd := exec.CommandContext(ctx, "pactl", "list", "sinks")
+	output, err := cmd.Output()
+	if err == nil {
+		return s.parsePulseAudioDevices(string(output)), nil
+	}
+
+	// Fallback to ALSA
+	cmd = exec.CommandContext(ctx, "aplay", "-l")
+	output, err = cmd.Output()
+	if err == nil {
+		return s.parseALSADevices(string(output)), nil
+	}
+
+	// Final fallback
+	return []AudioDevice{
+		{
+			ID:         "default",
+			Name:       "Default Audio Device",
+			Type:       "output",
+			IsDefault:  true,
+			SampleRate: 44100,
+			Channels:   2,
+			BufferSize: 1024,
+		},
+	}, nil
+}
+
+// parsePulseAudioDevices parses pactl output
+func (s *Service) parsePulseAudioDevices(output string) []AudioDevice {
+	var devices []AudioDevice
+	lines := strings.Split(output, "\n")
+
+	var currentDevice *AudioDevice
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "Sink #") {
+			if currentDevice != nil {
+				devices = append(devices, *currentDevice)
+			}
+			currentDevice = &AudioDevice{
+				Type:       "output",
+				SampleRate: 44100,
+				Channels:   2,
+				BufferSize: 1024,
+			}
+		} else if strings.HasPrefix(line, "Description:") && currentDevice != nil {
+			currentDevice.Name = strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
+			currentDevice.ID = fmt.Sprintf("pulse-%d", len(devices))
+			currentDevice.IsDefault = len(devices) == 0
+		}
+	}
+
+	if currentDevice != nil {
+		devices = append(devices, *currentDevice)
+	}
+
+	return devices
+}
+
+// parseALSADevices parses aplay output
+func (s *Service) parseALSADevices(output string) []AudioDevice {
+	var devices []AudioDevice
+	lines := strings.Split(output, "\n")
+
+	for _, line := range lines {
+		if strings.Contains(line, "card") && strings.Contains(line, "device") {
+			parts := strings.Fields(line)
+			if len(parts) >= 5 {
+				name := strings.Join(parts[2:], " ")
+				name = strings.Trim(name, "[]")
+				devices = append(devices, AudioDevice{
+					ID:         fmt.Sprintf("alsa-%d", len(devices)),
+					Name:       name,
+					Type:       "output",
+					IsDefault:  len(devices) == 0,
+					SampleRate: 44100,
+					Channels:   2,
+					BufferSize: 1024,
+				})
+			}
+		}
+	}
+
+	return devices
+}
+
+// Platform-specific volume control methods
+
+// setWindowsVolume sets volume on Windows using PowerShell
+func (s *Service) setWindowsVolume(ctx context.Context, deviceID string, volume float64) error {
+	cmd := exec.CommandContext(ctx, "powershell", "-Command",
+		fmt.Sprintf("(New-Object -comObject WScript.Shell).SendKeys([char]175)"))
+	return cmd.Run()
+}
+
+// setMacOSVolume sets volume on macOS using osascript
+func (s *Service) setMacOSVolume(ctx context.Context, deviceID string, volume float64) error {
+	volumePercent := int(volume * 100)
+	cmd := exec.CommandContext(ctx, "osascript", "-e",
+		fmt.Sprintf("set volume output volume %d", volumePercent))
+	return cmd.Run()
+}
+
+// setLinuxVolume sets volume on Linux using amixer
+func (s *Service) setLinuxVolume(ctx context.Context, deviceID string, volume float64) error {
+	volumePercent := int(volume * 100)
+	cmd := exec.CommandContext(ctx, "amixer", "sset", "Master", fmt.Sprintf("%d%%", volumePercent))
+	return cmd.Run()
+}
+
+// getWindowsVolume gets current volume on Windows
+func (s *Service) getWindowsVolume(ctx context.Context, deviceID string) (float64, error) {
+	cmd := exec.CommandContext(ctx, "powershell", "-Command",
+		"Get-AudioDevice -List | Where-Object {$_.Type -eq 'Playback'} | Select-Object -First 1 | Get-AudioDeviceVolume")
+
+	output, err := cmd.Output()
+	if err != nil {
+		return 0.5, nil // Return default volume on error
+	}
+
+	// Parse output to get volume percentage (simplified)
+	volumeStr := strings.TrimSpace(string(output))
+	if volumeStr == "" {
+		return 0.5, nil
+	}
+
+	// Default to 50% if parsing fails
+	return 0.5, nil
+}
+
+// getMacOSVolume gets current volume on macOS
+func (s *Service) getMacOSVolume(ctx context.Context, deviceID string) (float64, error) {
+	cmd := exec.CommandContext(ctx, "osascript", "-e", "output volume of (get volume settings)")
+
+	output, err := cmd.Output()
+	if err != nil {
+		return 0.5, nil
+	}
+
+	volumeStr := strings.TrimSpace(string(output))
+	volume := 0.5
+	if volumeStr != "" {
+		if vol, err := strconv.Atoi(volumeStr); err == nil {
+			volume = float64(vol) / 100.0
+		}
+	}
+
+	return volume, nil
+}
+
+// getLinuxVolume gets current volume on Linux
+func (s *Service) getLinuxVolume(ctx context.Context, deviceID string) (float64, error) {
+	cmd := exec.CommandContext(ctx, "amixer", "get", "Master")
+
+	output, err := cmd.Output()
+	if err != nil {
+		return 0.5, nil
+	}
+
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "[") && strings.Contains(line, "%]") {
+			start := strings.LastIndex(line, "[") + 1
+			end := strings.LastIndex(line, "%]")
+			if start > 0 && end > start {
+				volumeStr := line[start:end]
+				if volume, err := strconv.Atoi(volumeStr); err == nil {
+					return float64(volume) / 100.0, nil
+				}
+			}
+		}
+	}
+
+	return 0.5, nil
+}
+
+// muteWindowsDevice mutes/unmutes device on Windows
+func (s *Service) muteWindowsDevice(ctx context.Context, deviceID string, muted bool) error {
+	if muted {
+		cmd := exec.CommandContext(ctx, "powershell", "-Command",
+			"(New-Object -comObject WScript.Shell).SendKeys([char]173)")
+		return cmd.Run()
+	} else {
+		cmd := exec.CommandContext(ctx, "powershell", "-Command",
+			"(New-Object -comObject WScript.Shell).SendKeys([char]173)")
+		return cmd.Run()
+	}
+}
+
+// muteMacOSDevice mutes/unmutes device on macOS
+func (s *Service) muteMacOSDevice(ctx context.Context, deviceID string, muted bool) error {
+	if muted {
+		cmd := exec.CommandContext(ctx, "osascript", "-e", "set volume with output muted")
+		return cmd.Run()
+	} else {
+		cmd := exec.CommandContext(ctx, "osascript", "-e", "set volume without output muted")
+		return cmd.Run()
+	}
+}
+
+// muteLinuxDevice mutes/unmutes device on Linux
+func (s *Service) muteLinuxDevice(ctx context.Context, deviceID string, muted bool) error {
+	cmd := exec.CommandContext(ctx, "amixer", "sset", "Master", func() string {
+		if muted {
+			return "mute"
+		}
+		return "unmute"
+	}())
+	return cmd.Run()
+}
+
+// setWindowsDefaultDevice sets default device on Windows
+func (s *Service) setWindowsDefaultDevice(ctx context.Context, deviceID string) error {
+	cmd := exec.CommandContext(ctx, "powershell", "-Command",
+		fmt.Sprintf("Set-AudioDevice -ID %s", deviceID))
+	return cmd.Run()
+}
+
+// setMacOSDefaultDevice sets default device on macOS
+func (s *Service) setMacOSDefaultDevice(ctx context.Context, deviceID string) error {
+	// macOS default device switching is more complex and typically requires
+	// using third-party tools or system preferences modifications
+	return fmt.Errorf("setting default audio device on macOS is not supported")
+}
+
+// setLinuxDefaultDevice sets default device on Linux
+func (s *Service) setLinuxDefaultDevice(ctx context.Context, deviceID string) error {
+	cmd := exec.CommandContext(ctx, "pacmd", "set-default-sink", deviceID)
+	return cmd.Run()
+}
+
+// updateAudioSessions updates the list of active audio sessions
+func (s *Service) updateAudioSessions(ctx context.Context) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Clear current sessions
+	s.sessions = make(map[string]*AudioSession)
+
+	// Get current sessions based on platform
+	switch s.platform.Platform.OS {
+	case "windows":
+		s.updateWindowsSessions(ctx)
+	case "darwin":
+		s.updateMacOSSessions(ctx)
+	default:
+		s.updateLinuxSessions(ctx)
+	}
+}
+
+// updateWindowsSessions updates audio sessions on Windows
+func (s *Service) updateWindowsSessions(ctx context.Context) {
+	// Placeholder for Windows session detection
+	// This would use Windows APIs to enumerate audio sessions
+}
+
+// updateMacOSSessions updates audio sessions on macOS
+func (s *Service) updateMacOSSessions(ctx context.Context) {
+	// Placeholder for macOS session detection
+	// This would use CoreAudio APIs to enumerate audio sessions
+}
+
+// updateLinuxSessions updates audio sessions on Linux
+func (s *Service) updateLinuxSessions(ctx context.Context) {
+	// Placeholder for Linux session detection
+	// This would use PulseAudio or ALSA APIs to enumerate audio sessions
 }

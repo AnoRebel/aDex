@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"aDex-UI/backend/services/coordinator"
+	"aDex-UI/internal/services/coordinator"
 )
 
 // NewTestCoordinator builds a fresh ServiceCoordinator rooted at a temporary

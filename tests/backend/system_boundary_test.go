@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"aDex-UI/backend/services/system"
+	"aDex-UI/internal/services/system"
 )
 
 // Section 5.B boundary tests for the system monitor service. Exercises

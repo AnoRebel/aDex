@@ -782,7 +782,7 @@ wails3 generate bindings -ts
 
 This regenerates `frontend/bindings/`, laid out by Go import path — the
 coordinator lands at
-`frontend/bindings/aDex-UI/backend/services/coordinator/`. Generation is by
+`frontend/bindings/aDex-UI/internal/services/coordinator/`. Generation is by
 static analysis of the Go source, so the output cannot drift from the
 implementation, and it preserves doc comments and real parameter names.
 The directory is build output and is gitignored.
@@ -858,3 +858,19 @@ exact capture list per feature.
 ---
 
 Happy coding! 🚀
+## Go package layout
+
+All Go code lives under `internal/`. There is no `backend/` tree — it was
+merged into `internal/` during the Wails v3 migration.
+
+- `internal/services/` — the service implementations, composed by
+  `internal/services/coordinator`, which is the single Wails v3 service
+  registered in `main.go`.
+- `internal/models/` — shared data types crossing the Go/JS boundary.
+- `internal/utils/`, `internal/logger/`, `internal/events/` — support packages.
+
+Before the migration, five services (audio, filesystem, system, terminal,
+theme) existed in both trees. The `internal/` copies had no importers and,
+despite being 3–10x larger, did not implement the methods the coordinator
+calls — they were an abandoned design rather than a fuller implementation, and
+were deleted. See `docs/evidence/wails-v3-migration/service-consolidation-verdicts.md`.

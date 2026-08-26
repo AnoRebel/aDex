@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"testing"
 
-	"aDex-UI/backend/services/filesystem"
+	"aDex-UI/internal/services/filesystem"
 )
 
 // Section 5.D boundary tests for the filesystem service. Mirrors what the

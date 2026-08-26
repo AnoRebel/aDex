@@ -4,7 +4,7 @@ import { useDebounceFn, useThrottleFn, useIntervalFn } from '@vueuse/core'
 import { useWails } from './useWails'
 // import { ServiceCoordinator } from '~/wailsjs/go/backend/services/coordinator/ServiceCoordinator'
 import type { SystemInfo, SystemStats, Process, SystemMetrics, CPUMetrics, MemoryMetrics, ProcessMetrics, DiskMetrics, NetworkMetrics, TemperatureMetrics } from '~/types/system'
-// import type { SystemInfo as WailsSystemInfo, MemoryInfo, DiskInfo, NetworkInfo } from '../../bindings/aDex-UI/backend/services/system/models'
+// import type { SystemInfo as WailsSystemInfo, MemoryInfo, DiskInfo, NetworkInfo } from '../../bindings/aDex-UI/internal/services/system/models'
 import { handleBackendError, handleComponentError } from '~/utils/errorHandler'
 import { createLoading, completeLoading } from '~/utils/loadingStates'
 

@@ -11,7 +11,7 @@
 // `window.go.coordinator.*` by hand; v3 calls generated, typed stubs instead,
 // so anything new belongs in the Go service and comes across on regeneration.
 
-export * from '../../../bindings/aDex-UI/backend/services/coordinator/servicecoordinator.js'
+export * from '../../../bindings/aDex-UI/internal/services/coordinator/servicecoordinator.js'
 
 import {
   GetColorSchemes,
@@ -29,7 +29,7 @@ import {
   Initialize,
   StartMonitoring,
   Shutdown,
-} from '../../../bindings/aDex-UI/backend/services/coordinator/servicecoordinator.js'
+} from '../../../bindings/aDex-UI/internal/services/coordinator/servicecoordinator.js'
 
 // Historical short aliases. The Go methods are named *ColorScheme*; earlier
 // frontend code used the shorter forms, so both spellings stay valid.

@@ -4,7 +4,7 @@ import (
 	"embed"
 	"log"
 
-	"aDex-UI/backend/services/coordinator"
+	"aDex-UI/internal/services/coordinator"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 

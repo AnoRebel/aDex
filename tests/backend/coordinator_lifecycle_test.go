@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"aDex-UI/backend/services/coordinator"
+	"aDex-UI/internal/services/coordinator"
 	"aDex-UI/internal/events"
 )
 

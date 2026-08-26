@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"gopkg.in/yaml.v3"
-	"aDex-UI/backend/utils"
+	"aDex-UI/internal/utils"
 )
 
 // Service handles configuration management

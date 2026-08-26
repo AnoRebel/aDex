@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"aDex-UI/backend/services/terminal"
+	"aDex-UI/internal/services/terminal"
 )
 
 // These boundary tests exercise the terminal service's CWD methods directly
