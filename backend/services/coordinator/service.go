@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+	"os"
 	"path/filepath"
 	"sync"
 	"time"
@@ -16,10 +19,14 @@ import (
 	"aDex-UI/backend/services/theme"
 	"aDex-UI/backend/utils"
 	"aDex-UI/internal/events"
+	"aDex-UI/internal/logger"
 	"aDex-UI/internal/models"
 	"aDex-UI/internal/services/colorscheme"
 	"aDex-UI/internal/services/font"
 	"aDex-UI/internal/services/network"
+	"aDex-UI/internal/services/settings"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // convertToStruct converts an interface{} to a specific struct using JSON marshaling
@@ -54,12 +61,30 @@ type ServiceCoordinator struct {
 	theme       *theme.Service
 	colorScheme *colorscheme.Service
 	font        *font.Service
+	// uiSettings is the file-backed source of truth for the frontend's
+	// `adex-settings`. localStorage on the frontend is only a reactive
+	// cache seeded from / flushed to this store.
+	uiSettings *settings.UIStore
 
 	// Service state
 	isStarted bool
 	mu        sync.RWMutex
 	ctx       context.Context
 	cancel    context.CancelFunc
+
+	// Cached self-GeoIP — geo lookups rate-limit hard, and the user's
+	// public location rarely changes within a 30-min session. Cleared
+	// implicitly on app restart. Guarded by its OWN mutex (geoIPMu),
+	// NOT the global `mu`, because the cache update was holding `mu`
+	// in write mode across a multi-second HTTP fetch which deadlocked
+	// every other coordinator method (CreateTerminal, GetCPUUsage, etc).
+	selfGeoIP   map[string]interface{}
+	selfGeoIPAt time.Time
+	geoIPMu     sync.Mutex
+	// inflight prevents multiple concurrent network fetches when many
+	// frontend components hit GetSelfGeoIP simultaneously at boot.
+	geoIPInflight bool
+	geoIPDone     chan struct{}
 }
 
 // NewServiceCoordinator creates a new service coordinator
@@ -90,7 +115,12 @@ func (sc *ServiceCoordinator) Initialize(ctx context.Context) error {
 	schemesDir := filepath.Join(dataDir, "colorschemes")
 	fontConfigPath := filepath.Join(dataDir, "font-config.json")
 
-	// Initialize services in dependency order
+	// Each `bootStep` pair below emits a `wait` line, runs init, then
+	// emits `success` (or returns an error which main.go can surface).
+	// The frontend boot screen waits for `boot.complete` before
+	// fading out.
+
+	emitBootStage("wait", "config", "Loading service registry...", "")
 	sc.filesystem = filesystem.NewService()
 	sc.system = system.NewService()
 	sc.terminal = terminal.NewService()
@@ -100,28 +130,53 @@ func (sc *ServiceCoordinator) Initialize(ctx context.Context) error {
 	sc.theme = theme.NewService()
 	sc.colorScheme = colorscheme.NewService(configPath, schemesDir)
 	sc.font = font.NewService(fontConfigPath)
+	// UI settings store — file-backed source of truth for the
+	// frontend's adex-settings. A failure here is non-fatal: the
+	// frontend still works off its localStorage cache, it just
+	// won't survive a cleared-cache / reinstall. So we log and
+	// continue rather than aborting boot.
+	if uiStore, err := settings.NewUIStore(logger.GetDefaultLogger()); err != nil {
+		emitBootStage("error", "config", "UI settings store unavailable", err.Error())
+	} else {
+		sc.uiSettings = uiStore
+	}
+	emitBootStage("success", "config", "Service registry ready", "")
 
 	// Initialize color scheme service
+	emitBootStage("wait", "colorscheme", "Loading color schemes...", "")
 	if err := sc.colorScheme.Initialize(sc.ctx); err != nil {
+		emitBootStage("error", "colorscheme", "Color scheme service failed", err.Error())
 		return fmt.Errorf("failed to initialize color scheme service: %w", err)
 	}
+	emitBootStage("success", "colorscheme", "Color schemes loaded", "")
 
 	// Initialize font service
+	emitBootStage("wait", "font", "Scanning system fonts...", "")
 	if err := sc.font.Initialize(sc.ctx); err != nil {
+		emitBootStage("error", "font", "Font service failed", err.Error())
 		return fmt.Errorf("failed to initialize font service: %w", err)
 	}
+	emitBootStage("success", "font", "Font service ready", "")
 
 	// Set event bus for network service
+	emitBootStage("wait", "network", "Resolving network interfaces...", "")
 	sc.network.SetEventBus(sc.eventBus)
+	emitBootStage("success", "network", "Network service ready", "")
 
-	// Set event bus and Wails context for terminal service
+	// Wire the terminal service. Its PTY read loop emits
+	// `terminal.output.<id>` events straight through the Wails v3 runtime,
+	// so there is no context to hand it here.
+	emitBootStage("wait", "terminal", "Spawning PTY service...", "")
 	sc.terminal.SetEventBus(sc.eventBus)
-	sc.terminal.SetWailsContext(ctx)
+	emitBootStage("success", "terminal", "Terminal service ready", "")
 
 	// Set up event listeners
+	emitBootStage("wait", "events", "Wiring event listeners...", "")
 	if err := sc.setupEventListeners(); err != nil {
+		emitBootStage("error", "events", "Event listener setup failed", err.Error())
 		return fmt.Errorf("failed to setup event listeners: %w", err)
 	}
+	emitBootStage("success", "events", "Event bus ready", "")
 
 	sc.isStarted = true
 
@@ -129,6 +184,17 @@ func (sc *ServiceCoordinator) Initialize(ctx context.Context) error {
 	sc.eventBus.Publish(sc.ctx, events.AppStarted, map[string]interface{}{
 		"services": []string{"filesystem", "system", "terminal", "audio", "network", "config", "theme", "colorscheme", "font"},
 	}, "coordinator")
+
+	// Final boot-complete signal to the frontend boot screen so it can
+	// fade out as soon as services are actually ready (not after a wall-
+	// clock minimum). The screen still respects its `minDuration` prop
+	// for visual continuity, but it now stops waiting on real progress
+	// rather than a fake setTimeout chain.
+	if app := application.Get(); app != nil {
+		app.Event.Emit("boot.complete", map[string]interface{}{
+			"at": time.Now().UnixMilli(),
+		})
+	}
 
 	return nil
 }
@@ -317,36 +383,86 @@ func (sc *ServiceCoordinator) StopMonitoring() error {
 }
 
 // Shutdown gracefully shuts down all services
+// Shutdown gracefully tears every service down. Called from Wails's
+// OnShutdown. Order matters:
+//
+//  1. Publish the shutdown event so subscribers can clean up.
+//  2. Stop monitoring loops (StopMonitoring is idempotent).
+//  3. Shutdown the audio service so its CGO PCM writer goroutine winds down
+//     (without this, `go test` hangs at process exit on Linux ALSA).
+//  4. Cancel the coordinator's context so any context-bound goroutines
+//     return.
+//  5. Close per-service resources.
+//  6. Drain the event bus and wait for delivery goroutines to exit.
 func (sc *ServiceCoordinator) Shutdown() error {
 	sc.mu.Lock()
-	defer sc.mu.Unlock()
-
 	if !sc.isStarted {
+		sc.mu.Unlock()
 		return nil
 	}
 
-	// Publish shutdown event
-	sc.eventBus.Publish(sc.ctx, events.AppShutdown, nil, "coordinator")
-
-	// Stop monitoring
-	sc.StopMonitoring()
-
-	// Cancel context to stop all goroutines
-	if sc.cancel != nil {
-		sc.cancel()
-	}
-
-	// Close services
-	if sc.filesystem != nil {
-		sc.filesystem.Close()
-	}
-
+	// Snapshot what we need under the lock, then release it before any
+	// blocking work so we don't deadlock with services calling back into
+	// the coordinator during their own teardown.
+	bus := sc.eventBus
+	ctx := sc.ctx
+	cancel := sc.cancel
+	audio := sc.audio
+	term := sc.terminal
+	fs := sc.filesystem
 	sc.isStarted = false
+	sc.mu.Unlock()
+
+	if bus != nil {
+		_ = bus.Publish(ctx, events.AppShutdown, nil, "coordinator")
+	}
+
+	_ = sc.StopMonitoring()
+
+	// Kill every active PTY child BEFORE cancelling the parent ctx —
+	// otherwise the read goroutines block on PTY.Read while we wait for
+	// them to exit, and "wails dev" can't reap the binary because of
+	// the lingering child processes. Each Close inside Shutdown gets a
+	// 2s timeout so a wedged PTY can't hold up app teardown.
+	if term != nil {
+		term.Shutdown()
+	}
+
+	if audio != nil {
+		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 2*time.Second)
+		_ = audio.Shutdown(shutdownCtx)
+		cancelShutdown()
+	}
+
+	if cancel != nil {
+		cancel()
+	}
+
+	if fs != nil {
+		fs.Close()
+	}
+
+	if bus != nil {
+		shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 2*time.Second)
+		_ = bus.Shutdown(shutdownCtx)
+		cancelShutdown()
+	}
+
 	return nil
 }
 
-// GetService returns a service by type (interface{})
-func (sc *ServiceCoordinator) GetService(serviceType string) interface{} {
+// getServiceInternal is intentionally unexported so Wails does NOT bind
+// it. Wails v2 binds every uppercase-leading method of the bound struct
+// and JSON-marshals the return value at call time. Our service structs
+// hold channels, contexts, mutexes, callbacks, and (for audio) a CGO
+// oto context — none of which JSON-encode. Returning any of those
+// triggers a launch fatal:
+//
+//   FAT | json: unsupported type: func() error
+//
+// The returned `interface{}` is non-nil for known types, nil otherwise;
+// callers type-assert.
+func (sc *ServiceCoordinator) getServiceInternal(serviceType string) interface{} {
 	sc.mu.RLock()
 	defer sc.mu.RUnlock()
 
@@ -374,14 +490,54 @@ func (sc *ServiceCoordinator) GetService(serviceType string) interface{} {
 	}
 }
 
-// GetEventBus returns the event bus
-func (sc *ServiceCoordinator) GetEventBus() *events.EventBus {
-	return sc.eventBus
-}
+// Bus accessor intentionally omitted.
+//
+// Wails v2 binds every exported (uppercase-leading) method of the struct
+// passed to options.App.Bind to the frontend, and every return value is
+// shipped through encoding/json. *events.EventBus contains
+// context.CancelFunc fields (per-subscription) which JSON cannot encode,
+// triggering the launch fatal:
+//
+//   FAT | json: unsupported type: func() error
+//
+// Therefore we DO NOT expose `GetEventBus()` on the coordinator.
+// Internal Go callers (tests, adjacent services) that need the bus
+// construct their own via `events.NewEventBus()` and inject it where
+// required. The global singleton is reachable via `events.GetEventBus()`
+// in the events package itself.
 
 // GetPlatform returns platform information
 func (sc *ServiceCoordinator) GetPlatform() *utils.FeatureDetection {
 	return sc.platform
+}
+
+// StartupPaths returns the directories the frontend can offer the user as
+// "open in this directory on launch" choices.
+//
+//	{ "home": "/home/ano", "cwd": "/var/www/aDex-UI" }
+//
+// Driven by a new initial-cwd setting in the Settings modal so the
+// terminal + file manager respect a user-chosen default.
+type StartupPaths struct {
+	Home string `json:"home"`
+	CWD  string `json:"cwd"`
+}
+
+// GetStartupPaths exposes the launch CWD and the user's home directory so
+// the frontend can route the terminal + file manager to whichever the
+// user picked in Settings → System → "Open in".
+func (sc *ServiceCoordinator) GetStartupPaths() StartupPaths {
+	home := ""
+	if sc.platform != nil {
+		home = sc.platform.GetHomeDirectory()
+	}
+	cwd, err := os.Getwd()
+	if err != nil || cwd == "" {
+		// On error fall back to home so we always return something
+		// usable; an empty string would force the frontend into '/'.
+		cwd = home
+	}
+	return StartupPaths{Home: home, CWD: cwd}
 }
 
 // IsStarted returns whether the coordinator is started
@@ -391,9 +547,76 @@ func (sc *ServiceCoordinator) IsStarted() bool {
 	return sc.isStarted
 }
 
+// SetWailsContext propagates a Wails-issued lifecycle context to services
+// that emit runtime events. MUST be called from main.go inside Wails'
+// OnStartup hook — Wails' EventsEmit terminates the process via log.Fatalf
+// if it receives a context it didn't issue (recover() can't catch it).
+// Frontend code never calls this; it's exported only for main.go.
+//
+// Call BEFORE Initialize so Initialize() can publish boot.stage events
+// during service bring-up. The terminal service (created inside
+// Initialize) gets its copy via Initialize once it exists.
+// ServiceStartup is the Wails v3 service lifecycle hook. Wails calls it
+// during app.Run() before any window is shown, and aborts startup if it
+// returns an error. Services are started in registration order, so
+// anything this coordinator depends on must be registered before it.
+//
+// The ctx Wails supplies here is valid for the application's lifetime;
+// Initialize derives its own cancellable child from it for the
+// background monitoring goroutines.
+func (sc *ServiceCoordinator) ServiceStartup(ctx context.Context, options application.ServiceOptions) error {
+	if err := sc.Initialize(ctx); err != nil {
+		return err
+	}
+	return sc.StartMonitoring(ctx)
+}
+
+// ServiceShutdown is the Wails v3 service lifecycle hook fired during
+// application teardown. Services shut down in reverse registration
+// order. Shutdown is idempotent (guarded by isStarted), so repeated
+// calls from other code paths remain safe.
+func (sc *ServiceCoordinator) ServiceShutdown() error {
+	return sc.Shutdown()
+}
+
+// emitBootStage emits a single boot-sequence event to the frontend.
+// Shape:
+//
+//	{
+//	  "stage":  "wait" | "success" | "warn" | "error",
+//	  "tag":    "config" | "theme" | "terminal" | ...,
+//	  "text":   "Loading settings...",
+//	  "detail": "(optional error message or extra context)"
+//	}
+//
+// Frontend `AdexBootScreen.vue` subscribes via the Wails v3 `Events.On`
+// runtime API and renders one signale-style log line per event.
+//
+// Safe to call from any goroutine and at any point during startup:
+// Wails v3 event emission takes no caller-supplied context, so there is
+// no lock-ordering hazard here and no need for callers to pre-snapshot
+// anything. Before the application exists (unit tests constructing the
+// coordinator directly), application.Get() returns nil and the emit is
+// skipped.
+func emitBootStage(stage, tag, text, detail string) {
+	app := application.Get()
+	if app == nil {
+		// Running under tests, or before the application is up.
+		return
+	}
+	app.Event.Emit("boot.stage", map[string]interface{}{
+		"stage":  stage,
+		"tag":    tag,
+		"text":   text,
+		"detail": detail,
+	})
+}
+
 // Terminal service methods
 
-// CreateTerminal creates a new terminal session
+// CreateTerminal creates a new terminal session in the user's home
+// directory. Kept for backwards compatibility with frontend code that
+// pre-dates the Settings → System "Open in" preference.
 func (sc *ServiceCoordinator) CreateTerminal(width, height int) (*terminal.Terminal, error) {
 	sc.mu.RLock()
 	defer sc.mu.RUnlock()
@@ -409,8 +632,35 @@ func (sc *ServiceCoordinator) CreateTerminal(width, height int) (*terminal.Termi
 	return sc.terminal.CreateTerminal(sc.ctx, width, height)
 }
 
-// WriteToTerminal writes data to a terminal session
-func (sc *ServiceCoordinator) WriteToTerminal(terminalID string, data []byte) error {
+// CreateTerminalIn creates a new terminal session whose shell starts in
+// the supplied working directory. Empty `cwd` falls back to home (matches
+// the legacy CreateTerminal behavior).
+func (sc *ServiceCoordinator) CreateTerminalIn(width, height int, cwd string) (*terminal.Terminal, error) {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted {
+		return nil, fmt.Errorf("service coordinator not started")
+	}
+
+	if sc.terminal == nil {
+		return nil, fmt.Errorf("terminal service not available")
+	}
+
+	return sc.terminal.CreateTerminalIn(sc.ctx, width, height, cwd)
+}
+
+// WriteToTerminal writes data to a terminal session.
+//
+// Frontend-facing signature is `string` (not `[]byte`) because Wails
+// bind marshals JS strings transparently for Go `string` params, while
+// Go `[]byte` params expect a base64-encoded JSON string. Mixing those
+// caused every keystroke to be re-decoded as base64 → garbage bytes
+// → garbage echo. Keeping the wire type as string and converting
+// internally is simpler and round-trips control codes (ESC, Ctrl-C,
+// arrow-key escape sequences) correctly because xterm.js sends them
+// as raw byte strings in the same encoding the PTY expects.
+func (sc *ServiceCoordinator) WriteToTerminal(terminalID string, data string) error {
 	sc.mu.RLock()
 	defer sc.mu.RUnlock()
 
@@ -418,7 +668,7 @@ func (sc *ServiceCoordinator) WriteToTerminal(terminalID string, data []byte) er
 		return fmt.Errorf("terminal service not available")
 	}
 
-	return sc.terminal.WriteToTerminal(sc.ctx, terminalID, data)
+	return sc.terminal.WriteToTerminal(sc.ctx, terminalID, []byte(data))
 }
 
 // ResizeTerminal resizes a terminal session
@@ -467,6 +717,59 @@ func (sc *ServiceCoordinator) GetTerminalInfo(terminalID string) (*terminal.Term
 	}
 
 	return sc.terminal.GetTerminalInfo(sc.ctx, terminalID)
+}
+
+// GetTerminalCWD returns the live current working directory of the shell
+// process backing the given terminal. Replaces the previous HTTP endpoint at
+// /api/terminal/session/:sessionId/cwd with a direct Wails binding.
+func (sc *ServiceCoordinator) GetTerminalCWD(terminalID string) (string, error) {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.terminal == nil {
+		return "", fmt.Errorf("terminal service not available")
+	}
+	return sc.terminal.GetCurrentCWD(terminalID)
+}
+
+// GetCWDStats returns aggregate CWD-tracking stats across all terminals.
+// Replaces the previous HTTP endpoint at /api/terminal/cwd/stats.
+func (sc *ServiceCoordinator) GetCWDStats() (terminal.CWDStats, error) {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.terminal == nil {
+		return terminal.CWDStats{}, fmt.Errorf("terminal service not available")
+	}
+	return sc.terminal.GetCWDStats(), nil
+}
+
+// SetShellCommand stores a user-supplied shell-path override for new
+// terminals. Empty string clears the override and falls back to the
+// $SHELL / $ComSpec / platform-default chain. Called from
+// Settings → Terminal → "Shell Path".
+func (sc *ServiceCoordinator) SetShellCommand(shell string) error {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.terminal == nil {
+		return fmt.Errorf("terminal service not available")
+	}
+	return sc.terminal.SetShellCommand(shell)
+}
+
+// GetActiveShell returns the shell executable path the resolver would
+// pick *right now* (override → $SHELL/$ComSpec → platform default).
+// Lets the frontend status bar display the honest shell path instead
+// of guessing '/bin/bash'.
+func (sc *ServiceCoordinator) GetActiveShell() (string, error) {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.terminal == nil {
+		return "", fmt.Errorf("terminal service not available")
+	}
+	return sc.terminal.GetActiveShell(), nil
 }
 
 // Color Scheme service methods
@@ -861,6 +1164,41 @@ func (sc *ServiceCoordinator) UpdateFontSettings(settings interface{}) error {
 	return sc.font.UpdateSettings(&fontSettings)
 }
 
+// GetUISettings returns the file-persisted frontend settings
+// (the `adex-settings` shape). The frontend calls this once on boot
+// to hydrate its localStorage cache; the backend file is the source
+// of truth, so on a conflict this value wins. Returns the typed
+// *models.UISettings so the Wails-generated TS binding stays a
+// checkable contract rather than an opaque blob.
+func (sc *ServiceCoordinator) GetUISettings() (*models.UISettings, error) {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.uiSettings == nil {
+		return nil, fmt.Errorf("UI settings store not available")
+	}
+
+	return sc.uiSettings.Get(), nil
+}
+
+// SaveUISettings persists the frontend's settings object. The
+// frontend sends the `adex-settings` value verbatim as a JSON string
+// (debounced on every change), and this writes it atomically to the
+// source-of-truth file. Taking a raw string rather than interface{}
+// avoids a lossy map round-trip and lets the store unmarshal onto a
+// defaults base so a partial / older-shaped payload still persists
+// completely.
+func (sc *ServiceCoordinator) SaveUISettings(payload string) error {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.uiSettings == nil {
+		return fmt.Errorf("UI settings store not available")
+	}
+
+	return sc.uiSettings.Save(payload)
+}
+
 // GetDefaultFontConfiguration returns the default font configuration
 func (sc *ServiceCoordinator) GetDefaultFontConfiguration() (interface{}, error) {
 	sc.mu.RLock()
@@ -1126,6 +1464,297 @@ func (sc *ServiceCoordinator) GetCPUUsage() (interface{}, error) {
 	}, nil
 }
 
+// GetSelfGeoIP returns the geolocation for the current public IP.
+//
+// Two-provider strategy with automatic failover:
+//
+//  1. PRIMARY: geo.kamero.ai — free, open source, no API key, no
+//     hard rate limit, sub-50ms via Vercel Edge. One round trip.
+//  2. FALLBACK: ipify (just the IP) → iplocate (geo for that IP).
+//     Two round trips but bulletproof — both providers are widely
+//     used and have generous free tiers.
+//
+// Both paths are tried before giving up; we cache the answer for 30
+// minutes since public-IP geolocation rarely changes mid-session.
+// Returns an empty map (not error) on total failure so the UI shows
+// "Resolving..." and retries on the next poll cycle.
+func (sc *ServiceCoordinator) GetSelfGeoIP() (map[string]interface{}, error) {
+	// Read parent ctx under the global lock (cheap, no network), then
+	// drop the lock immediately. Everything else uses geoIPMu only.
+	sc.mu.RLock()
+	parentCtx := sc.ctx
+	sc.mu.RUnlock()
+
+	// Fast path: warm cache. Hold geoIPMu only long enough to peek.
+	sc.geoIPMu.Lock()
+	if sc.selfGeoIP != nil && time.Since(sc.selfGeoIPAt) < 30*time.Minute {
+		out := sc.selfGeoIP
+		sc.geoIPMu.Unlock()
+		return out, nil
+	}
+
+	// Coalesce concurrent callers: if a fetch is already in flight,
+	// wait for it instead of starting a duplicate. AdexGlobe +
+	// AdexNetstat both call this at mount, and previously they each
+	// fired their own 8-second HTTP fetch.
+	if sc.geoIPInflight {
+		done := sc.geoIPDone
+		sc.geoIPMu.Unlock()
+		<-done
+		sc.geoIPMu.Lock()
+		out := sc.selfGeoIP
+		sc.geoIPMu.Unlock()
+		if out == nil {
+			return map[string]interface{}{}, nil
+		}
+		return out, nil
+	}
+	sc.geoIPInflight = true
+	sc.geoIPDone = make(chan struct{})
+	sc.geoIPMu.Unlock()
+
+	// Always close the channel when we're done so waiters wake up,
+	// regardless of whether we got data or hit an error.
+	defer func() {
+		sc.geoIPMu.Lock()
+		sc.geoIPInflight = false
+		close(sc.geoIPDone)
+		sc.geoIPDone = nil
+		sc.geoIPMu.Unlock()
+	}()
+
+	if parentCtx == nil {
+		parentCtx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(parentCtx, 8*time.Second)
+	defer cancel()
+
+	// iplocate is the PRIMARY now because it's the only provider in
+	// our chain that returns an ISP (asn.name). kamero is a fast +
+	// lightweight fallback when iplocate is unreachable.
+	out := tryIpifyAndIplocate(ctx)
+	if out == nil {
+		out = tryKameroGeo(ctx)
+	}
+	if out == nil {
+		return map[string]interface{}{}, nil
+	}
+
+	sc.geoIPMu.Lock()
+	sc.selfGeoIP = out
+	sc.selfGeoIPAt = time.Now()
+	sc.geoIPMu.Unlock()
+
+	return out, nil
+}
+
+// tryKameroGeo: single round trip to kamero. Returns nil on any
+// failure so the caller can fall through to the next provider.
+func tryKameroGeo(ctx context.Context) map[string]interface{} {
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://geo.kamero.ai/api/geo", nil)
+	if err != nil {
+		return nil
+	}
+	// kamero rejects requests without a User-Agent with a connection
+	// reset. Stable identifier so they can rate-limit per-app fairly.
+	req.Header.Set("User-Agent", "aDex-UI/1.0 (https://github.com/AnoRebel/Dex-UI)")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil
+	}
+	var raw map[string]interface{}
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return nil
+	}
+	// kamero returns latitude/longitude as STRINGS — parse them so the
+	// frontend can plot on the canvas without extra coercion.
+	return map[string]interface{}{
+		"latitude":  parseFloatField(raw["latitude"]),
+		"longitude": parseFloatField(raw["longitude"]),
+		"city":      raw["city"],
+		"region":    raw["countryRegion"],
+		"country":   raw["country"],
+		"continent": raw["continent"],
+		"timezone":  raw["timezone"],
+		"ip":        raw["ip"],
+	}
+}
+
+// tryIpifyAndIplocate: ipify → iplocate fallback. Two requests but
+// reliable. ipify just gives us the public IP (the user's egress);
+// iplocate gives the full geo record for that IP.
+func tryIpifyAndIplocate(ctx context.Context) map[string]interface{} {
+	// Step 1: get our public IP from ipify.
+	ipReq, err := http.NewRequestWithContext(ctx, "GET", "https://api.ipify.org?format=json", nil)
+	if err != nil {
+		return nil
+	}
+	ipReq.Header.Set("User-Agent", "aDex-UI/1.0")
+	ipResp, err := http.DefaultClient.Do(ipReq)
+	if err != nil {
+		return nil
+	}
+	defer ipResp.Body.Close()
+	if ipResp.StatusCode != http.StatusOK {
+		return nil
+	}
+	ipBody, err := io.ReadAll(ipResp.Body)
+	if err != nil {
+		return nil
+	}
+	var ipResult struct{ IP string `json:"ip"` }
+	if err := json.Unmarshal(ipBody, &ipResult); err != nil || ipResult.IP == "" {
+		return nil
+	}
+
+	// Step 2: enrich with iplocate.
+	geoReq, err := http.NewRequestWithContext(ctx, "GET", "https://iplocate.io/api/lookup/"+ipResult.IP, nil)
+	if err != nil {
+		return nil
+	}
+	geoReq.Header.Set("User-Agent", "aDex-UI/1.0")
+	geoReq.Header.Set("Accept", "application/json")
+	geoResp, err := http.DefaultClient.Do(geoReq)
+	if err != nil {
+		return nil
+	}
+	defer geoResp.Body.Close()
+	if geoResp.StatusCode != http.StatusOK {
+		return nil
+	}
+	geoBody, err := io.ReadAll(geoResp.Body)
+	if err != nil {
+		return nil
+	}
+	var raw map[string]interface{}
+	if err := json.Unmarshal(geoBody, &raw); err != nil {
+		return nil
+	}
+	// iplocate returns lat/lon as numbers already; subdivision is the
+	// region name. ASN.name is the closest analogue to "ISP" so we
+	// surface it for the netstat panel.
+	isp, _ := "", ""
+	if asn, ok := raw["asn"].(map[string]interface{}); ok {
+		if name, ok := asn["name"].(string); ok {
+			isp = name
+		}
+	}
+	return map[string]interface{}{
+		"latitude":  parseFloatField(raw["latitude"]),
+		"longitude": parseFloatField(raw["longitude"]),
+		"city":      raw["city"],
+		"region":    raw["subdivision"],
+		"country":   raw["country_code"],
+		"continent": raw["continent"],
+		"timezone":  raw["time_zone"],
+		"isp":       isp,
+		"ip":        raw["ip"],
+	}
+}
+
+// parseFloatField accepts either a JSON number or a numeric string and
+// returns a float64. Used because providers disagree on the lat/lon
+// type (kamero strings, iplocate numbers).
+func parseFloatField(v interface{}) interface{} {
+	switch x := v.(type) {
+	case float64:
+		return x
+	case string:
+		var f float64
+		if _, err := fmt.Sscanf(x, "%f", &f); err == nil {
+			return f
+		}
+	}
+	return nil
+}
+
+// GetPowerInfo returns the current power source + battery percent
+// using distatus/battery (cross-platform). The frontend SystemInfo
+// panel polls this so POWER reflects "AC" vs "Battery" in real time
+// — earlier the frontend hardcoded "AC Power".
+func (sc *ServiceCoordinator) GetPowerInfo() (map[string]interface{}, error) {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.system == nil {
+		return map[string]interface{}{
+			"source":    "AC",
+			"percent":   -1,
+			"onBattery": false,
+		}, nil
+	}
+	info, err := sc.system.GetPowerInfo(sc.ctx)
+	if err != nil || info == nil {
+		return map[string]interface{}{
+			"source":    "AC",
+			"percent":   -1,
+			"onBattery": false,
+		}, nil
+	}
+	return map[string]interface{}{
+		"source":    info.Source,
+		"percent":   info.Percent,
+		"onBattery": info.OnBattery,
+		"status":    info.Status,
+	}, nil
+}
+
+// MeasureLatency does a TCP round-trip to the supplied host:port and
+// returns elapsed milliseconds. Empty target → 8.8.8.8:53 (Google DNS).
+// Returns -1 on failure rather than erroring so the UI shows "N/A"
+// instead of an error toast.
+//
+// Frontend exposes this with two preset choices (8.8.8.8:53 and
+// 1.1.1.1:53) plus a free-text override in Settings → Network. Picking
+// TCP-DNS instead of ICMP avoids the CAP_NET_RAW / setuid dance that
+// breaks ping on sandboxed builds (Snap/Flatpak/macOS app store).
+func (sc *ServiceCoordinator) MeasureLatency(target string) (float64, error) {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.system == nil {
+		return -1, nil
+	}
+	return sc.system.MeasureLatency(sc.ctx, target)
+}
+
+// GetTemperatures returns hardware temperature sensors. Wraps the
+// system service so the frontend's network-status / hardware mods can
+// pull `{name, temperature, high, critical}` rows for display.
+// Returns an empty array (not error) when sensors are unavailable.
+func (sc *ServiceCoordinator) GetTemperatures() ([]map[string]interface{}, error) {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.system == nil {
+		return []map[string]interface{}{}, nil
+	}
+	sensors, err := sc.system.GetTemperatures(sc.ctx)
+	if err != nil {
+		return []map[string]interface{}{}, nil
+	}
+	out := make([]map[string]interface{}, 0, len(sensors))
+	for _, s := range sensors {
+		out = append(out, map[string]interface{}{
+			"name":        s.Name,
+			"temperature": s.Temperature,
+			"high":        s.High,
+			"critical":    s.Critical,
+		})
+	}
+	return out, nil
+}
+
 // GetMemoryUsage returns current memory usage information
 func (sc *ServiceCoordinator) GetMemoryUsage() (interface{}, error) {
 	sc.mu.RLock()
@@ -1210,6 +1839,22 @@ func (sc *ServiceCoordinator) GetTopProcesses(metric string, limit int) (interfa
 	return processes, nil
 }
 
+// SignalProcess sends the given signal name (e.g. "SIGTERM", "SIGKILL")
+// to the process at pid. Driven by the process-table context menu.
+//
+// We accept the signal as a string instead of an int so the Wails JSON
+// boundary stays stable and platform-neutral; the system service maps
+// the name onto a syscall.Signal internally.
+func (sc *ServiceCoordinator) SignalProcess(pid int, signal string) error {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.system == nil {
+		return fmt.Errorf("system service not available")
+	}
+	return sc.system.SignalProcess(pid, system.ProcessSignal(signal))
+}
+
 // ReadDirectory reads the contents of a directory
 func (sc *ServiceCoordinator) ReadDirectory(path string) (interface{}, error) {
 	sc.mu.RLock()
@@ -1225,4 +1870,75 @@ func (sc *ServiceCoordinator) ReadDirectory(path string) (interface{}, error) {
 	}
 
 	return entries, nil
+}
+
+// GetFileInfo returns metadata for a single path.
+// Used by the file-manager Properties / Info modal.
+func (sc *ServiceCoordinator) GetFileInfo(path string) (interface{}, error) {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.filesystem == nil {
+		return nil, fmt.Errorf("filesystem service not available")
+	}
+	return sc.filesystem.GetFileInfo(sc.ctx, path)
+}
+
+// CreateDirectory creates a new directory at path with mode 0o755.
+// Used by the file-manager "New Folder" action.
+func (sc *ServiceCoordinator) CreateDirectory(path string) error {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.filesystem == nil {
+		return fmt.Errorf("filesystem service not available")
+	}
+	return sc.filesystem.CreateDirectory(sc.ctx, path, 0o755)
+}
+
+// CreateFile creates an empty file at path.
+// Used by the file-manager "New File" action.
+func (sc *ServiceCoordinator) CreateFile(path string) error {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.filesystem == nil {
+		return fmt.Errorf("filesystem service not available")
+	}
+	return sc.filesystem.WriteFile(sc.ctx, path, []byte{}, 0o644)
+}
+
+// DeleteFile permanently removes a file or empty directory.
+// The frontend MUST confirm with the user before calling this.
+func (sc *ServiceCoordinator) DeleteFile(path string) error {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.filesystem == nil {
+		return fmt.Errorf("filesystem service not available")
+	}
+	return sc.filesystem.DeleteFile(sc.ctx, path)
+}
+
+// MoveFile moves/renames a file from src to dst (used for both rename and
+// move-to-trash flows).
+func (sc *ServiceCoordinator) MoveFile(src, dst string) error {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.filesystem == nil {
+		return fmt.Errorf("filesystem service not available")
+	}
+	return sc.filesystem.MoveFile(sc.ctx, src, dst)
+}
+
+// CopyFile copies src to dst.
+func (sc *ServiceCoordinator) CopyFile(src, dst string) error {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	if !sc.isStarted || sc.filesystem == nil {
+		return fmt.Errorf("filesystem service not available")
+	}
+	return sc.filesystem.CopyFile(sc.ctx, src, dst)
 }

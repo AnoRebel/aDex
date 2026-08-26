@@ -1,0 +1,149 @@
+[
+  {
+    "id": "apollo",
+    "displayName": "Apollo",
+    "layout": "default",
+    "primary": "rgb(235, 235, 235)",
+    "file": "themes/apollo.json"
+  },
+  {
+    "id": "apollo-notype",
+    "displayName": "Apollo Notype",
+    "layout": "notype",
+    "primary": "rgb(235, 235, 235)",
+    "file": "themes/apollo-notype.json"
+  },
+  {
+    "id": "blade",
+    "displayName": "Blade",
+    "layout": "default",
+    "primary": "rgb(204, 94, 55)",
+    "file": "themes/blade.json"
+  },
+  {
+    "id": "chalkboard",
+    "displayName": "Chalkboard",
+    "layout": "default",
+    "primary": "rgb(239, 240, 235)",
+    "file": "themes/chalkboard.json"
+  },
+  {
+    "id": "chalkboard-ligatures",
+    "displayName": "Chalkboard Ligatures",
+    "layout": "default",
+    "primary": "rgb(239, 240, 235)",
+    "file": "themes/chalkboard-ligatures.json"
+  },
+  {
+    "id": "chalkboard-notype",
+    "displayName": "Chalkboard Notype",
+    "layout": "notype",
+    "primary": "rgb(239, 240, 235)",
+    "file": "themes/chalkboard-notype.json"
+  },
+  {
+    "id": "cyborg",
+    "displayName": "Cyborg",
+    "layout": "default",
+    "primary": "rgb(95, 215, 215)",
+    "file": "themes/cyborg.json"
+  },
+  {
+    "id": "cyborg-focus",
+    "displayName": "Cyborg Focus",
+    "layout": "default",
+    "primary": "rgb(95, 215, 215)",
+    "file": "themes/cyborg-focus.json"
+  },
+  {
+    "id": "interstellar",
+    "displayName": "Interstellar",
+    "layout": "default",
+    "primary": "rgb(3, 169, 244)",
+    "file": "themes/interstellar.json"
+  },
+  {
+    "id": "matrix",
+    "displayName": "Matrix",
+    "layout": "default",
+    "primary": "rgb(0, 143, 17)",
+    "file": "themes/matrix.json"
+  },
+  {
+    "id": "navy",
+    "displayName": "Navy",
+    "layout": "default",
+    "primary": "rgb(20, 119, 205)",
+    "file": "themes/navy.json"
+  },
+  {
+    "id": "navy-disrupted",
+    "displayName": "Navy Disrupted",
+    "layout": "disrupted",
+    "primary": "rgb(20, 119, 205)",
+    "file": "themes/navy-disrupted.json"
+  },
+  {
+    "id": "navy-notype",
+    "displayName": "Navy Notype",
+    "layout": "notype",
+    "primary": "rgb(20, 119, 205)",
+    "file": "themes/navy-notype.json"
+  },
+  {
+    "id": "nord",
+    "displayName": "Nord",
+    "layout": "default",
+    "primary": "rgb(216, 222, 233)",
+    "file": "themes/nord.json"
+  },
+  {
+    "id": "red",
+    "displayName": "Red",
+    "layout": "default",
+    "primary": "rgb(204, 0, 34)",
+    "file": "themes/red.json"
+  },
+  {
+    "id": "tron",
+    "displayName": "Tron",
+    "layout": "default",
+    "primary": "rgb(170, 207, 209)",
+    "file": "themes/tron.json"
+  },
+  {
+    "id": "tron-colorfilter",
+    "displayName": "Tron Colorfilter",
+    "layout": "colorfilter",
+    "primary": "rgb(170, 207, 209)",
+    "file": "themes/tron-colorfilter.json"
+  },
+  {
+    "id": "tron-disrupted",
+    "displayName": "Tron Disrupted",
+    "layout": "disrupted",
+    "primary": "rgb(170, 207, 209)",
+    "file": "themes/tron-disrupted.json"
+  },
+  {
+    "id": "tron-fulltype",
+    "displayName": "Tron Fulltype",
+    "layout": "fulltype",
+    "primary": "rgb(170, 207, 209)",
+    "file": "themes/tron-fulltype.json"
+  },
+  {
+    "id": "tron-notype",
+    "displayName": "Tron Notype",
+    "layout": "notype",
+    "primary": "rgb(170, 207, 209)",
+    "file": "themes/tron-notype.json"
+  },
+  {
+    "id": "tron-typeleft",
+    "displayName": "Tron Typeleft",
+    "layout": "typeleft",
+    "primary": "rgb(170, 207, 209)",
+    "file": "themes/tron-typeleft.json"
+  }
+]

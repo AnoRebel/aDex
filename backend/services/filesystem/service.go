@@ -31,27 +31,32 @@ func NewService() *Service {
 	}
 }
 
-// FileInfo represents file information
+// FileInfo represents file information.
+//
+// JSON tags use camelCase to match the frontend's `useWails`/`FileBrowser`
+// expectations and align with DirectoryEntry's shape (which already worked
+// in the frontend). Without explicit tags, encoding/json emits PascalCase
+// and the frontend's `entry.isDir` reads return undefined.
 type FileInfo struct {
-	Name         string
-	Path         string
-	Size         int64
-	IsDirectory  bool
-	Mode         os.FileMode
-	ModTime      time.Time
-	Permissions  string
-	Owner        string
-	Group        string
+	Name        string      `json:"name"`
+	Path        string      `json:"path"`
+	Size        int64       `json:"size"`
+	IsDirectory bool        `json:"isDir"`
+	Mode        os.FileMode `json:"mode"`
+	ModTime     time.Time   `json:"modTime"`
+	Permissions string      `json:"permissions"`
+	Owner       string      `json:"owner"`
+	Group       string      `json:"group"`
 }
 
-// DirectoryEntry represents a directory entry
+// DirectoryEntry represents a directory entry.
 type DirectoryEntry struct {
-	Name      string
-	Path      string
-	IsDir     bool
-	Size      int64
-	ModTime   time.Time
-	Extension string
+	Name      string    `json:"name"`
+	Path      string    `json:"path"`
+	IsDir     bool      `json:"isDir"`
+	Size      int64     `json:"size"`
+	ModTime   time.Time `json:"modTime"`
+	Extension string    `json:"extension"`
 }
 
 // ReadDirectory reads directory contents

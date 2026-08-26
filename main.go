@@ -1,110 +1,100 @@
 package main
 
 import (
-	"context"
 	"embed"
 	"log"
 
 	"aDex-UI/backend/services/coordinator"
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-	"github.com/wailsapp/wails/v2/pkg/options/linux"
-	"github.com/wailsapp/wails/v2/pkg/options/mac"
-	"github.com/wailsapp/wails/v2/pkg/options/windows"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // Wails uses Go's `embed` package to embed the frontend files into the binary.
-// Any files in the frontend/.output/public folder will be embedded into the binary and
-// made available to the frontend.
+// The Nuxt static bundle is emitted to frontend/dist (see the
+// `nitro.output.publicDir` setting in frontend/nuxt.config.ts), which is the
+// location the Wails v3 build tooling assumes by default.
 //
-//go:embed all:frontend/.output/public
+// NOTE: frontend/dist is gitignored, so a clean checkout must build the
+// frontend (`wails3 task build`, or `bun run generate` in frontend/) before
+// `go build` will succeed — embed refuses to compile against an empty
+// directory.
+//
+//go:embed all:frontend/dist
 var assets embed.FS
 
-// App represents the Wails application with all services
-type App struct {
-	ctx         context.Context
-	coordinator *coordinator.ServiceCoordinator
-}
-
-// NewApp creates a new App application struct
-func NewApp() *App {
-	return &App{
-		coordinator: coordinator.NewServiceCoordinator(),
-	}
-}
-
-// OnStartup is called when the app starts. The context is saved
-// so we can call the runtime methods
-func (a *App) OnStartup(ctx context.Context) {
-	a.ctx = ctx
-
-	// Initialize service coordinator
-	if err := a.coordinator.Initialize(ctx); err != nil {
-		log.Fatal("Failed to initialize coordinator:", err)
-	}
-
-	// Start monitoring
-	if err := a.coordinator.StartMonitoring(ctx); err != nil {
-		log.Println("Warning: Failed to start monitoring:", err)
-	}
-}
-
-// OnShutdown is called when the app is shutting down
-func (a *App) OnShutdown(ctx context.Context) {
-	if a.coordinator != nil {
-		a.coordinator.Shutdown()
-	}
-}
-
-// Greet returns a greeting for the given name
-func (a *App) Greet(name string) string {
-	return "Hello " + name + "!"
-}
-
-// main function serves as the application's entry point.
 func main() {
-	// Create an instance of the app structure
-	app := NewApp()
-
-	// Create application with options
-	err := wails.Run(&options.App{
-		Title:      "aDex-UI",
-		Width:      1920,
-		Height:     1080,
-		Fullscreen: true,
-		AssetServer: &assetserver.Options{
-			Assets: assets,
+	// The coordinator owns every backend service. Registering it as a Wails v3
+	// service hands its lifecycle to Wails: ServiceStartup runs during
+	// app.Run() before any window is shown — returning an error there aborts
+	// startup — and ServiceShutdown runs during teardown. Services start in
+	// registration order and shut down in reverse, which is what gives the
+	// coordinator its dependency ordering for free.
+	//
+	// The terminal service is constructed and torn down by the coordinator
+	// rather than registered separately, so it stays inside that ordering.
+	app := application.New(application.Options{
+		Name:        "aDex-UI",
+		Description: "A modern science fiction desktop environment terminal application",
+		Services: []application.Service{
+			application.NewService(coordinator.NewServiceCoordinator()),
 		},
-		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
-		OnStartup:        app.OnStartup,
-		OnShutdown:       app.OnShutdown,
-		Bind: []interface{}{
-			app,
-			app.coordinator, // This exposes all coordinator methods to frontend
+		Assets: application.AssetOptions{
+			Handler: application.AssetFileServerFS(assets),
 		},
-		Mac: &mac.Options{
-			TitleBar: &mac.TitleBar{
-				TitlebarAppearsTransparent: false,
-				HideTitle:                  false,
-				HideTitleBar:               false,
-				FullSizeContent:            false,
-			},
-			Appearance:           mac.DefaultAppearance,
-			WebviewIsTransparent: false,
-			WindowIsTranslucent:  false,
-		},
-		Windows: &windows.Options{
-			WebviewIsTransparent: false,
-			WindowIsTranslucent:  false,
-			DisableWindowIcon:    false,
-		},
-		Linux: &linux.Options{
-			WindowIsTranslucent: false,
+		Mac: application.MacOptions{
+			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
 	})
 
-	if err != nil {
+	// Window sizing strategy:
+	//   - Width/Height are the fallback size, used when the window manager
+	//     cannot honour StartState.
+	//   - StartState: WindowStateMaximised opens the window covering the
+	//     active monitor's work area — the eDEX-UI signature look. This
+	//     replaces the v2 workaround of calling WindowMaximise from
+	//     OnDomReady, which existed because v2's start-state hint raced the
+	//     compositor on Wayland/X11.
+	//   - MinWidth/MinHeight keep the side columns readable when the user
+	//     resizes down.
+	//
+	// v2 additionally needed explicit MaxWidth/MaxHeight of 16384 to defeat a
+	// GTK quirk that clamped the window to the current monitor's geometry when
+	// the max dimensions were left at zero. v3 does not reimpose that clamp,
+	// so the workaround is deliberately not carried over — leaving them unset
+	// means "no maximum", which is the intended behaviour on multi-monitor
+	// setups.
+	app.Window.NewWithOptions(application.WebviewWindowOptions{
+		Title:            "aDex-UI",
+		Width:            1600,
+		Height:           1000,
+		MinWidth:         900,
+		MinHeight:        600,
+		StartState:       application.WindowStateMaximised,
+		BackgroundColour: application.NewRGB(27, 38, 54),
+		URL:              "/",
+		Mac: application.MacWindow{
+			TitleBar:                application.MacTitleBarDefault,
+			InvisibleTitleBarHeight: 0,
+		},
+		// v2 set WebviewIsTransparent/WindowIsTranslucent/DisableWindowIcon
+		// to false on Windows and Linux. Those are the v3 defaults
+		// (Windows translucency is now expressed as BackdropType, whose
+		// zero value is opaque), so no explicit block is needed. Linux
+		// keeps an explicit entry only to pin GPU policy — leaving
+		// options.Linux nil makes Wails default WebviewGpuPolicy to
+		// Never (wailsapp/wails#2977), which would cost us the WebGL
+		// renderer the globe and terminal rely on.
+		Linux: application.LinuxWindow{
+			WindowIsTranslucent: false,
+			WebviewGpuPolicy:    application.WebviewGpuPolicyOnDemand,
+		},
+	})
+
+	// Run blocks until the application exits. Quit is initiated from the
+	// frontend via the runtime's Application.Quit(), which triggers the same
+	// teardown path: ShouldQuit, then each service's ServiceShutdown in
+	// reverse registration order. The coordinator's Shutdown is idempotent
+	// (guarded by isStarted), so a repeated call is harmless.
+	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}
 }

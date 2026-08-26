@@ -1,0 +1,85 @@
+/* assets/css/_grid.css
+ *
+ * Animated grid background + scanline overlay. Both are rendered on
+ * fixed-position layers behind the application UI, with pointer-events:none
+ * so they never interfere with input.
+ *
+ * Strength is theme-driven via `--scanline-strength` (clamped to 0 by the
+ * `notype` layout preset and OLED themes — see `_tokens.css`).
+ */
+
+.adex-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--bg-deep);
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0,
+      transparent calc(2.04vh - var(--rule-width)),
+      rgba(var(--accent-rgb), 0.04) calc(2.04vh - var(--rule-width)),
+      rgba(var(--accent-rgb), 0.04) 2.04vh
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent calc(2.04vh - var(--rule-width)),
+      rgba(var(--accent-rgb), 0.04) calc(2.04vh - var(--rule-width)),
+      rgba(var(--accent-rgb), 0.04) 2.04vh
+    );
+  animation: adex-grid-drift 60s linear infinite;
+}
+
+@keyframes adex-grid-drift {
+  0%   { background-position: 0 0,           0 0; }
+  100% { background-position: 2.04vh 2.04vh, 2.04vh 2.04vh; }
+}
+
+/* OLED / solid mode: kill the grid entirely. */
+.adex-background.solidBackground {
+  background-image: none !important;
+  animation: none !important;
+}
+
+/* Scanlines overlay — separate fixed layer so it sits above panels but
+ * below the cursor and modals (.adex-app sets a higher z-index). */
+.adex-scanlines {
+  position: fixed;
+  /* Start scanlines BELOW the topbar so the mix-blend-mode: overlay
+   * doesn't smear the topbar's text against its tinted background.
+   * 32px matches .adex-topbar height. */
+  top: 32px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* Below the topbar's z-index: 5 — scanlines are decoration, not
+   * UI chrome. */
+  z-index: 3;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  opacity: var(--scanline-strength);
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(var(--accent-rgb), 0.10) 0,
+      rgba(var(--accent-rgb), 0.10) 1px,
+      transparent 1px,
+      transparent var(--scanline-period)
+    );
+  animation: adex-scanline-flicker 7s steps(60) infinite;
+}
+
+@keyframes adex-scanline-flicker {
+  0%, 100% { opacity: var(--scanline-strength); }
+  47%      { opacity: calc(var(--scanline-strength) * 0.85); }
+  53%      { opacity: calc(var(--scanline-strength) * 1.05); }
+  91%      { opacity: calc(var(--scanline-strength) * 0.78); }
+}
+
+/* Reduced motion / scanline opt-out */
+@media (prefers-reduced-motion: reduce) {
+  .adex-background { animation: none; }
+  .adex-scanlines  { animation: none; }
+}

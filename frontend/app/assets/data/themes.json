@@ -1,216 +1,636 @@
 {
   "themes": [
     {
-      "id": "tron",
-      "name": "Tron",
+      "id": "apollo",
+      "name": "Apollo",
+      "layout": "default",
       "colors": {
-        "r": 170,
-        "g": 207,
-        "b": 209,
+        "r": 235,
+        "g": 235,
+        "b": 235,
         "black": "#000000",
-        "light_black": "#05080d",
-        "grey": "#262828"
+        "light_black": "#191919",
+        "grey": "#262827"
       },
       "cssvars": {
-        "font_main": "Fira Code, Consolas, monospace",
-        "font_main_light": "Fira Code, Consolas, monospace"
+        "font_main": "United Sans Medium",
+        "font_main_light": "United Sans Light"
       },
       "terminal": {
-        "fontFamily": "Fira Code, monospace",
+        "fontFamily": "Fira Mono",
         "cursorStyle": "block",
-        "foreground": "#aacfd1",
-        "background": "#05080d",
-        "cursor": "#aacfd1",
-        "cursorAccent": "#aacfd1",
-        "selection": "rgba(170,207,209,0.3)"
+        "foreground": "#ebebeb",
+        "background": "#191919",
+        "cursor": "#ebebeb",
+        "cursorAccent": "#ebebeb",
+        "selection": "rgba(235,235,235,0.3)"
+      },
+      "globe": {
+        "base": "#000000",
+        "marker": "#ebebeb",
+        "pin": "#ebebeb",
+        "satellite": "#ebebeb"
+      },
+      "injectCSS": ""
+    },
+    {
+      "id": "apollo-notype",
+      "name": "Apollo Notype",
+      "layout": "notype",
+      "colors": {
+        "r": 235,
+        "g": 235,
+        "b": 235,
+        "black": "#000000",
+        "light_black": "#191919",
+        "grey": "#262827"
+      },
+      "cssvars": {
+        "font_main": "United Sans Medium",
+        "font_main_light": "United Sans Light"
+      },
+      "terminal": {
+        "fontFamily": "Fira Mono",
+        "cursorStyle": "block",
+        "foreground": "#ebebeb",
+        "background": "#191919",
+        "cursor": "#ebebeb",
+        "cursorAccent": "#ebebeb",
+        "selection": "rgba(235,235,235,0.3)"
+      },
+      "globe": {
+        "base": "#000000",
+        "marker": "#ebebeb",
+        "pin": "#ebebeb",
+        "satellite": "#ebebeb"
       },
       "injectCSS": ""
     },
     {
       "id": "blade",
       "name": "Blade",
+      "layout": "default",
       "colors": {
-        "r": 255,
-        "g": 150,
-        "b": 50,
+        "r": 204,
+        "g": 94,
+        "b": 55,
         "black": "#000000",
-        "light_black": "#0d0800",
-        "grey": "#2e2416"
+        "light_black": "#090B0A",
+        "grey": "#262827"
       },
       "cssvars": {
-        "font_main": "Fira Code, Consolas, monospace",
-        "font_main_light": "Fira Code, Consolas, monospace"
+        "font_main": "United Sans Medium",
+        "font_main_light": "United Sans Light"
       },
       "terminal": {
-        "fontFamily": "Fira Code, monospace",
+        "fontFamily": "Fira Mono",
+        "cursorStyle": "underline",
+        "foreground": "#cc5e37",
+        "background": "#090B0A",
+        "cursor": "#cc5e37",
+        "cursorAccent": "#cc5e37",
+        "selection": "rgba(204,94,55,0.3)"
+      },
+      "globe": {
+        "base": "#cc5e37",
+        "marker": "#cc5e37",
+        "pin": "#cc5e37",
+        "satellite": "#cc5e37"
+      },
+      "injectCSS": ""
+    },
+    {
+      "id": "chalkboard",
+      "name": "Chalkboard",
+      "layout": "default",
+      "colors": {
+        "r": 239,
+        "g": 240,
+        "b": 235,
+        "black": "#282a36",
+        "light_black": "#222430",
+        "grey": "#222430"
+      },
+      "cssvars": {
+        "font_main": "United Sans Medium",
+        "font_main_light": "United Sans Light"
+      },
+      "terminal": {
+        "fontFamily": "Fira Mono",
         "cursorStyle": "block",
-        "foreground": "#ff9632",
-        "background": "#0d0800",
-        "cursor": "#ff9632",
-        "cursorAccent": "#ff9632",
-        "selection": "rgba(255,150,50,0.3)"
+        "foreground": "#eff0eb",
+        "background": "#282a36",
+        "cursor": "#97979b",
+        "cursorAccent": "#282a36",
+        "selection": "rgba(239,240,235,0.3)"
+      },
+      "globe": {
+        "base": "#000000",
+        "marker": "#f3f99d",
+        "pin": "#eff0eb",
+        "satellite": "#ff5c57"
+      },
+      "injectCSS": ""
+    },
+    {
+      "id": "chalkboard-ligatures",
+      "name": "Chalkboard Ligatures",
+      "layout": "default",
+      "colors": {
+        "r": 239,
+        "g": 240,
+        "b": 235,
+        "black": "#282a36",
+        "light_black": "#222430",
+        "grey": "#222430"
+      },
+      "cssvars": {
+        "font_main": "United Sans Medium",
+        "font_main_light": "United Sans Light"
+      },
+      "terminal": {
+        "fontFamily": "Fira Code",
+        "cursorStyle": "block",
+        "foreground": "#eff0eb",
+        "background": "#282a36",
+        "cursor": "#97979b",
+        "cursorAccent": "#282a36",
+        "selection": "rgba(239,240,235,0.3)"
+      },
+      "globe": {
+        "base": "#000000",
+        "marker": "#f3f99d",
+        "pin": "#eff0eb",
+        "satellite": "#ff5c57"
+      },
+      "injectCSS": ""
+    },
+    {
+      "id": "chalkboard-notype",
+      "name": "Chalkboard Notype",
+      "layout": "notype",
+      "colors": {
+        "r": 239,
+        "g": 240,
+        "b": 235,
+        "black": "#282a36",
+        "light_black": "#222430",
+        "grey": "#222430"
+      },
+      "cssvars": {
+        "font_main": "United Sans Medium",
+        "font_main_light": "United Sans Light"
+      },
+      "terminal": {
+        "fontFamily": "Fira Mono",
+        "cursorStyle": "block",
+        "foreground": "#eff0eb",
+        "background": "#282a36",
+        "cursor": "#97979b",
+        "cursorAccent": "#282a36",
+        "selection": "rgba(239,240,235,0.3)"
+      },
+      "globe": {
+        "base": "#000000",
+        "marker": "#f3f99d",
+        "pin": "#eff0eb",
+        "satellite": "#ff5c57"
+      },
+      "injectCSS": ""
+    },
+    {
+      "id": "cyborg",
+      "name": "Cyborg",
+      "layout": "default",
+      "colors": {
+        "r": 95,
+        "g": 215,
+        "b": 215,
+        "black": "#011f1f",
+        "light_black": "#0a3333",
+        "grey": "#034747"
+      },
+      "cssvars": {
+        "font_main": "United Sans Medium",
+        "font_main_light": "United Sans Light"
+      },
+      "terminal": {
+        "fontFamily": "Fira Code",
+        "cursorStyle": "block",
+        "foreground": "#a3c2c2",
+        "background": "#0a3333",
+        "cursor": "#5cffff",
+        "cursorAccent": "#85ff5c",
+        "selection": "#ffff5c"
+      },
+      "globe": {
+        "base": "#5c5cff",
+        "marker": "#eb0954",
+        "pin": "#85ff5c",
+        "satellite": "#ffff5c"
+      },
+      "injectCSS": ""
+    },
+    {
+      "id": "cyborg-focus",
+      "name": "Cyborg Focus",
+      "layout": "default",
+      "colors": {
+        "r": 95,
+        "g": 215,
+        "b": 215,
+        "black": "#011f1f",
+        "light_black": "#0a3333",
+        "grey": "#034747"
+      },
+      "cssvars": {
+        "font_main": "United Sans Medium",
+        "font_main_light": "United Sans Light"
+      },
+      "terminal": {
+        "fontFamily": "Fira Code",
+        "cursorStyle": "block",
+        "foreground": "#a3c2c2",
+        "background": "#0a3333",
+        "cursor": "#5cffff",
+        "cursorAccent": "#85ff5c",
+        "selection": "#ffff5c"
+      },
+      "globe": {
+        "base": "#5c5cff",
+        "marker": "#eb0954",
+        "pin": "#85ff5c",
+        "satellite": "#ffff5c"
+      },
+      "injectCSS": ""
+    },
+    {
+      "id": "interstellar",
+      "name": "Interstellar",
+      "layout": "default",
+      "colors": {
+        "r": 3,
+        "g": 169,
+        "b": 244,
+        "black": "#f3f3f3",
+        "light_black": "#dedede",
+        "grey": "#bfbfbf"
+      },
+      "cssvars": {
+        "font_main": "United Sans Medium",
+        "font_main_light": "United Sans Light"
+      },
+      "terminal": {
+        "fontFamily": "Fira Mono",
+        "cursorStyle": "bar",
+        "foreground": "#03A9F4",
+        "background": "#dedede",
+        "cursor": "#03A9F4",
+        "cursorAccent": "#03A9F4",
+        "selection": "rgba(3,169,244,0.3)"
+      },
+      "globe": {
+        "base": "#03A9F4",
+        "marker": "#03A9F4",
+        "pin": "#03A9F4",
+        "satellite": "#03A9F4"
       },
       "injectCSS": ""
     },
     {
       "id": "matrix",
       "name": "Matrix",
+      "layout": "default",
       "colors": {
         "r": 0,
-        "g": 255,
-        "b": 65,
-        "black": "#000000",
-        "light_black": "#000d03",
-        "grey": "#1a2e1f"
+        "g": 143,
+        "b": 17,
+        "black": "#0D0208",
+        "light_black": "#090B0A",
+        "grey": "#262827"
       },
       "cssvars": {
-        "font_main": "Fira Code, Consolas, monospace",
-        "font_main_light": "Fira Code, Consolas, monospace"
+        "font_main": "United Sans Medium",
+        "font_main_light": "United Sans Light"
       },
       "terminal": {
-        "fontFamily": "Fira Code, monospace",
-        "cursorStyle": "block",
+        "fontFamily": "Fira Mono",
+        "cursorStyle": "underline",
         "foreground": "#00ff41",
-        "background": "#000d03",
+        "background": "#0D0208",
         "cursor": "#00ff41",
         "cursorAccent": "#00ff41",
-        "selection": "rgba(0,255,65,0.3)"
+        "selection": "#008f11"
+      },
+      "globe": {
+        "base": "#008f11",
+        "marker": "#008f11",
+        "pin": "#008f11",
+        "satellite": "#008f11"
+      },
+      "injectCSS": ""
+    },
+    {
+      "id": "navy",
+      "name": "Navy",
+      "layout": "default",
+      "colors": {
+        "r": 20,
+        "g": 119,
+        "b": 205,
+        "black": "#282a36",
+        "light_black": "#222430",
+        "grey": "#222430"
+      },
+      "cssvars": {
+        "font_main": "United Sans Medium",
+        "font_main_light": "United Sans Light"
+      },
+      "terminal": {
+        "fontFamily": "Fira Mono",
+        "cursorStyle": "block",
+        "foreground": "#87b7cc",
+        "background": "#222430",
+        "cursor": "#87b7cc",
+        "cursorAccent": "#16739c",
+        "selection": "rgba(239,240,235,0.3)"
+      },
+      "globe": {
+        "base": "#16739c",
+        "marker": "#ad0c0c",
+        "pin": "#04b80a",
+        "satellite": "#e3f213"
+      },
+      "injectCSS": ""
+    },
+    {
+      "id": "navy-disrupted",
+      "name": "Navy Disrupted",
+      "layout": "disrupted",
+      "colors": {
+        "r": 20,
+        "g": 119,
+        "b": 205,
+        "black": "#282a36",
+        "light_black": "#222430",
+        "grey": "#222430"
+      },
+      "cssvars": {
+        "font_main": "United Sans Medium",
+        "font_main_light": "United Sans Light"
+      },
+      "terminal": {
+        "fontFamily": "Fira Mono",
+        "cursorStyle": "block",
+        "foreground": "#87b7cc",
+        "background": "#222430",
+        "cursor": "#87b7cc",
+        "cursorAccent": "#16739c",
+        "selection": "rgba(239,240,235,0.3)"
+      },
+      "globe": {
+        "base": "#16739c",
+        "marker": "#ad0c0c",
+        "pin": "#04b80a",
+        "satellite": "#e3f213"
+      },
+      "injectCSS": ""
+    },
+    {
+      "id": "navy-notype",
+      "name": "Navy Notype",
+      "layout": "notype",
+      "colors": {
+        "r": 20,
+        "g": 119,
+        "b": 205,
+        "black": "#282a36",
+        "light_black": "#222430",
+        "grey": "#222430"
+      },
+      "cssvars": {
+        "font_main": "United Sans Medium",
+        "font_main_light": "United Sans Light"
+      },
+      "terminal": {
+        "fontFamily": "Fira Mono",
+        "cursorStyle": "block",
+        "foreground": "#87b7cc",
+        "background": "#222430",
+        "cursor": "#87b7cc",
+        "cursorAccent": "#16739c",
+        "selection": "rgba(239,240,235,0.3)"
+      },
+      "globe": {
+        "base": "#16739c",
+        "marker": "#ad0c0c",
+        "pin": "#04b80a",
+        "satellite": "#e3f213"
       },
       "injectCSS": ""
     },
     {
       "id": "nord",
       "name": "Nord",
+      "layout": "default",
       "colors": {
-        "r": 129,
-        "g": 161,
-        "b": 193,
-        "black": "#2e3440",
-        "light_black": "#3b4252",
-        "grey": "#434c5e"
+        "r": 216,
+        "g": 222,
+        "b": 233,
+        "black": "#3B4252",
+        "light_black": "#2E3440",
+        "grey": "#4c566a"
       },
       "cssvars": {
-        "font_main": "Fira Code, Consolas, monospace",
-        "font_main_light": "Fira Code, Consolas, monospace"
+        "font_main": "United Sans Medium",
+        "font_main_light": "United Sans Light"
       },
       "terminal": {
-        "fontFamily": "Fira Code, monospace",
+        "fontFamily": "Fira Mono",
         "cursorStyle": "block",
-        "foreground": "#81a1c1",
-        "background": "#2e3440",
-        "cursor": "#81a1c1",
-        "cursorAccent": "#81a1c1",
-        "selection": "rgba(129,161,193,0.3)"
+        "foreground": "#D8DEE9",
+        "background": "#2E3440",
+        "cursor": "#D8DEE9",
+        "cursorAccent": "#D8DEE9",
+        "selection": "rgba(67, 76, 94, 0.8)"
+      },
+      "globe": {
+        "base": "#000000",
+        "marker": "#EBCB8B",
+        "pin": "#81A1C1",
+        "satellite": "#BF616A"
       },
       "injectCSS": ""
     },
     {
-      "id": "cyberpunk",
-      "name": "Cyberpunk",
+      "id": "red",
+      "name": "Red",
+      "layout": "default",
       "colors": {
-        "r": 255,
+        "r": 204,
         "g": 0,
-        "b": 128,
+        "b": 34,
         "black": "#000000",
-        "light_black": "#0d0006",
-        "grey": "#2e1a24"
+        "light_black": "#090B0A",
+        "grey": "#0f2e3d"
       },
       "cssvars": {
-        "font_main": "Fira Code, Consolas, monospace",
-        "font_main_light": "Fira Code, Consolas, monospace"
+        "font_main": "United Sans Medium",
+        "font_main_light": "United Sans Light"
       },
       "terminal": {
-        "fontFamily": "Fira Code, monospace",
-        "cursorStyle": "block",
-        "foreground": "#ff0080",
-        "background": "#0d0006",
-        "cursor": "#ff0080",
-        "cursorAccent": "#ff0080",
-        "selection": "rgba(255,0,128,0.3)"
+        "fontFamily": "Fira Mono",
+        "cursorStyle": "underline",
+        "foreground": "#cc0022",
+        "background": "#090B0A",
+        "cursor": "#cc0022",
+        "cursorAccent": "#cc0022",
+        "selection": "rgba(204,0,34,0.3)"
+      },
+      "globe": {
+        "base": "#cc0022",
+        "marker": "#cc0022",
+        "pin": "#cc0022",
+        "satellite": "#cc0022"
       },
       "injectCSS": ""
     },
     {
-      "id": "apollo",
-      "name": "Apollo",
+      "id": "tron",
+      "name": "Tron",
+      "layout": "default",
       "colors": {
-        "r": 218,
-        "g": 165,
-        "b": 32,
-        "black": "#000000",
-        "light_black": "#0d0a02",
-        "grey": "#2e2710"
-      },
-      "cssvars": {
-        "font_main": "Fira Code, Consolas, monospace",
-        "font_main_light": "Fira Code, Consolas, monospace"
-      },
-      "terminal": {
-        "fontFamily": "Fira Code, monospace",
-        "cursorStyle": "block",
-        "foreground": "#daa520",
-        "background": "#0d0a02",
-        "cursor": "#daa520",
-        "cursorAccent": "#daa520",
-        "selection": "rgba(218,165,32,0.3)"
-      },
-      "injectCSS": ""
-    },
-    {
-      "id": "midnight",
-      "name": "Midnight",
-      "colors": {
-        "r": 100,
-        "g": 149,
-        "b": 237,
+        "r": 170,
+        "g": 207,
+        "b": 209,
         "black": "#000000",
         "light_black": "#05080d",
-        "grey": "#1a2340"
+        "grey": "#262828"
       },
       "cssvars": {
-        "font_main": "Fira Code, Consolas, monospace",
-        "font_main_light": "Fira Code, Consolas, monospace"
+        "font_main": "United Sans Medium",
+        "font_main_light": "United Sans Light"
       },
       "terminal": {
-        "fontFamily": "Fira Code, monospace",
+        "fontFamily": "Fira Mono",
         "cursorStyle": "block",
-        "foreground": "#6495ed",
+        "foreground": "#aacfd1",
         "background": "#05080d",
-        "cursor": "#6495ed",
-        "cursorAccent": "#6495ed",
-        "selection": "rgba(100,149,237,0.3)"
+        "cursor": "#aacfd1",
+        "cursorAccent": "#aacfd1",
+        "selection": "rgba(170,207,209,0.3)"
+      },
+      "globe": {
+        "base": "#000000",
+        "marker": "#aacfd1",
+        "pin": "#aacfd1",
+        "satellite": "#aacfd1"
       },
       "injectCSS": ""
     },
     {
-      "id": "ember",
-      "name": "Ember",
+      "id": "tron-colorfilter",
+      "name": "Tron Colorfilter",
+      "layout": "colorfilter",
       "colors": {
-        "r": 239,
-        "g": 68,
-        "b": 68,
+        "r": 170,
+        "g": 207,
+        "b": 209,
         "black": "#000000",
-        "light_black": "#0d0303",
-        "grey": "#2e1616"
+        "light_black": "#05080d",
+        "grey": "#262828"
       },
       "cssvars": {
-        "font_main": "Fira Code, Consolas, monospace",
-        "font_main_light": "Fira Code, Consolas, monospace"
+        "font_main": "United Sans Medium",
+        "font_main_light": "United Sans Light"
       },
       "terminal": {
-        "fontFamily": "Fira Code, monospace",
+        "fontFamily": "Fira Mono",
         "cursorStyle": "block",
-        "foreground": "#ef4444",
-        "background": "#0d0303",
-        "cursor": "#ef4444",
-        "cursorAccent": "#ef4444",
-        "selection": "rgba(239,68,68,0.3)"
+        "foreground": "#aacfd1",
+        "background": "#05080d",
+        "cursor": "#aacfd1",
+        "cursorAccent": "#aacfd1",
+        "selection": "rgba(170,207,209,0.3)"
+      },
+      "globe": {
+        "base": "#000000",
+        "marker": "#aacfd1",
+        "pin": "#aacfd1",
+        "satellite": "#aacfd1"
+      },
+      "injectCSS": ""
+    },
+    {
+      "id": "tron-disrupted",
+      "name": "Tron Disrupted",
+      "layout": "disrupted",
+      "colors": {
+        "r": 170,
+        "g": 207,
+        "b": 209,
+        "black": "#000000",
+        "light_black": "#05080d",
+        "grey": "#262828"
+      },
+      "cssvars": {
+        "font_main": "United Sans Medium",
+        "font_main_light": "United Sans Light"
+      },
+      "terminal": {
+        "fontFamily": "Fira Mono",
+        "cursorStyle": "block",
+        "foreground": "#aacfd1",
+        "background": "#05080d",
+        "cursor": "#aacfd1",
+        "cursorAccent": "#aacfd1",
+        "selection": "rgba(170,207,209,0.3)"
+      },
+      "globe": {
+        "base": "#000000",
+        "marker": "#aacfd1",
+        "pin": "#aacfd1",
+        "satellite": "#aacfd1"
+      },
+      "injectCSS": ""
+    },
+    {
+      "id": "tron-fulltype",
+      "name": "Tron Fulltype",
+      "layout": "fulltype",
+      "colors": {
+        "r": 170,
+        "g": 207,
+        "b": 209,
+        "black": "#000000",
+        "light_black": "#05080d",
+        "grey": "#262828"
+      },
+      "cssvars": {
+        "font_main": "United Sans Medium",
+        "font_main_light": "United Sans Light"
+      },
+      "terminal": {
+        "fontFamily": "Fira Mono",
+        "cursorStyle": "block",
+        "foreground": "#aacfd1",
+        "background": "#05080d",
+        "cursor": "#aacfd1",
+        "cursorAccent": "#aacfd1",
+        "selection": "rgba(170,207,209,0.3)"
+      },
+      "globe": {
+        "base": "#000000",
+        "marker": "#aacfd1",
+        "pin": "#aacfd1",
+        "satellite": "#aacfd1"
       },
       "injectCSS": ""
     },
     {
       "id": "tron-notype",
-      "name": "Tron (No Keyboard)",
+      "name": "Tron Notype",
+      "layout": "notype",
       "colors": {
         "r": 170,
         "g": 207,
@@ -220,11 +640,11 @@
         "grey": "#262828"
       },
       "cssvars": {
-        "font_main": "Fira Code, Consolas, monospace",
-        "font_main_light": "Fira Code, Consolas, monospace"
+        "font_main": "United Sans Medium",
+        "font_main_light": "United Sans Light"
       },
       "terminal": {
-        "fontFamily": "Fira Code, monospace",
+        "fontFamily": "Fira Mono",
         "cursorStyle": "block",
         "foreground": "#aacfd1",
         "background": "#05080d",
@@ -232,11 +652,18 @@
         "cursorAccent": "#aacfd1",
         "selection": "rgba(170,207,209,0.3)"
       },
-      "injectCSS": "#keyboard { display: none !important; } #filesystem { height: calc(100% - 20px) !important; flex-grow: 1 !important; }"
+      "globe": {
+        "base": "#000000",
+        "marker": "#aacfd1",
+        "pin": "#aacfd1",
+        "satellite": "#aacfd1"
+      },
+      "injectCSS": ""
     },
     {
-      "id": "tron-disrupted",
-      "name": "Tron (Ultrawide)",
+      "id": "tron-typeleft",
+      "name": "Tron Typeleft",
+      "layout": "typeleft",
       "colors": {
         "r": 170,
         "g": 207,
@@ -246,11 +673,11 @@
         "grey": "#262828"
       },
       "cssvars": {
-        "font_main": "Fira Code, Consolas, monospace",
-        "font_main_light": "Fira Code, Consolas, monospace"
+        "font_main": "United Sans Medium",
+        "font_main_light": "United Sans Light"
       },
       "terminal": {
-        "fontFamily": "Fira Code, monospace",
+        "fontFamily": "Fira Mono",
         "cursorStyle": "block",
         "foreground": "#aacfd1",
         "background": "#05080d",
@@ -258,7 +685,13 @@
         "cursorAccent": "#aacfd1",
         "selection": "rgba(170,207,209,0.3)"
       },
-      "injectCSS": "#main-panel { flex-direction: row !important; } #terminal-panel { flex: 2 !important; } #sidebar-panel { flex: 1 !important; order: -1 !important; } #keyboard { max-width: 50% !important; }"
+      "globe": {
+        "base": "#000000",
+        "marker": "#aacfd1",
+        "pin": "#aacfd1",
+        "satellite": "#aacfd1"
+      },
+      "injectCSS": ""
     }
   ]
 }

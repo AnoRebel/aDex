@@ -18,7 +18,7 @@ import {
   UpdateFontSettings,
   GetDefaultFontConfiguration,
   SetDefaultFontConfiguration
-} from '~~/bindings'
+} from '~/lib/wailsjs/coordinator'
 
 // Wails bindings would be generated - for now we'll define the interface
 interface FontService {

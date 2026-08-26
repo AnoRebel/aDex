@@ -10,49 +10,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { computed } from 'vue'
+import { useNow, useDateFormat } from '@vueuse/core'
 
 const props = withDefaults(defineProps<{
   use24Hour?: boolean
 }>(), {
-  use24Hour: true
+  use24Hour: true,
 })
 
-const hours = ref('00')
-const minutes = ref('00')
-const seconds = ref('00')
-const colonVisible = ref(true)
+// VueUse's `useNow` gives us a reactive Date that re-evaluates every
+// second. `useDateFormat` then renders it through date-fns' tokens
+// (HH 24h, hh 12h, etc) without us touching getHours/getMinutes by
+// hand. Replaces the previous setInterval(tick, 1000) scaffold.
+const now = useNow({ interval: 1000 })
+const timeStr = useDateFormat(now, computed(() => (props.use24Hour ? 'HH:mm:ss' : 'hh:mm:ss')))
 
-let tickTimer: ReturnType<typeof setInterval> | null = null
+const displayChars = computed(() => timeStr.value.split(''))
 
-const displayChars = computed(() => {
-  const timeStr = `${hours.value}:${minutes.value}:${seconds.value}`
-  return timeStr.split('')
-})
-
-function tick() {
-  const now = new Date()
-  let h = now.getHours()
-
-  if (!props.use24Hour) {
-    h = h % 12 || 12
-  }
-
-  hours.value = String(h).padStart(2, '0')
-  minutes.value = String(now.getMinutes()).padStart(2, '0')
-  seconds.value = String(now.getSeconds()).padStart(2, '0')
-  colonVisible.value = now.getMilliseconds() < 500
-}
-
-onMounted(() => {
-  tick()
-  tickTimer = setInterval(tick, 1000)
-})
-
-onBeforeUnmount(() => {
-  if (tickTimer) {
-    clearInterval(tickTimer)
-    tickTimer = null
-  }
-})
+// Colon blinks once per second — derived from millisecond offset of
+// the live `now` ref so we don't need a separate timer.
+const colonVisible = computed(() => now.value.getMilliseconds() < 500)
 </script>

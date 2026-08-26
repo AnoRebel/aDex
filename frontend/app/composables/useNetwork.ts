@@ -1,7 +1,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 
-// Wails v3 API import
-import { ServiceCoordinator } from '~/wailsjs/go/backend/services/coordinator/ServiceCoordinator'
+// Wails v3 generated bindings, via the shared coordinator facade.
+import * as Coordinator from '~/lib/wailsjs/coordinator'
 
 export function useNetwork() {
   // Reactive state
@@ -15,7 +15,7 @@ export function useNetwork() {
   const loading = ref(false)
   const error = ref<string | null>(null)
   
-  const serviceCoordinator = new ServiceCoordinator()
+  const serviceCoordinator = Coordinator
   
   let refreshTimer: NodeJS.Timeout | null = null
   const refreshInterval = ref(2000) // 2 seconds

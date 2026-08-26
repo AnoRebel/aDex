@@ -20,15 +20,16 @@
           </div>
         </div>
 
-        <!-- Boot messages -->
+        <!-- Boot messages — signale-style: level icon + [tag] + text. -->
         <div class="boot-messages" :class="{ show: messagesVisible }">
           <div
             v-for="(msg, index) in visibleMessages"
             :key="index"
             class="boot-message"
-            :class="{ done: msg.done, current: msg.current }"
+            :class="[`boot-message-${msg.level}`, { done: msg.done, current: msg.current }]"
           >
-            <span class="boot-message-prefix">[{{ msg.done ? 'OK' : '..' }}]</span>
+            <span class="boot-message-icon">{{ levelIcon(msg.level) }}</span>
+            <span class="boot-message-tag">[{{ msg.tag }}]</span>
             <span class="boot-message-text">{{ msg.text }}</span>
           </div>
         </div>
@@ -57,14 +58,39 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { onKeyStroke } from '@vueuse/core'
+import { useAdexAudio } from '~/composables/useAdexAudio'
 
 // ---- Types ----
 
+/**
+ * BootMessage drives a single signale-style log line:
+ *
+ *   ⏵ [config]      Settings loaded from ~/.config/aDex-UI
+ *   ⠿ [theme]       Loading theme engine...
+ *   ✔ [terminal]    PTY service ready
+ *   ✗ [filesystem]  fsnotify watcher init failed
+ *
+ * `level` controls icon + color (matches signale's conventions); `tag`
+ * is the lowercase service name shown in [brackets].
+ */
+type BootLevel = 'info' | 'wait' | 'success' | 'warn' | 'error'
+
 interface BootMessage {
+  level: BootLevel
+  tag: string
   text: string
   done: boolean
   current: boolean
   delay: number
+}
+
+const BOOT_LEVEL_ICON: Record<BootLevel, string> = {
+  info:    '›',
+  wait:    '⠿',
+  success: '✔',
+  warn:    '⚠',
+  error:   '✗',
 }
 
 // ---- Props / Emits ----
@@ -97,74 +123,66 @@ const glitchActive = ref(false)
 const progressPercent = ref(0)
 
 const bootMessages: BootMessage[] = [
-  { text: 'Initializing aDex-UI v2.0...', done: false, current: false, delay: 200 },
-  { text: 'Loading kernel modules...', done: false, current: false, delay: 300 },
-  { text: 'Starting system services...', done: false, current: false, delay: 350 },
-  { text: 'Initializing terminal subsystem...', done: false, current: false, delay: 280 },
-  { text: 'Loading theme engine...', done: false, current: false, delay: 220 },
-  { text: 'Connecting to backend services...', done: false, current: false, delay: 400 },
-  { text: 'System ready.', done: false, current: false, delay: 150 },
+  { level: 'wait',    tag: 'config',    text: 'Loading settings...',                       done: false, current: false, delay: 180 },
+  { level: 'wait',    tag: 'theme',     text: 'Initializing theme engine...',              done: false, current: false, delay: 220 },
+  { level: 'wait',    tag: 'keyboard',  text: 'Loading keyboard layout...',                done: false, current: false, delay: 160 },
+  { level: 'wait',    tag: 'audio',     text: 'Initializing audio cue system...',          done: false, current: false, delay: 200 },
+  { level: 'wait',    tag: 'system',    text: 'Probing CPU / memory / processes...',       done: false, current: false, delay: 240 },
+  { level: 'wait',    tag: 'network',   text: 'Resolving network interfaces...',           done: false, current: false, delay: 280 },
+  { level: 'wait',    tag: 'filesystem',text: 'Mounting filesystem service...',            done: false, current: false, delay: 200 },
+  { level: 'wait',    tag: 'terminal',  text: 'Spawning PTY service...',                   done: false, current: false, delay: 260 },
+  { level: 'success', tag: 'kernel',    text: 'aDex-UI ready — handing off to UI',         done: false, current: false, delay: 160 },
 ]
 
 const visibleMessages = ref<BootMessage[]>([])
 
-// ---- Audio ----
-
-let audioContext: AudioContext | null = null
-
-function initAudio(): boolean {
-  if (!props.enableAudio) return false
-  try {
-    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
-    return true
-  } catch {
-    return false
-  }
+function levelIcon(level: BootLevel): string {
+  return BOOT_LEVEL_ICON[level] ?? '›'
 }
 
-function playBootTone(frequency: number, duration: number, startTime?: number) {
-  if (!audioContext) return
+// ---- Audio ----
+//
+// All cues route through the shared useAdexAudio composable so the boot
+// screen plays through the same Howler-backed pipeline as every other
+// surface in the app (settings modal preview, terminal bell, shutdown
+// splash, etc.). That composable already handles:
+//   - AudioContext creation + autoplay-policy resume
+//   - Howler unlock-listener arming (with WeakSet dedup so we don't
+//     leak callbacks across thousands of plays)
+//   - Synth fallback when WAV assets fail to load
+//   - Explicit node disconnect in `onended` for the synth path
+//   - Per-cue volume + global volume scaling
+//
+// The previous hand-rolled AudioContext + oscillator code duplicated
+// most of that logic with its own bugs (no `onended` cleanup, no
+// suspend retry, no shared volume preferences).
+
+const audio = useAdexAudio()
+
+function playCue(cue: string) {
+  if (!props.enableAudio) return
   try {
-    const oscillator = audioContext.createOscillator()
-    const gainNode = audioContext.createGain()
-
-    oscillator.connect(gainNode)
-    gainNode.connect(audioContext.destination)
-
-    oscillator.type = 'sine'
-    oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime)
-
-    const start = startTime || audioContext.currentTime
-    gainNode.gain.setValueAtTime(0, start)
-    gainNode.gain.linearRampToValueAtTime(0.05, start + 0.01)
-    gainNode.gain.exponentialRampToValueAtTime(0.001, start + duration)
-
-    oscillator.start(start)
-    oscillator.stop(start + duration)
+    audio.playCue(cue)
   } catch {
-    // Audio playback failed silently
+    /* swallow — audio is decorative, never block boot */
   }
 }
 
 function playBootSound() {
-  if (!audioContext) return
-  // Short ascending tones for boot sequence feel
-  playBootTone(220, 0.08, audioContext.currentTime)
-  playBootTone(330, 0.08, audioContext.currentTime + 0.06)
-  playBootTone(440, 0.12, audioContext.currentTime + 0.12)
+  // 'scan' is the long sweep cue — perfect "system coming online" feel.
+  playCue('scan')
 }
 
 function playMessageSound() {
-  if (!audioContext) return
-  playBootTone(800, 0.03)
+  // 'stdin' is the short blip used for terminal stream activity; it
+  // doubles nicely as a per-step boot tick (~30ms).
+  playCue('stdin')
 }
 
 function playCompleteSound() {
-  if (!audioContext) return
-  const now = audioContext.currentTime
-  playBootTone(440, 0.1, now)
-  playBootTone(554, 0.1, now + 0.08)
-  playBootTone(659, 0.15, now + 0.16)
+  // 'granted' is the rising "access granted" chord — fits the
+  // "boot complete, system ready" beat.
+  playCue('granted')
 }
 
 // ---- Helpers ----
@@ -176,12 +194,92 @@ function sleep(ms: number): Promise<void> {
 // ---- Boot Sequence ----
 
 let bootAborted = false
+let bootUnsubscribe: (() => void) | null = null
+// Single-handoff latch. Both the Esc skip path and the natural
+// sequence-completion path check + set this so `emit('complete')`
+// fires exactly once even if a skip races the timed completion.
+// Declared up here (not next to skipBoot) so runBootSequence's
+// closure references a fully-initialized binding, not one in the
+// temporal dead zone.
+let handedOff = false
+
+// Map a backend boot.stage payload onto our existing BootMessage shape so
+// the template doesn't have to special-case backend-vs-fallback rows.
+function backendToBootMessage(payload: {
+  stage: 'wait' | 'success' | 'warn' | 'error'
+  tag: string
+  text: string
+  detail?: string
+}): BootMessage {
+  const lvlMap: Record<typeof payload.stage, BootLevel> = {
+    wait: 'wait',
+    success: 'success',
+    warn: 'warn',
+    error: 'error',
+  }
+  return {
+    level: lvlMap[payload.stage],
+    tag: payload.tag,
+    text: payload.detail ? `${payload.text} — ${payload.detail}` : payload.text,
+    done: payload.stage !== 'wait',
+    current: payload.stage === 'wait',
+    delay: 0,
+  }
+}
+
+/** Subscribe to backend boot events. Returns an unsubscribe fn or null
+ *  when the Wails runtime isn't available (Storybook, browser preview,
+ *  jsdom test) — callers fall back to the canned message list. */
+function subscribeBootEvents(onComplete: () => void): (() => void) | null {
+  const runtime = (window as unknown as { runtime?: {
+    EventsOn(name: string, cb: (...args: unknown[]) => void): () => void
+    EventsOff(name: string): void
+  } }).runtime
+  if (!runtime?.EventsOn) return null
+
+  const offStage = runtime.EventsOn('boot.stage', (raw: unknown) => {
+    const payload = raw as {
+      stage: 'wait' | 'success' | 'warn' | 'error'
+      tag: string
+      text: string
+      detail?: string
+    }
+    if (!payload || typeof payload.tag !== 'string') return
+
+    // If we have an existing wait row for this tag, upgrade it in place
+    // so we don't spam two lines per service.
+    const existing = visibleMessages.value.find(
+      (m) => m.tag === payload.tag && m.current,
+    )
+    if (existing) {
+      existing.level = payload.stage === 'wait' ? 'wait' : (payload.stage === 'success' ? 'success' : payload.stage === 'warn' ? 'warn' : 'error')
+      existing.done = payload.stage !== 'wait'
+      existing.current = payload.stage === 'wait'
+      if (payload.detail) existing.text = `${payload.text} — ${payload.detail}`
+    } else {
+      visibleMessages.value.push(backendToBootMessage(payload))
+    }
+    playMessageSound()
+  })
+
+  const offComplete = runtime.EventsOn('boot.complete', () => {
+    progressPercent.value = 100
+    emit('progress', 100)
+    onComplete()
+  })
+
+  return () => {
+    try { offStage?.() } catch { /* ignore */ }
+    try { offComplete?.() } catch { /* ignore */ }
+  }
+}
 
 async function runBootSequence(): Promise<void> {
   const startTime = Date.now()
 
-  // Initialize audio
-  initAudio()
+  // No explicit audio init — useAdexAudio lazy-creates its
+  // AudioContext on the first playCue() call and self-handles the
+  // autoplay-policy resume + Howler unlock pattern.
 
   // Phase 1: Title appears with glitch
   await sleep(200)
@@ -200,37 +298,58 @@ async function runBootSequence(): Promise<void> {
   await sleep(400)
   if (bootAborted) return
 
-  // Phase 2: Boot messages appear one by one
+  // Phase 2: Boot messages — driven by backend `boot.stage` events when
+  // Wails runtime is available, fallback to canned timer-based reveal
+  // when running in a plain browser preview / jsdom test.
   messagesVisible.value = true
   progressVisible.value = true
 
-  const totalMessages = bootMessages.length
-  for (let i = 0; i < totalMessages; i++) {
-    if (bootAborted) return
+  let backendComplete = false
+  const completed = new Promise<void>((resolve) => {
+    const unsubscribe = subscribeBootEvents(() => {
+      backendComplete = true
+      resolve()
+    })
+    if (unsubscribe) bootUnsubscribe = unsubscribe
+    // No runtime → resolve immediately so we fall through to the canned
+    // sequence below.
+    if (!unsubscribe) resolve()
+  })
 
-    const msg = { ...bootMessages[i], current: true }
-    visibleMessages.value.push(msg)
+  // Wait at most 10s for backend boot.complete; if it doesn't arrive we
+  // assume something is wrong and proceed with whatever we've got.
+  await Promise.race([completed, sleep(10_000)])
 
-    playMessageSound()
+  // Canned fallback when no backend events ever arrived (wails dev not
+  // running, jsdom test, etc). Reveals the static list with the same
+  // pacing as the V1 sequence.
+  if (!backendComplete && visibleMessages.value.length === 0) {
+    const totalMessages = bootMessages.length
+    for (let i = 0; i < totalMessages; i++) {
+      if (bootAborted) return
 
-    // Update progress
-    const baseProgress = Math.round(((i + 0.5) / totalMessages) * 90)
-    progressPercent.value = baseProgress
-    emit('progress', baseProgress)
+      const msg = { ...bootMessages[i], current: true }
+      visibleMessages.value.push(msg)
 
-    await sleep(msg.delay)
-    if (bootAborted) return
+      playMessageSound()
 
-    // Mark as done
-    visibleMessages.value[i].done = true
-    visibleMessages.value[i].current = false
+      const baseProgress = Math.round(((i + 0.5) / totalMessages) * 90)
+      progressPercent.value = baseProgress
+      emit('progress', baseProgress)
 
-    const doneProgress = Math.round(((i + 1) / totalMessages) * 90)
-    progressPercent.value = doneProgress
-    emit('progress', doneProgress)
+      await sleep(msg.delay)
+      if (bootAborted) return
 
-    // Brief pause between messages
-    await sleep(80)
+      visibleMessages.value[i].done = true
+      visibleMessages.value[i].current = false
+
+      const doneProgress = Math.round(((i + 1) / totalMessages) * 90)
+      progressPercent.value = doneProgress
+      emit('progress', doneProgress)
+
+      // Brief pause between messages
+      await sleep(80)
+    }
   }
 
   if (bootAborted) return
@@ -263,20 +382,46 @@ async function runBootSequence(): Promise<void> {
 
   // Phase 4: Fade out
   await sleep(300)
+  if (handedOff) return // user pressed Esc during the fade
   visible.value = false
 
-  // Cleanup audio
-  if (audioContext) {
-    try {
-      audioContext.close()
-    } catch {
-      // Ignore
-    }
-    audioContext = null
-  }
+  // No audio cleanup needed — useAdexAudio owns the AudioContext at
+  // module scope and reuses it across mounts. Closing it here would
+  // break any subsequent cue from any other surface.
 
+  handedOff = true
   emit('complete')
 }
+
+// ---- Skip ----
+
+function skipBoot() {
+  if (handedOff) return
+  handedOff = true
+  // Halt the in-flight sequence's remaining awaits — every phase
+  // checks `bootAborted` after each sleep, so this short-circuits
+  // them. Then immediately hide + hand off.
+  bootAborted = true
+  visible.value = false
+  emit('complete')
+}
+
+// Esc skips the boot intro for this launch only. (The permanent
+// "never show the intro" preference is the Settings → Advanced →
+// Skip boot intro toggle, read by pages/index.vue. This is the
+// one-shot escape hatch — useful in dev when restarting often.)
+// onKeyStroke auto-cleans on unmount, no manual listener teardown.
+onKeyStroke('Escape', (e) => {
+  e.preventDefault()
+  skipBoot()
+})
+
+// Guard the natural-completion path too: runBootSequence's final
+// `emit('complete')` must respect the same handedOff latch so a
+// skip mid-fade-out doesn't race the timed completion.
+watch(visible, (v) => {
+  if (!v) handedOff = true
+})
 
 // ---- Lifecycle ----
 
@@ -286,14 +431,13 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   bootAborted = true
-  if (audioContext) {
-    try {
-      audioContext.close()
-    } catch {
-      // Ignore
-    }
-    audioContext = null
+  if (bootUnsubscribe) {
+    try { bootUnsubscribe() } catch { /* ignore */ }
+    bootUnsubscribe = null
   }
+  // Intentionally don't close the audio context here — useAdexAudio
+  // owns it at module scope so it survives boot → main UI handoff
+  // and stays usable for terminal bells, settings previews, etc.
 })
 </script>
 
@@ -478,6 +622,7 @@ onBeforeUnmount(() => {
 
 .boot-message {
   display: flex;
+  align-items: baseline;
   gap: 0.6vw;
   color: rgba(var(--color_r, 170), var(--color_g, 207), var(--color_b, 209), 0.6);
   animation: boot-msg-appear 0.15s ease-out forwards;
@@ -491,21 +636,33 @@ onBeforeUnmount(() => {
   color: var(--color_accent, rgb(170, 207, 209));
 }
 
-.boot-message-prefix {
+/* Signale-style icon in a fixed-width gutter so tags + text align across
+ * all rows regardless of the level glyph width. */
+.boot-message-icon {
   flex-shrink: 0;
-  width: 3vw;
+  width: 1.4vw;
+  text-align: center;
+  font-weight: bold;
+  color: rgba(var(--color_r, 170), var(--color_g, 207), var(--color_b, 209), 0.55);
+}
+
+.boot-message-tag {
+  flex-shrink: 0;
+  min-width: 7vw;
   text-align: right;
-  color: rgba(var(--color_r, 170), var(--color_g, 207), var(--color_b, 209), 0.4);
+  color: rgba(var(--color_r, 170), var(--color_g, 207), var(--color_b, 209), 0.45);
+  letter-spacing: 0.08em;
 }
 
-.boot-message.done .boot-message-prefix {
-  color: var(--success, #10b981);
-}
-
-.boot-message.current .boot-message-prefix {
+.boot-message.current .boot-message-icon {
   color: var(--color_accent, rgb(170, 207, 209));
   animation: boot-blink 0.6s steps(1) infinite;
 }
+
+.boot-message-success .boot-message-icon { color: var(--success, var(--ok, #10b981)); }
+.boot-message-warn    .boot-message-icon { color: var(--warning, var(--warn, #f59e0b)); }
+.boot-message-error   .boot-message-icon { color: var(--error, var(--err, #ef4444)); }
+.boot-message-error   .boot-message-text { color: var(--error, var(--err, #ef4444)); }
 
 @keyframes boot-msg-appear {
   from {

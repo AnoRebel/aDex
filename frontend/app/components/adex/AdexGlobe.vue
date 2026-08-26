@@ -26,15 +26,24 @@
       </div>
     </div>
 
-    <!-- Endpoint info -->
+    <!-- Endpoint info — consolidated geo block. ISP and location now
+         live with the world view rather than as a separate
+         "GLOBAL NETWORK MAP" block in the netstat panel above. -->
     <div class="globe-info">
       <div class="globe-info-row">
         <span class="globe-info-label">ENDPOINT</span>
-        <span class="globe-info-value">{{ endpointCoords }}</span>
+        <span class="globe-info-value" :title="endpointCoords">{{ endpointCoords }}</span>
       </div>
       <div class="globe-info-row">
         <span class="globe-info-label">LOCATION</span>
-        <span class="globe-info-value globe-info-truncated">{{ locationName }}</span>
+        <!-- `title` exposes the full value on hover when CSS
+             ellipsis-truncates it. Adding it on every truncated row
+             across the UI per user request. -->
+        <span class="globe-info-value globe-info-truncated" :title="locationName">{{ locationName }}</span>
+      </div>
+      <div v-if="ispName" class="globe-info-row">
+        <span class="globe-info-label">ISP</span>
+        <span class="globe-info-value globe-info-truncated" :title="ispName">{{ ispName }}</span>
       </div>
       <div class="globe-info-row">
         <span class="globe-info-label">CONNECTIONS</span>
@@ -46,7 +55,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { useStorage } from '@vueuse/core'
 import { useNetworkStore } from '~/stores/network'
+import { GetSelfGeoIP } from '~/lib/wailsjs/coordinator'
 
 const networkStore = useNetworkStore()
 
@@ -54,7 +65,25 @@ const canvasRef = ref<HTMLCanvasElement | null>(null)
 const globeContainerRef = ref<HTMLElement | null>(null)
 const mousePos = ref<{ x: number; y: number } | null>(null)
 
-// Props for endpoint location (can be fed from parent or store)
+// Self-geo state (no longer relying on parent props that nobody passes
+// — parent never wired latitude/longitude/city/country, so they were
+// always undefined and the panel sat on Resolving forever).
+const selfGeo = ref<{
+  lat: number | null
+  lon: number | null
+  city: string
+  country: string
+  isp: string
+}>({
+  lat: null,
+  lon: null,
+  city: '',
+  country: '',
+  isp: '',
+})
+
+// Backward-compatible props (still accepted in case some other layout
+// passes them explicitly, but not required).
 const props = defineProps<{
   latitude?: number
   longitude?: number
@@ -67,9 +96,9 @@ let animationFrame: number | null = null
 let rotationAngle = 0
 const ROTATION_SPEED = 0.002
 
-// Computed
-const endpointLat = computed(() => props.latitude ?? 0)
-const endpointLon = computed(() => props.longitude ?? 0)
+// Computed — prefer explicit props, fall back to self-geo lookup.
+const endpointLat = computed(() => props.latitude ?? selfGeo.value.lat ?? 0)
+const endpointLon = computed(() => props.longitude ?? selfGeo.value.lon ?? 0)
 
 const endpointCoords = computed(() => {
   const lat = endpointLat.value
@@ -81,14 +110,96 @@ const endpointCoords = computed(() => {
 
 const locationName = computed(() => {
   const parts = []
-  if (props.city) parts.push(props.city)
-  if (props.country) parts.push(props.country)
+  const city = props.city || selfGeo.value.city
+  const country = props.country || selfGeo.value.country
+  if (city) parts.push(city)
+  if (country) parts.push(country)
   return parts.length > 0 ? parts.join(', ') : 'Resolving...'
 })
+
+const ispName = computed(() => selfGeo.value.isp)
 
 const activeConnectionCount = computed(() => {
   return networkStore.activeConnections?.length ?? 0
 })
+
+// Reactive read of the user's GeoIP preferences. Same storage key as
+// AdexNetstat — single source of truth.
+const adexNetworkSettings = useStorage<{
+  network?: { geoipEnabled?: boolean; geoipEndpoint?: string }
+}>('adex-settings', {})
+
+const geoipEnabled = computed(() =>
+  adexNetworkSettings.value?.network?.geoipEnabled ?? true,
+)
+const geoipEndpoint = computed(() =>
+  (adexNetworkSettings.value?.network?.geoipEndpoint ?? '').trim(),
+)
+
+// Fetch self-geo from the backend (kamero → ipify+iplocate failover)
+// + the WebView fallback if backend is unreachable. Keeps result cached
+// in selfGeo so the next poll doesn't re-fetch unless empty.
+async function refreshSelfGeo() {
+  // Air-gap mode — user opted out via Settings → Network. The globe
+  // still spins, just without an endpoint marker.
+  if (!geoipEnabled.value) return
+  if (selfGeo.value.lat !== null) return
+  try {
+    const g = await GetSelfGeoIP()
+    if (g && (g.latitude != null || g.city)) {
+      selfGeo.value = {
+        lat: typeof g.latitude === 'number' ? g.latitude : null,
+        lon: typeof g.longitude === 'number' ? g.longitude : null,
+        city: g.city ?? '',
+        country: g.country ?? '',
+        isp: g.isp ?? '',
+      }
+      return
+    }
+  } catch (err) {
+    console.warn('[globe] backend GetSelfGeoIP failed, trying WebView fallback:', err)
+  }
+  // WebView fallback: direct fetch. Use custom endpoint if configured.
+  try {
+    const url = geoipEndpoint.value || 'https://geo.kamero.ai/api/geo'
+    const res = await fetch(url, {
+      headers: { Accept: 'application/json' },
+    })
+    if (res.ok) {
+      const j = await res.json()
+      if (j && (j.latitude != null || j.city)) {
+        selfGeo.value = {
+          lat: parseFloat(String(j.latitude)) || null,
+          lon: parseFloat(String(j.longitude)) || null,
+          city: j.city ?? '',
+          country: j.country ?? '',
+          isp: '',
+        }
+        return
+      }
+    }
+  } catch { /* try ipify+iplocate */ }
+  try {
+    const ipRes = await fetch('https://api.ipify.org?format=json')
+    if (!ipRes.ok) return
+    const ipJ = await ipRes.json()
+    if (!ipJ?.ip) return
+    const geoRes = await fetch(`https://iplocate.io/api/lookup/${ipJ.ip}`, {
+      headers: { Accept: 'application/json' },
+    })
+    if (!geoRes.ok) return
+    const j = await geoRes.json()
+    selfGeo.value = {
+      lat: typeof j.latitude === 'number' ? j.latitude : null,
+      lon: typeof j.longitude === 'number' ? j.longitude : null,
+      city: j.city ?? '',
+      country: j.country_code ?? '',
+      isp: j?.asn?.name ?? '',
+    }
+  } catch (err) {
+    console.warn('[globe] geo fallback failed:', err)
+  }
+}
 
 // Project lat/lon to 2D position on the canvas globe
 const projectToCanvas = (lat: number, lon: number, cx: number, cy: number, radius: number) => {
@@ -270,6 +381,9 @@ onMounted(() => {
   nextTick(() => {
     animate()
   })
+  // Resolve self-geo so the world view + ISP populate. Cheap (cached
+  // backend-side) so it's safe to call once per mount.
+  refreshSelfGeo()
 })
 
 onUnmounted(() => {

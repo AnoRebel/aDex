@@ -141,15 +141,19 @@ export function useWails() {
   const system = {
     async getSystemInfo() {
       try {
-        const info = await GetSystemInfo()
+        const info: any = await GetSystemInfo()
         if (info) {
+          // Backend now uses explicit camelCase JSON tags (`platform`,
+          // `architecture`, `kernelVersion`, ...). The legacy
+          // PascalCase fallbacks stay so a partially-regenerated
+          // build can't break boot.
           return {
-            hostname: info.Hostname || info.hostname || 'localhost',
-            platform: info.OS || info.os || 'linux',
-            os: info.OS || info.os || 'Linux',
-            arch: info.Architecture || info.architecture || 'x64',
-            uptime: info.Uptime ? Number(info.Uptime) / 1e9 : 0,
-            kernel: info.KernelVersion || info.kernel || ''
+            hostname: info.hostname || info.Hostname || 'localhost',
+            platform: info.platform || info.OS || info.os || 'linux',
+            os: info.platform || info.OS || info.os || 'Linux',
+            arch: info.architecture || info.Architecture || 'x64',
+            uptime: info.uptime ? Number(info.uptime) / 1e9 : (info.Uptime ? Number(info.Uptime) / 1e9 : 0),
+            kernel: info.kernelVersion || info.KernelVersion || info.kernel || '',
           }
         }
         return { hostname: 'localhost', platform: 'linux', os: 'Linux', arch: 'x64', uptime: 0, kernel: '' }

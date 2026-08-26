@@ -4,11 +4,11 @@
   <img src="https://img.shields.io/badge/Go-1.21+-00ADD8?style=for-the-badge&logo=go" alt="Go">
   <img src="https://img.shields.io/badge/Vue.js-3.x+-4FC08D?style=for-the-badge&logo=vue.js&logoColor=white" alt="Vue.js">
   <img src="https://img.shields.io/badge/Nuxt-4.x+-00DC82?style=for-the-badge&logo=nuxt.js&logoColor=white" alt="Nuxt">
-  <img src="https://img.shields.io/badge/Wails-v3.0+-000000?style=for-the-badge&logo=wails&logoColor=white" alt="Wails">
+  <img src="https://img.shields.io/badge/Wails-v2.12-000000?style=for-the-badge&logo=wails&logoColor=white" alt="Wails">
   <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License">
 </p>
 
-A modern terminal emulator with system monitoring, built with Wails v3 and Nuxt v4. This project migrates the classic eDEX-UI experience to a modern, high-performance desktop application.
+A modern terminal emulator with system monitoring, built with Wails v2 and Nuxt 4. This project migrates the classic eDEX-UI experience to a modern, high-performance desktop application.
 
 ## ✨ Features
 
@@ -64,7 +64,7 @@ A modern terminal emulator with system monitoring, built with Wails v3 and Nuxt 
 
 ## Technology Stack
 
-- **Backend**: Go 1.25+ with Wails v3.0.0-alpha.36
+- **Backend**: Go 1.21+ with Wails v2.12.0
 - **Frontend**: Nuxt v4 + Vue 3 + TypeScript + Pinia
 - **Terminal**: xterm.js v5 with WebGL addon
 - **Monitoring**: gopsutil for cross-platform system metrics
@@ -84,7 +84,7 @@ A modern terminal emulator with system monitoring, built with Wails v3 and Nuxt 
 
 - Go 1.25+ (latest stable)
 - Bun 1.1+ or Node.js 20+ LTS
-- Wails v3.0.0-alpha.36: `go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-alpha.36`
+- Wails v2.12.0: `go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0`
 
 ### Development
 
@@ -95,12 +95,12 @@ A modern terminal emulator with system monitoring, built with Wails v3 and Nuxt 
 
 2. Generate Wails bindings:
    ```bash
-   wails3 generate bindings -ts -clean=true
+   wails generate module
    ```
 
 3. Run in development mode:
    ```bash
-   wails3 dev
+   wails dev
    ```
 
 4. Or use Taskfile for structured commands:
@@ -112,7 +112,7 @@ A modern terminal emulator with system monitoring, built with Wails v3 and Nuxt 
 
 Build for current platform:
 ```bash
-wails3 build
+wails build
 ```
 
 Build for all platforms:

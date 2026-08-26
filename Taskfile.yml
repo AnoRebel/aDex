@@ -9,26 +9,67 @@ includes:
 vars:
   APP_NAME: "aDex-UI"
   BIN_DIR: "bin"
+  # This project uses bun (see frontend/package.json packageManager). The v3
+  # build Taskfile dispatches frontend install/build/dev through this var.
+  PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "bun"}}'
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+  # Target OS for build/package/run. Defaults to the host OS and is overridden
+  # by `wails3 build GOOS=...` (or the GOOS env var) for cross-compilation.
+  GOOS: '{{.GOOS | default OS}}'
 
 tasks:
   build:
     summary: Builds the application
     cmds:
-      - task: "{{OS}}:build"
+      - task: "{{.GOOS}}:build"
 
   package:
     summary: Packages a production build of the application
     cmds:
-      - task: "{{OS}}:package"
+      - task: "{{.GOOS}}:package"
 
   run:
     summary: Runs the application
     cmds:
-      - task: "{{OS}}:run"
+      - task: "{{.GOOS}}:run"
 
   dev:
     summary: Runs the application in development mode
     cmds:
       - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+
+  verify:bindings:
+    desc: Lint frontend Wails binding imports against actual exports
+    cmds:
+      - bun scripts/verify-bindings.mjs
+
+  verify:go:
+    desc: Run Go vet + go test for the whole module
+    cmds:
+      - go vet ./...
+      - go test ./...
+
+  verify:frontend:
+    desc: Run Vitest from the frontend workspace
+    dir: frontend
+    cmds:
+      - bunx vitest run
+
+  verify:evidence:
+    desc: Fail if any feature claimed done in tasks.md lacks docs/evidence/<feature>/
+    cmds:
+      - bun scripts/verify-evidence.mjs
+
+  evidence:capture:
+    desc: 'Capture an evidence screenshot. Usage: task evidence:capture -- <feature> [theme]'
+    cmds:
+      - bun scripts/capture-evidence.mjs {{.CLI_ARGS}}
+
+  verify:
+    desc: Run all verify steps (bindings, go, frontend, evidence)
+    cmds:
+      - task: verify:bindings
+      - task: verify:go
+      - task: verify:frontend
+      - task: verify:evidence
 

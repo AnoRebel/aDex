@@ -53,7 +53,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { useStorage, useIntervalFn } from '@vueuse/core'
 import { useNetworkStore } from '~/stores/network'
 
 const networkStore = useNetworkStore()
@@ -73,9 +74,6 @@ const downloadHistory = ref<number[]>(new Array(MAX_POINTS).fill(0))
 let prevBytesSent = 0
 let prevBytesRecv = 0
 let prevTimestamp = Date.now()
-
-// Polling timer
-let pollTimer: ReturnType<typeof setInterval> | null = null
 
 // Scale maximums
 const uploadScaleMax = ref(1.0)
@@ -254,6 +252,62 @@ const updateScale = (history: number[], currentScale: { value: number }) => {
   if (currentScale.value < 0.1) currentScale.value = 0.1
 }
 
+// Per-adapter byte totals when settings name a specific interface,
+// otherwise the system-wide totals. Reading from useStorage keeps this
+// reactive to settings changes without a remount.
+const adexSettings = useStorage<{
+  network?: { adapter?: string; trafficIntervalMs?: number }
+}>('adex-settings', {})
+
+// User-configurable sample cadence — clamped to keep useIntervalFn out
+// of tight loops on corrupt storage values.
+const trafficIntervalMs = computed(() => {
+  const raw = Number(adexSettings.value?.network?.trafficIntervalMs ?? 1000)
+  if (!Number.isFinite(raw)) return 1000
+  return Math.min(5_000, Math.max(250, Math.floor(raw)))
+})
+
+// Switching adapters mid-session would otherwise produce a giant
+// negative spike on the next tick (delta of two unrelated counters).
+// Reset history + prev counters so the new adapter starts clean.
+//
+// Use the THIRD-arg-less form (no `immediate: true`) so the watcher
+// doesn't fire on the initial useStorage hydration (`undefined → ''`),
+// which used to wipe prev counters on mount and prevent the very
+// first delta from ever being computed.
+watch(
+  () => (adexSettings.value?.network?.adapter ?? '').trim(),
+  (next, prev) => {
+    if (next === prev) return
+    prevBytesSent = 0
+    prevBytesRecv = 0
+    prevTimestamp = Date.now()
+    uploadHistory.value = new Array(MAX_POINTS).fill(0)
+    downloadHistory.value = new Array(MAX_POINTS).fill(0)
+  }
+)
+
+function resolveBytes(): { sent: number; recv: number } {
+  const metrics = networkStore.metrics
+  if (!metrics) return { sent: 0, recv: 0 }
+  // Per-adapter when settings name a specific interface AND that
+  // interface has live counters. Otherwise fall through to system
+  // totals — better to graph "all traffic" than nothing.
+  const pref = (adexSettings.value?.network?.adapter ?? '').trim()
+  if (pref && Array.isArray(metrics.interfaces)) {
+    const iface = metrics.interfaces.find((i: any) => i.name === pref)
+    if (iface) {
+      const sent = Number(iface.bytesSent ?? iface.totalBytesSent ?? 0)
+      const recv = Number(iface.bytesRecv ?? iface.totalBytesRecv ?? 0)
+      if (sent > 0 || recv > 0) return { sent, recv }
+    }
+  }
+  return {
+    sent: Number(metrics.totalBytesSent || 0),
+    recv: Number(metrics.totalBytesRecv || 0),
+  }
+}
+
 // Poll and update data
 const poll = async () => {
   try {
@@ -264,8 +318,7 @@ const poll = async () => {
     const elapsed = (now - prevTimestamp) / 1000 // seconds
 
     if (metrics && elapsed > 0) {
-      const bytesSent = metrics.totalBytesSent || 0
-      const bytesRecv = metrics.totalBytesRecv || 0
+      const { sent: bytesSent, recv: bytesRecv } = resolveBytes()
 
       totalBytesSent.value = bytesSent
       totalBytesRecv.value = bytesRecv
@@ -304,25 +357,29 @@ const poll = async () => {
 
 onMounted(() => {
   nextTick(() => {
-    // Initial draw
+    // Initial draw — chart canvas needs DOM layout before measuring.
     redrawCharts()
-    // Start polling
-    poll()
-    pollTimer = setInterval(poll, 1000)
   })
 })
 
-onUnmounted(() => {
-  if (pollTimer) {
-    clearInterval(pollTimer)
-    pollTimer = null
-  }
-})
+// Network sample cadence — user-configurable via Settings → Network →
+// Traffic sample cadence. Passing the reactive ref makes useIntervalFn
+// re-arm automatically on slider change.
+useIntervalFn(poll, trafficIntervalMs, { immediate: true, immediateCallback: true })
 </script>
 
 <style scoped>
+/* Two-stack layout: header / total / [UPLOAD section] / [DOWNLOAD section]
+ * / footer. The two chart sections grow to share whatever vertical space
+ * the panel was allotted by the column flex (see pages/index.vue) so
+ * BOTH charts always render — the previous CSS used `height: 8vh` on
+ * each chart which caused the second one to overflow and disappear on
+ * sub-1080 viewports. */
 .mod-traffic {
   font-size: 1vh;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .traffic-total {
@@ -331,6 +388,7 @@ onUnmounted(() => {
   align-items: center;
   padding: 0.2vh 0;
   font-size: 1.1vh;
+  flex-shrink: 0;
 }
 
 .traffic-total-label {
@@ -346,6 +404,11 @@ onUnmounted(() => {
 
 .traffic-chart-section {
   margin-bottom: 0.3vh;
+  display: flex;
+  flex-direction: column;
+  /* Both UP and DOWN sections claim equal share of remaining height. */
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .traffic-chart-label {
@@ -354,6 +417,7 @@ onUnmounted(() => {
   align-items: center;
   padding: 0.15vh 0;
   font-size: 0.9vh;
+  flex-shrink: 0;
 }
 
 .chart-direction {
@@ -368,7 +432,11 @@ onUnmounted(() => {
 }
 
 .traffic-chart {
-  height: 8vh;
+  /* Mix grow + a fixed pixel min-height. Pure flex: 1 1 0 collapsed
+   * the canvas to 1px on tight columns — graphs invisible despite the
+   * data being live. min-height: 50px guarantees a renderable area. */
+  flex: 1 1 0;
+  min-height: 50px;
   position: relative;
   overflow: hidden;
   border: var(--border_width) solid rgba(var(--color_r), var(--color_g), var(--color_b), 0.1);
@@ -405,5 +473,6 @@ onUnmounted(() => {
   padding-top: 0.2vh;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  flex-shrink: 0;
 }
 </style>

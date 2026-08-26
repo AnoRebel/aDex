@@ -69,8 +69,8 @@ const initializeTerminal = async () => {
 
   // Dynamic import of xterm
   try {
-    const { Terminal } = await import('xterm')
-    const { FitAddon } = await import('xterm-addon-fit')
+    const { Terminal } = await import('@xterm/xterm')
+    const { FitAddon } = await import('@xterm/addon-fit')
 
     // Create terminal instance
     terminal = new Terminal({

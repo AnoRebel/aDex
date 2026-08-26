@@ -241,13 +241,28 @@ export const useAppStore = defineStore('app', {
     },
 
     startPerformanceMonitoring(): void {
+      // Wails' WebView2 (Windows) and WebKit (macOS) ship a partial
+      // `performance` polyfill — `performance.now` and `performance.memory`
+      // can be undefined depending on the host build. Capture the start
+      // time once via Date.now() and use it as the fallback so we always
+      // return seconds since first measurement, never throw.
+      const startedAt = Date.now()
+      const hasNow = typeof performance !== 'undefined'
+        && typeof performance.now === 'function'
+
       const updatePerformance = () => {
-        if ('memory' in performance) {
+        if (typeof performance !== 'undefined' && 'memory' in performance) {
           const memory = (performance as any).memory
-          this.performance.memoryUsage = memory.usedJSHeapSize / 1024 / 1024 // MB
+          if (memory && typeof memory.usedJSHeapSize === 'number') {
+            this.performance.memoryUsage = memory.usedJSHeapSize / 1024 / 1024 // MB
+          }
         }
 
-        this.performance.uptime = performance.now() / 1000 // seconds
+        if (hasNow) {
+          this.performance.uptime = performance.now() / 1000 // seconds since page load
+        } else {
+          this.performance.uptime = (Date.now() - startedAt) / 1000
+        }
         this.performance.lastUpdate = new Date()
       }
 

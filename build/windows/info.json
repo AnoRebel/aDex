@@ -1,15 +1,15 @@
 {
 	"fixed": {
-		"file_version": "1.0.0"
+		"file_version": "0.1.0"
 	},
 	"info": {
 		"0000": {
-			"ProductVersion": "1.0.0",
-			"CompanyName": "HackEAC",
-			"FileDescription": "A science fiction desktop running everywhere",
-			"LegalCopyright": "Copyright © 2025 HackEAC",
-			"ProductName": "aDex-UI",
-			"Comments": "A futuristic terminal emulator and system monitor"
+			"ProductVersion": "0.1.0",
+			"CompanyName": "My Company",
+			"FileDescription": "A refapp application",
+			"LegalCopyright": "© 2026, My Company",
+			"ProductName": "My Product",
+			"Comments": "This is a comment"
 		}
 	}
 }

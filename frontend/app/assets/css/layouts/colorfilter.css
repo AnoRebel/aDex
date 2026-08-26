@@ -1,0 +1,19 @@
+/* assets/css/layouts/colorfilter.css
+ *
+ * Colorfilter preset — applies a global hue-rotate to the shell to give
+ * the look of a CRT color filter. Layout itself is identical to default;
+ * only the visual treatment shifts.
+ *
+ * The original `tron-colorfilter.json` had no injectCSS payload — the
+ * effect comes from the theme's color tokens. We add a SVG color-matrix
+ * filter here so other themes can opt into the same effect by setting
+ * their `layout` to `colorfilter`.
+ */
+
+[data-layout="colorfilter"] .adex-app {
+  filter: contrast(1.05) saturate(1.1);
+}
+
+[data-layout="colorfilter"] .adex-background {
+  filter: hue-rotate(-6deg);
+}

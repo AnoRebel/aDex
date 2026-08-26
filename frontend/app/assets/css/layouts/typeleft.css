@@ -1,0 +1,16 @@
+/* assets/css/layouts/typeleft.css
+ *
+ * Typeleft preset — keyboard on the left, filesystem on the right.
+ * Ports the original `tron-typeleft.json` injectCSS:
+ *
+ *   section#filesystem { left: 55vw; }
+ *   section#keyboard   { right: 44vw; }
+ *
+ * In our markup the bottom row uses flex order. We swap it via
+ * flex-direction: row-reverse rather than absolute positioning, which is
+ * more robust on non-standard aspect ratios.
+ */
+
+[data-layout="typeleft"] .adex-bottom {
+  flex-direction: row-reverse;
+}

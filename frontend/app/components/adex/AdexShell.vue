@@ -124,12 +124,12 @@ let WebglAddon: any = null
 async function loadXtermModules(): Promise<boolean> {
   if (typeof window === 'undefined') return false
   try {
-    const xtermModule = await import('xterm')
+    const xtermModule = await import('@xterm/xterm')
     Terminal = xtermModule.Terminal
-    const fitModule = await import('xterm-addon-fit')
+    const fitModule = await import('@xterm/addon-fit')
     FitAddon = fitModule.FitAddon
     try {
-      const webglModule = await import('xterm-addon-webgl')
+      const webglModule = await import('@xterm/addon-webgl')
       WebglAddon = webglModule.WebglAddon
     } catch {
       // WebGL addon optional

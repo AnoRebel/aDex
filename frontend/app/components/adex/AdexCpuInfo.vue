@@ -33,8 +33,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onBeforeUnmount, watch } from 'vue'
+import { useIntervalFn } from '@vueuse/core'
 import { useSystemStore } from '~/stores/system'
+import { GetTemperatures } from '~/lib/wailsjs/coordinator'
 
 const systemStore = useSystemStore()
 
@@ -46,9 +48,9 @@ const chartBottomRef = ref<HTMLCanvasElement | null>(null)
 const HISTORY_LENGTH = 60
 const coreHistories = ref<number[][]>([])
 
-// Timers
-let loadTimer: ReturnType<typeof setInterval> | null = null
-let tempTimer: ReturnType<typeof setInterval> | null = null
+// Animation frame is the only manually-managed handle now — VueUse's
+// useIntervalFn handles the load/temp polling cadence with built-in
+// onUnmount cleanup, so we don't need explicit timer refs.
 let animFrameId: number | null = null
 
 // Temperature cache (refreshed less often)
@@ -57,14 +59,24 @@ const cachedTemperature = ref<number | null>(null)
 // ---- Computed data from store ----
 
 const perCoreUsage = computed<number[]>(() => {
-  // Prefer detailed cpuMetrics, fall back to systemStats cores
+  // Prefer detailed cpuMetrics, fall back to systemStats cores.
   const metrics = systemStore.cpuMetrics
   if (metrics?.perCoreUsage && metrics.perCoreUsage.length > 0) {
     return metrics.perCoreUsage
   }
   const stats = systemStore.systemStats
-  if (stats?.cpu?.cores && stats.cpu.cores.length > 0) {
-    return stats.cpu.cores.map((c: any) => c.usage ?? c.Usage ?? 0)
+  // The coordinator's GetCPUUsage returns `cores: []float64` (raw
+  // gopsutil cpu.PercentWithContext output), so cores comes across the
+  // Wails bridge as a plain number array — NOT an array of `{usage}`
+  // objects like the legacy SystemStats type implies. Accept either
+  // shape so this stays correct if the backend ever changes again.
+  const cores = stats?.cpu?.cores
+  if (Array.isArray(cores) && cores.length > 0) {
+    return cores.map((c: any) =>
+      typeof c === 'number'
+        ? c
+        : (c?.usage ?? c?.Usage ?? 0)
+    )
   }
   // Fallback: single overall usage replicated to 2 pseudo-cores
   const overall = stats?.cpu?.usage ?? metrics?.usagePercent ?? 0
@@ -246,42 +258,59 @@ function sampleLoad() {
   renderCharts()
 }
 
-function sampleTemperature() {
-  // Refresh cached temperature from store metrics
+async function sampleTemperature() {
+  // Try the store metrics path first (cheap; reactive). If the store
+  // hasn't been populated yet (the GetSystemMetrics binding doesn't
+  // exist in this build), fall back to a direct GetTemperatures call.
   const tempMetrics = systemStore.temperatureMetrics
   if (tempMetrics?.sensors && tempMetrics.sensors.length > 0) {
-    const cpuSensor = tempMetrics.sensors.find(
-      (s: any) => s.name.toLowerCase().includes('cpu') || s.name.toLowerCase().includes('core')
-    ) || tempMetrics.sensors[0]
+    const cpuSensor = pickCpuSensor(tempMetrics.sensors)
+    if (cpuSensor?.temperature != null) {
+      cachedTemperature.value = cpuSensor.temperature
+      return
+    }
+  }
+  try {
+    const sensors = await GetTemperatures()
+    if (sensors.length === 0) return
+    const cpuSensor = pickCpuSensor(sensors)
     if (cpuSensor?.temperature != null) {
       cachedTemperature.value = cpuSensor.temperature
     }
+  } catch {
+    // Sensor APIs frequently fail in containers/Wayland — leave the
+    // cached value alone rather than spamming console errors.
   }
+}
+
+// Pick the most representative CPU sensor: prefer Intel's
+// `coretemp_package_id_0`, then any 'cpu'/'core' sensor, then the
+// hottest reading as last resort. Mirrors internal/services/system/cpu.go's
+// scoring.
+function pickCpuSensor(sensors: Array<{ name: string; temperature: number }>) {
+  const lower = (s: string) => s.toLowerCase()
+  const byName = (needle: string) =>
+    sensors.find((s) => lower(s.name).includes(needle))
+  return (
+    byName('package_id_0') ??
+    byName('package id 0') ??
+    byName('tdie') ??
+    byName('tctl') ??
+    byName('cpu') ??
+    byName('core') ??
+    [...sensors].sort((a, b) => b.temperature - a.temperature)[0]
+  )
 }
 
 // ---- Lifecycle ----
 
-onMounted(() => {
-  // Initial sample
-  sampleLoad()
-  sampleTemperature()
-
-  // 500ms load polling
-  loadTimer = setInterval(sampleLoad, 500)
-
-  // 2000ms temperature polling
-  tempTimer = setInterval(sampleTemperature, 2000)
-})
+// Polling cadences. useIntervalFn auto-cleans on unmount and gives us
+// pause/resume handles for free — we use `immediate: true` so the
+// first tick fires on mount, replacing the manual prime call.
+useIntervalFn(sampleLoad, 500, { immediate: true, immediateCallback: true })
+useIntervalFn(sampleTemperature, 2000, { immediate: true, immediateCallback: true })
 
 onBeforeUnmount(() => {
-  if (loadTimer) {
-    clearInterval(loadTimer)
-    loadTimer = null
-  }
-  if (tempTimer) {
-    clearInterval(tempTimer)
-    tempTimer = null
-  }
   if (animFrameId !== null) {
     cancelAnimationFrame(animFrameId)
     animFrameId = null

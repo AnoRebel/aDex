@@ -144,3 +144,9 @@ temp/
 
 # Steering documents (don't commit)
 steering-docs/
+
+# AI
+.claude
+.opencode
+.mcp.json
+openspec

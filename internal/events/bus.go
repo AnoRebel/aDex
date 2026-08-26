@@ -7,13 +7,35 @@ import (
 	"time"
 )
 
-// EventBus handles event publishing and subscription
+// EventBus handles event publishing and subscription.
+//
+// Each subscription owns one buffered channel and one goroutine. Publish
+// fans out to every subscription whose Types include the event type. The
+// per-subscription goroutine exits when its channel is closed (via
+// Unsubscribe or Shutdown) or when the parent context is cancelled.
+//
+// The previous design held one channel per event-type and a single
+// goroutine that hard-coded `channels[0]`/`channels[1]` polling. That
+// silently dropped events for subscriptions registered with anything
+// other than 1 or 2 types and never let goroutines wind down on shutdown
+// — which is what made `go test` hang for 30 s on every test that
+// initialized the coordinator.
 type EventBus struct {
-	subscribers map[string][]chan Event
 	mu          sync.RWMutex
+	subs        map[string]*subscription // keyed by sub ID
+	wg          sync.WaitGroup
+	closed      bool
 }
 
-// Event represents an application event
+type subscription struct {
+	id      string
+	types   map[string]struct{}
+	handler EventHandler
+	ch      chan Event
+	cancel  context.CancelFunc
+}
+
+// Event represents an application event.
 type Event struct {
 	Type      string      `json:"type"`
 	Timestamp time.Time   `json:"timestamp"`
@@ -21,332 +43,231 @@ type Event struct {
 	Source    string      `json:"source"`
 }
 
-// EventSubscription represents a subscription to events
+// EventSubscription is the public handle returned to subscribers. The
+// Active flag is purely informational — actual cancellation goes through
+// EventBus.Unsubscribe(id).
 type EventSubscription struct {
-	ID      string
-	Types   []string
-	Handler EventHandler
-	Active  bool
+	ID     string
+	Types  []string
+	Active bool
 }
 
-// EventHandler handles incoming events
+// EventHandler handles incoming events.
 type EventHandler func(ctx context.Context, event Event) error
 
-// Global event bus instance
-var globalEventBus *EventBus
+// IEventBus is defined in contracts.go.
 
-// GetEventBus returns the global event bus instance
+// Global event bus instance.
+var (
+	globalEventBus *EventBus
+	globalOnce     sync.Once
+)
+
+// GetEventBus returns the global event bus instance, initialized lazily.
 func GetEventBus() *EventBus {
-	if globalEventBus == nil {
-		globalEventBus = &EventBus{
-			subscribers: make(map[string][]chan Event),
-		}
-	}
+	globalOnce.Do(func() {
+		globalEventBus = NewEventBus()
+	})
 	return globalEventBus
 }
 
-// Subscribe subscribes to specific event types
+// NewEventBus constructs a fresh, isolated EventBus. Tests should use this
+// instead of the global instance to keep state from leaking between cases.
+func NewEventBus() *EventBus {
+	return &EventBus{
+		subs: make(map[string]*subscription),
+	}
+}
+
+// Subscribe registers a handler for the given event types and starts a
+// goroutine that delivers matching events to it.
 func (eb *EventBus) Subscribe(ctx context.Context, eventTypes []string, handler EventHandler) (*EventSubscription, error) {
+	if handler == nil {
+		return nil, fmt.Errorf("events: handler must be non-nil")
+	}
+	if len(eventTypes) == 0 {
+		return nil, fmt.Errorf("events: at least one event type required")
+	}
+
 	eb.mu.Lock()
-	defer eb.mu.Unlock()
-
-	subID := fmt.Sprintf("sub-%d", time.Now().UnixNano())
-	subscription := &EventSubscription{
-		ID:      subID,
-		Types:   eventTypes,
-		Handler: handler,
-		Active:  true,
+	if eb.closed {
+		eb.mu.Unlock()
+		return nil, fmt.Errorf("events: bus is shut down")
 	}
 
-	// Create channels for each event type
-	channels := make([]chan Event, len(eventTypes))
-	for i, eventType := range eventTypes {
-		if eb.subscribers[eventType] == nil {
-			eb.subscribers[eventType] = make([]chan Event, 0)
-		}
-		channel := make(chan Event, 100) // Buffered channel
-		eb.subscribers[eventType] = append(eb.subscribers[eventType], channel)
-		channels[i] = channel
+	subCtx, cancel := context.WithCancel(ctx)
+	id := fmt.Sprintf("sub-%d", time.Now().UnixNano())
+	types := make(map[string]struct{}, len(eventTypes))
+	for _, t := range eventTypes {
+		types[t] = struct{}{}
 	}
 
-	// Start event listener goroutine
-	go eb.eventListener(ctx, subscription, channels)
+	s := &subscription{
+		id:      id,
+		types:   types,
+		handler: handler,
+		ch:      make(chan Event, 100),
+		cancel:  cancel,
+	}
+	eb.subs[id] = s
+	eb.wg.Add(1)
+	eb.mu.Unlock()
 
-	return subscription, nil
+	go eb.deliver(subCtx, s)
+
+	return &EventSubscription{ID: id, Types: append([]string(nil), eventTypes...), Active: true}, nil
 }
 
-// Publish publishes an event to all subscribers
-func (eb *EventBus) Publish(ctx context.Context, eventType string, data interface{}, source string) error {
-	eb.mu.RLock()
-	defer eb.mu.RUnlock()
-
-	if eb.subscribers[eventType] == nil {
-		return nil // No subscribers for this event type
-	}
-
-	event := Event{
-		Type:      eventType,
-		Timestamp: time.Now(),
-		Data:      data,
-		Source:    source,
-	}
-
-	// Send event to all subscribers (non-blocking)
-	for _, subscriber := range eb.subscribers[eventType] {
-		select {
-		case subscriber <- event:
-			// Event sent successfully
-		default:
-			// Channel is full, skip this subscriber
-		}
-	}
-
-	return nil
-}
-
-// Unsubscribe removes an event subscription
-func (eb *EventBus) Unsubscribe(subscriptionID string) error {
-	eb.mu.Lock()
-	defer eb.mu.Unlock()
-
-	// Mark subscription as inactive (actual cleanup happens in eventListener)
-	// In a real implementation, you'd track subscriptions and clean them up properly
-	return nil
-}
-
-// SubscribeOnce subscribes to an event type for a single occurrence
+// SubscribeOnce delivers exactly one matching event then unsubscribes.
 func (eb *EventBus) SubscribeOnce(ctx context.Context, eventType string, handler EventHandler) (*EventSubscription, error) {
-	wrappedHandler := func(ctx context.Context, event Event) error {
-		err := handler(ctx, event)
-		// Unsubscribe after handling (one-time subscription)
+	var ref *EventSubscription
+	wrapped := func(ctx context.Context, ev Event) error {
+		err := handler(ctx, ev)
+		if ref != nil {
+			_ = eb.Unsubscribe(ref.ID)
+		}
 		return err
 	}
-	return eb.Subscribe(ctx, []string{eventType}, wrappedHandler)
+	sub, err := eb.Subscribe(ctx, []string{eventType}, wrapped)
+	if err != nil {
+		return nil, err
+	}
+	ref = sub
+	return sub, nil
 }
 
-// GetSubscribers returns the number of subscribers for an event type
+// deliver is the per-subscription goroutine.
+func (eb *EventBus) deliver(ctx context.Context, s *subscription) {
+	defer eb.wg.Done()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case ev, ok := <-s.ch:
+			if !ok {
+				return
+			}
+			if _, want := s.types[ev.Type]; !want && ev.Type != "broadcast" {
+				continue
+			}
+			// Don't propagate handler errors — they shouldn't take the
+			// goroutine down. We log/swallow at the bus boundary.
+			_ = s.handler(ctx, ev)
+		}
+	}
+}
+
+// Publish delivers an event to every subscription that wants its type.
+func (eb *EventBus) Publish(_ context.Context, eventType string, data interface{}, source string) error {
+	eb.mu.RLock()
+	defer eb.mu.RUnlock()
+	if eb.closed {
+		return fmt.Errorf("events: bus is shut down")
+	}
+	ev := Event{Type: eventType, Timestamp: time.Now(), Data: data, Source: source}
+	for _, s := range eb.subs {
+		if _, want := s.types[eventType]; !want {
+			continue
+		}
+		select {
+		case s.ch <- ev:
+		default:
+			// Subscriber is slow; drop rather than block the publisher.
+		}
+	}
+	return nil
+}
+
+// Broadcast sends a synthetic "broadcast" event to every subscription
+// regardless of declared type.
+func (eb *EventBus) Broadcast(_ context.Context, data interface{}, source string) error {
+	eb.mu.RLock()
+	defer eb.mu.RUnlock()
+	if eb.closed {
+		return fmt.Errorf("events: bus is shut down")
+	}
+	ev := Event{Type: "broadcast", Timestamp: time.Now(), Data: data, Source: source}
+	for _, s := range eb.subs {
+		select {
+		case s.ch <- ev:
+		default:
+		}
+	}
+	return nil
+}
+
+// Unsubscribe stops delivery to the given subscription, closes its
+// channel, and waits for its goroutine to exit.
+func (eb *EventBus) Unsubscribe(subscriptionID string) error {
+	eb.mu.Lock()
+	s, ok := eb.subs[subscriptionID]
+	if !ok {
+		eb.mu.Unlock()
+		return nil
+	}
+	delete(eb.subs, subscriptionID)
+	eb.mu.Unlock()
+
+	s.cancel()
+	close(s.ch)
+	return nil
+}
+
+// GetSubscribers returns the number of subscriptions whose Types include
+// the given event type.
 func (eb *EventBus) GetSubscribers(eventType string) int {
 	eb.mu.RLock()
 	defer eb.mu.RUnlock()
-
-	if subscribers, exists := eb.subscribers[eventType]; exists {
-		return len(subscribers)
+	n := 0
+	for _, s := range eb.subs {
+		if _, ok := s.types[eventType]; ok {
+			n++
+		}
 	}
-	return 0
+	return n
 }
 
-// Emit is an alias for Publish for compatibility
+// Emit is an alias for Publish that uses a background context. Provided
+// for callers that don't have a context handy (e.g. boot-time hooks).
 func (eb *EventBus) Emit(eventType string, data interface{}) error {
 	return eb.Publish(context.Background(), eventType, data, "system")
 }
 
-// eventListener listens for events and forwards them to the handler
-func (eb *EventBus) eventListener(ctx context.Context, subscription *EventSubscription, channels []chan Event) {
-	defer func() {
-		// Clean up channels
-		for _, channel := range channels {
-			close(channel)
-		}
+// Shutdown drains every subscription and waits up to ctx's deadline for
+// the per-subscription goroutines to exit. Returns ctx.Err() if the
+// deadline fires first.
+func (eb *EventBus) Shutdown(ctx context.Context) error {
+	eb.mu.Lock()
+	if eb.closed {
+		eb.mu.Unlock()
+		return nil
+	}
+	eb.closed = true
+	subs := make([]*subscription, 0, len(eb.subs))
+	for _, s := range eb.subs {
+		subs = append(subs, s)
+	}
+	eb.subs = map[string]*subscription{}
+	eb.mu.Unlock()
+
+	for _, s := range subs {
+		s.cancel()
+		close(s.ch)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		eb.wg.Wait()
+		close(done)
 	}()
 
-	for {
-		select {
-		case <-ctx.Done():
-			subscription.Active = false
-			return
-
-		case event := <-channels[0]:
-			if !subscription.Active {
-				return
-			}
-
-			// Check if this event type matches the subscription
-			for _, eventType := range subscription.Types {
-				if event.Type == eventType {
-					if err := subscription.Handler(ctx, event); err != nil {
-						// Log error but continue processing other events
-						continue
-					}
-					break
-				}
-			}
-
-		case event := <-channels[1]:
-			// Handle multiple channels similarly...
-			if !subscription.Active {
-				return
-			}
-
-			for _, eventType := range subscription.Types {
-				if event.Type == eventType {
-					if err := subscription.Handler(ctx, event); err != nil {
-						continue
-					}
-					break
-				}
-			}
-
-			// Add more cases for additional channels if needed
-		}
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }
 
-// Broadcast publishes an event to all event types (use sparingly)
-func (eb *EventBus) Broadcast(ctx context.Context, data interface{}, source string) error {
-	eb.mu.RLock()
-	defer eb.mu.RUnlock()
-
-	event := Event{
-		Type:      "broadcast",
-		Timestamp: time.Now(),
-		Data:      data,
-		Source:    source,
-	}
-
-	// Send to all subscribers of all event types
-	for _, subscribers := range eb.subscribers {
-		for _, subscriber := range subscribers {
-			select {
-			case subscriber <- event:
-				// Event sent successfully
-			default:
-				// Channel is full, skip this subscriber
-			}
-		}
-	}
-
-	return nil
-}
-
-// Common event types
-const (
-	// System events
-	SystemInfoUpdated    = "system.info.updated"
-	SystemAlert          = "system.alert"
-	SystemProcessStarted = "system.process.started"
-	SystemProcessEnded   = "system.process.ended"
-
-	// Terminal events
-	TerminalCreated = "terminal.created"
-	TerminalClosed  = "terminal.closed"
-	TerminalResized = "terminal.resized"
-	TerminalOutput  = "terminal.output"
-	TerminalInput   = "terminal.input"
-	TerminalCommand = "terminal.command"
-
-	// Filesystem events
-	FileCreated       = "file.created"
-	FileModified      = "file.modified"
-	FileDeleted       = "file.deleted"
-	FileMoved         = "file.moved"
-	DirectoryCreated  = "directory.created"
-	DirectoryDeleted  = "directory.deleted"
-	DirectoryModified = "directory.modified"
-
-	// Audio events
-	AudioDeviceChanged  = "audio.device.changed"
-	AudioVolumeChanged  = "audio.volume.changed"
-	AudioSessionStarted = "audio.session.started"
-	AudioSessionEnded   = "audio.session.ended"
-
-	// Config events
-	ConfigChanged = "config.changed"
-	ConfigSaved   = "config.saved"
-	ConfigLoaded  = "config.loaded"
-	ConfigReset   = "config.reset"
-
-	// Theme events
-	ThemeChanged = "theme.changed"
-	ThemeLoaded  = "theme.loaded"
-	ThemeCreated = "theme.created"
-	ThemeDeleted = "theme.deleted"
-
-	// Application events
-	AppStarted  = "app.started"
-	AppStopped  = "app.stopped"
-	AppShutdown = "app.shutdown"
-	AppRestart  = "app.restart"
-
-	// User events
-	UserLogin              = "user.login"
-	UserLogout             = "user.logout"
-	UserPreferencesChanged = "user.preferences.changed"
-
-	// Network events
-	NetworkConnected    = "network.connected"
-	NetworkDisconnected = "network.disconnected"
-	NetworkError        = "network.error"
-	NetworkUpdated      = "network.updated"
-
-	// Error events
-	ErrorOccurred = "error.occurred"
-	PanicOccurred = "panic.occurred"
-	WarningIssued = "warning.issued"
-)
-
-// Event data structures
-type SystemInfoData struct {
-	CPUUsage    float64 `json:"cpu_usage"`
-	MemoryUsage float64 `json:"memory_usage"`
-	DiskUsage   float64 `json:"disk_usage"`
-	NetworkIO   int64   `json:"network_io"`
-}
-
-type SystemAlertData struct {
-	Type      string  `json:"type"`
-	Resource  string  `json:"resource"`
-	Threshold float64 `json:"threshold"`
-	Current   float64 `json:"current"`
-	Message   string  `json:"message"`
-	Severity  string  `json:"severity"`
-}
-
-type TerminalData struct {
-	SessionID string `json:"session_id"`
-	Command   string `json:"command"`
-	Output    string `json:"output"`
-	Error     string `json:"error"`
-	ExitCode  int    `json:"exit_code"`
-}
-
-type FileData struct {
-	Path      string `json:"path"`
-	Type      string `json:"type"`
-	Size      int64  `json:"size"`
-	Operation string `json:"operation"`
-	Error     string `json:"error,omitempty"`
-}
-
-type AudioData struct {
-	DeviceID string  `json:"device_id"`
-	Volume   float64 `json:"volume"`
-	Muted    bool    `json:"muted"`
-	Type     string  `json:"type"`
-}
-
-type ConfigData struct {
-	Key      string      `json:"key"`
-	OldValue interface{} `json:"old_value"`
-	NewValue interface{} `json:"new_value"`
-	Section  string      `json:"section"`
-}
-
-type ThemeData struct {
-	ThemeID string `json:"theme_id"`
-	Name    string `json:"name"`
-	IsDark  bool   `json:"is_dark"`
-}
-
-type ErrorData struct {
-	Error   string `json:"error"`
-	Type    string `json:"type"`
-	Context string `json:"context"`
-	Stack   string `json:"stack"`
-}
-
-type NetworkData struct {
-	Interface string `json:"interface"`
-	Status    string `json:"status"`
-	IP        string `json:"ip"`
-	Error     string `json:"error,omitempty"`
-}
+// Common event types and data structs live in types.go to keep bus.go
+// focused on the bus mechanics.

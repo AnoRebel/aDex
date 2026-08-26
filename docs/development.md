@@ -729,13 +729,98 @@ docs(readme): update installation instructions
 3. **Type errors**: Run TypeScript compiler
 4. **Import issues**: Check file paths and exports
 
+## Wails v2 Workflow
+
+This project targets **Wails v2.12.0** (`github.com/wailsapp/wails/v2`),
+not v3. Use the v2 CLI:
+
+```bash
+# Install the CLI (one-time)
+go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+
+# Live-reload dev (Go backend + Vite-proxied Nuxt frontend)
+wails dev
+
+# Production build for the current platform
+wails build
+```
+
+`wails.json` (`frontend:dev:serverUrl`, `assetdir`, `wailsjsdir`) wires
+the Nuxt build into the Wails embed. The frontend is served from
+`frontend/.output/public` at build time and proxied from the Nuxt dev
+server during `wails dev`.
+
+### Binding regeneration
+
+Bound Go methods (everything uppercase-leading on `App` and
+`ServiceCoordinator`) are exposed to the frontend. After adding or
+changing a bound method:
+
+```bash
+wails generate module
+```
+
+This regenerates `frontend/app/lib/wailsjs/`. A hand-written shim at
+`frontend/app/lib/wailsjs/coordinator.ts` keeps the canonical import
+surface stable between regens — keep its TypeScript signatures in sync
+when you add coordinator methods so the frontend type-checks before the
+next regen.
+
+Gotchas (learned the hard way — see
+`openspec/changes/edex-parity-and-uplift/tasks.md` "Launch crash fix"):
+
+- Wails JSON-marshals every bound method's return value. Returning a
+  live Go struct that holds channels / `sync` primitives /
+  `context.CancelFunc` triggers a launch fatal
+  (`json: unsupported type: func() error`). Add `json:"-"` tags to
+  those fields or return a plain DTO.
+- Unbind internal helpers by lowercasing the leading character
+  (`getServiceInternal`, not `GetService`).
+- Field names need explicit `json:"name"` tags or the frontend reads
+  `undefined` (Go defaults to PascalCase, the TS side expects
+  camelCase).
+
+### Quit / shutdown
+
+`runtime.Quit(ctx)` triggers teardown → `OnBeforeClose` →
+`OnShutdown` → process exit. Call it **exactly once**: on Linux/GTK a
+double call hits `gtk_main_quit: assertion 'main_loops != NULL'`. The
+frontend's `doQuit()` has a single-fire latch for this reason. Do NOT
+run `coordinator.Shutdown()` in `QuitApp` — `OnShutdown` already does
+it on the correct thread; running it in parallel deadlocks `sc.mu`.
+
+## Evidence Capture Protocol
+
+Several spec items require visual evidence captured from a running
+`wails dev` (screenshots/recordings). The agent workflow can't run
+the GUI, so these are captured by a human and dropped into
+`docs/evidence/<feature>/`.
+
+Layout: `docs/evidence/<feature-id>/<theme-or-variant>.png`
+(e.g. `docs/evidence/theme-engine/tron.png`).
+
+Reference visual targets (the original eDEX-UI look) are noted in the
+agent memory and the four reference screenshots
+(`screenshot_default/disrupted/blade/horizon.png`). When capturing,
+match the corresponding aDex layout to its reference and flag
+divergences for iteration.
+
+Features needing evidence: `desktop-shell-layout`, `theme-engine`,
+`terminal`, `system-monitor`, `network-monitor`,
+`globe-visualization`, `keyboard-layout-pack`, `settings-modal`,
+`boot-sequence`. See section 8 of the OpenSpec tasks doc for the
+exact capture list per feature.
+
 ## Additional Resources
 
-- [Wails Documentation](https://wails.io/)
-- [Nuxt 3 Documentation](https://nuxt.com/)
+- [Wails v2 Documentation](https://wails.io/docs/introduction)
+- [Nuxt 4 Documentation](https://nuxt.com/)
 - [Vue 3 Documentation](https://vuejs.org/)
 - [Go Documentation](https://golang.org/)
 - [Tailwind CSS](https://tailwindcss.com/)
+- Project docs: [themes.md](./themes.md), [keyboards.md](./keyboards.md),
+  [audio.md](./audio.md), [troubleshooting.md](./troubleshooting.md),
+  [cross-platform-packaging.md](./cross-platform-packaging.md)
 
 ## Getting Help
 

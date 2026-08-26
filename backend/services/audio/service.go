@@ -30,7 +30,11 @@ type Service struct {
 	isInitialized  bool
 }
 
-// NewService creates a new audio service instance
+// NewService creates a new audio service instance.
+//
+// Setting ADEX_DISABLE_AUDIO=1 in the environment skips PCM context creation,
+// which is required for headless test runs where the oto/v3 PCM writer
+// goroutine would otherwise outlive the test binary.
 func NewService() *Service {
 	service := &Service{
 		platform:   utils.DetectPlatform(),
@@ -38,6 +42,11 @@ func NewService() *Service {
 		soundFiles: make(map[string]string),
 		sessions:   make(map[string]*AudioSession),
 		stopChan:   make(chan struct{}),
+	}
+
+	if os.Getenv("ADEX_DISABLE_AUDIO") == "1" {
+		service.isInitialized = false
+		return service
 	}
 
 	// Try to initialize audio context
@@ -363,6 +372,35 @@ func (s *Service) StopMonitoring() error {
 	s.stopChan = make(chan struct{})
 	s.isMonitoring = false
 
+	return nil
+}
+
+// Shutdown stops monitoring, closes any active players, and suspends the
+// oto PCM context so its CGO writer goroutine winds down. Without this,
+// the goroutine outlives the test binary on Linux ALSA and `go test` hangs.
+//
+// Suspend() is the closest oto/v3 offers to a teardown — it stops the
+// writei loop until Resume() is called. We don't Resume in the same
+// process; a fresh NewService() will create a new context.
+func (s *Service) Shutdown(ctx context.Context) error {
+	// Stop the monitoring goroutine first (uses its own lock).
+	_ = s.StopMonitoring()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, p := range s.players {
+		p.Close()
+	}
+	s.players = nil
+
+	if s.otoCtx != nil {
+		// Best-effort suspend; we don't fail Shutdown on a suspend error
+		// because the PCM device may already be in an unrecoverable state.
+		_ = s.otoCtx.Suspend()
+		s.otoCtx = nil
+	}
+	s.isInitialized = false
 	return nil
 }
 

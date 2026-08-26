@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed, readonly } from 'vue'
-import { CreateTerminal, WriteToTerminal, ResizeTerminal, CloseTerminal } from '~~/bindings'
+import { CreateTerminal, CreateTerminalIn, WriteToTerminal, ResizeTerminal, CloseTerminal, GetActiveShell } from '~/lib/wailsjs/coordinator'
 import type { TerminalSession, TerminalCommand, TerminalOutput } from '~/types/terminal'
 
 // Import types from useTerminal composable for tab and theme support
@@ -183,20 +183,67 @@ export const useTerminalStore = defineStore('terminal', () => {
       setLoading(true)
       clearError()
 
-      // Create terminal using Wails bindings
       const cols = settings.value.defaultCols
       const rows = settings.value.defaultRows
-      const terminalData = await CreateTerminal(cols, rows)
+
+      // Resolve the user's "Open in" preference to a real path when no
+      // explicit workingDirectory was passed. Lazy-import so this store
+      // stays cheap to load in tests / SSR / browser preview.
+      let resolvedCwd = workingDirectory ?? ''
+      if (!resolvedCwd) {
+        try {
+          const { useStartupCwd } = await import('~/composables/useStartupCwd')
+          resolvedCwd = await useStartupCwd().resolve()
+        } catch {
+          resolvedCwd = ''
+        }
+      }
+
+      // Use the cwd-aware binding when we have a path; fall back to the
+      // legacy CreateTerminal (which spawns in $HOME) otherwise.
+      //
+      // Wrap with a 5s timeout — Wails' IPC bridge has been observed
+      // to silently hang under wails dev when the backend's RWMutex
+      // queue gets contended. Without a timeout, addTab() hangs
+      // forever on createSession and the UI never gets a chance to
+      // show an error or retry. The timeout converts the hang into a
+      // catchable error so the user-visible CTA can surface it.
+      const ipcTimeout = 5000
+      const withTimeout = <T,>(p: Promise<T>): Promise<T> =>
+        Promise.race([
+          p,
+          new Promise<T>((_, rej) =>
+            setTimeout(() => rej(new Error(`Wails IPC timeout after ${ipcTimeout}ms — backend may be deadlocked`)), ipcTimeout),
+          ),
+        ])
+
+      const terminalData = resolvedCwd
+        ? await withTimeout(CreateTerminalIn(cols, rows, resolvedCwd))
+        : await withTimeout(CreateTerminal(cols, rows))
 
       if (!terminalData) {
-        throw new Error('Failed to create terminal session')
+        throw new Error('Failed to create terminal session (backend returned null)')
+      }
+
+      // Ask the backend which shell its resolver actually picked. The
+      // chain is override → $SHELL/$ComSpec → platform default, so a
+      // fresh zsh user sees /bin/zsh in the status bar instead of the
+      // hardcoded /bin/bash placeholder.
+      let resolvedShell = shell || config.value.shell
+      if (!shell) {
+        try {
+          const fromBackend = await GetActiveShell()
+          if (fromBackend) resolvedShell = fromBackend
+        } catch {
+          // Fall back to whatever config has if the backend isn't ready.
+        }
       }
 
       const session: TerminalSession = {
         id: terminalData.id || `terminal-${Date.now()}`,
         title: title || `Terminal ${sessions.value.size + 1}`,
-        shell: shell || config.value.shell,
-        workingDirectory: workingDirectory || '/',
+        shell: resolvedShell,
+        workingDirectory: resolvedCwd || '/',
         columns: cols,
         rows: rows,
         isActive: false,

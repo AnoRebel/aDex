@@ -183,6 +183,22 @@ func (s *NetworkService) GetNetworkMetrics(ctx context.Context) (*models.Network
 		ioCounterMap[counter.Name] = counter
 	}
 
+	// Carrier-detection map: gopsutil's "up" flag is just IFF_UP (admin
+	// up), so an unplugged ethernet still reports up. The stdlib's
+	// FlagRunning corresponds to IFF_RUNNING which the kernel only
+	// asserts when the link has carrier. We use this to mark
+	// link-active interfaces honestly so the "auto-pick first up"
+	// fallback in the frontend stops landing on dead ethernet ports
+	// when the user is actually on wifi.
+	stdRunning := map[string]bool{}
+	if stdIfs, stdErr := net.Interfaces(); stdErr == nil {
+		for _, si := range stdIfs {
+			if si.Flags&net.FlagRunning != 0 {
+				stdRunning[si.Name] = true
+			}
+		}
+	}
+
 	var networkInterfaces []models.NetworkInterface
 	var totalSent, totalRecv uint64
 
@@ -192,14 +208,18 @@ func (s *NetworkService) GetNetworkMetrics(ctx context.Context) (*models.Network
 			continue
 		}
 
-		// Check if interface is up by looking for "up" in flags
-		isUp := false
+		// "Up" means BOTH admin-up AND carrier-present. Without the
+		// carrier check, an unplugged ethernet (admin-up but no link)
+		// would beat an active wifi adapter alphabetically and the
+		// netstat panel would proudly show 0.0.0.0 for eno1.
+		adminUp := false
 		for _, flag := range iface.Flags {
 			if strings.ToLower(flag) == "up" {
-				isUp = true
+				adminUp = true
 				break
 			}
 		}
+		isUp := adminUp && stdRunning[iface.Name]
 
 		// Get IO counters for this interface
 		counter, hasCounter := ioCounterMap[iface.Name]
@@ -386,28 +406,48 @@ func (s *NetworkService) GetAlerts() []NetworkAlert {
 	return alerts
 }
 
-// StartMonitoring starts continuous network monitoring
+// StartMonitoring starts continuous network monitoring.
+//
+// The polling loop runs on its own goroutine so this returns immediately,
+// matching the system and audio services. It previously ran the ticker loop
+// synchronously and never returned; under Wails v2 that was masked because
+// the call sat at the tail of OnStartup, after the window already existed,
+// with its error only logged as a warning. Under Wails v3 the equivalent
+// call happens in ServiceStartup, which gates window creation — so a
+// blocking implementation here stops the app from ever showing a window.
+//
+// The loop owns ctx: cancelling it (coordinator Shutdown cancels the
+// derived service context) stops the ticker and clears isMonitoring.
 func (s *NetworkService) StartMonitoring(ctx context.Context) error {
+	// Idempotent: the coordinator starts monitoring during ServiceStartup,
+	// and the frontend's network store also asks for it when it initialises.
+	// "Already running" is the desired end state, not a failure, so report
+	// success rather than surfacing a spurious error to the caller.
 	if s.isMonitoring {
-		return fmt.Errorf("monitoring is already started")
+		return nil
 	}
 
 	s.isMonitoring = true
 	ticker := time.NewTicker(s.config.RefreshInterval)
-	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ctx.Done():
-			s.isMonitoring = false
-			return ctx.Err()
-		case <-ticker.C:
-			if err := s.monitor(ctx); err != nil {
-				// Log error but continue monitoring
-				fmt.Printf("Error during network monitoring: %v\n", err)
+	go func() {
+		defer ticker.Stop()
+		defer func() { s.isMonitoring = false }()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := s.monitor(ctx); err != nil {
+					// Log error but continue monitoring
+					fmt.Printf("Error during network monitoring: %v\n", err)
+				}
 			}
 		}
-	}
+	}()
+
+	return nil
 }
 
 // StopMonitoring stops network monitoring

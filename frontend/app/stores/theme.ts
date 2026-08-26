@@ -71,8 +71,11 @@ interface ThemeState {
 
 export const useThemeStore = defineStore('theme', {
   state: (): ThemeState => ({
-    // Current state
-    currentThemeId: 'cyberpunk',
+    // Current state — `tron` is the eDex-UI default and is shipped in
+    // assets/data/themes/. The previous default `cyberpunk` doesn't
+    // exist in the V2 theme bundle, which threw "unknown theme" on
+    // every boot via useAdexTheme.applyAdexTheme.
+    currentThemeId: 'tron',
     currentTheme: null,
     isDark: true,
     isInitialized: false,
@@ -115,7 +118,7 @@ export const useThemeStore = defineStore('theme', {
     // Configuration
     config: {
       themeDirectory: 'themes',
-      defaultTheme: 'cyberpunk',
+      defaultTheme: 'tron',
       autoSave: true,
       autoReload: true,
       cacheEnabled: true,
@@ -510,6 +513,16 @@ export const useThemeStore = defineStore('theme', {
     // Check if store is ready
     isReady: (state) => {
       return state.isInitialized && state.currentTheme !== null
+    },
+
+    // V2 theme engine: layout preset of the active aDex theme. Drives the
+    // `data-layout` attribute on the shell root via pages/index.vue.
+    activeLayout: (state): string => {
+      // currentAdexTheme is the legacy AdexTheme shape; if a V2 theme has
+      // been applied, the V2 schema includes a `layout` field. Older themes
+      // default to 'default'.
+      const t = state.currentAdexTheme as (AdexTheme & { layout?: string }) | null
+      return t?.layout ?? 'default'
     }
   },
 
@@ -859,7 +872,7 @@ export const useThemeStore = defineStore('theme', {
       this.initialize()
     },
 
-    // aDex-UI theme support: load themes from themes.json
+    // aDex-UI theme support: load themes from themes.json (legacy fallback)
     loadAdexThemes() {
       try {
         const data = adexThemesData as { themes: AdexTheme[] }
@@ -870,46 +883,38 @@ export const useThemeStore = defineStore('theme', {
       }
     },
 
-    // Apply aDex-UI theme colors as CSS variables and inject custom CSS
-    applyAdexTheme(themeId: string) {
-      const adexTheme = this.adexThemes.find(t => t.id === themeId)
-      if (!adexTheme) return
+    // Apply aDex-UI theme via the V2 engine. The engine handles CSS-variable
+    // application, layout-preset selection, and persistence. We keep
+    // currentAdexTheme in sync so legacy consumers (older Adex* components,
+    // ThemeManager.vue) still see something useful.
+    async applyAdexTheme(themeId: string) {
+      // Lazy import to avoid pulling the V2 composable into stores that
+      // don't need it during SSR (we run SPA-only, but this also helps
+      // bundle splitting under `nuxt generate`).
+      const { useAdexTheme } = await import('~/composables/useAdexTheme')
+      const engine = useAdexTheme()
+      try {
+        const theme = await engine.setTheme(themeId)
+        this.currentAdexTheme = {
+          id: theme.id,
+          name: theme.displayName,
+          colors: theme.colors,
+          cssvars: theme.cssvars,
+          terminal: theme.terminal,
+          // Preserve injectCSS shape for legacy types; V2 themes don't carry it.
+          injectCSS: '',
+        }
+      } catch (err) {
+        console.error('applyAdexTheme failed:', err)
+        // Fallback to the in-memory legacy themes list.
+        const adexTheme = this.adexThemes.find(t => t.id === themeId)
+        if (adexTheme) this.currentAdexTheme = adexTheme
+      }
 
-      this.currentAdexTheme = adexTheme
-
-      // Apply color CSS variables to document root
-      const root = document.documentElement
-      root.style.setProperty('--color_r', String(adexTheme.colors.r))
-      root.style.setProperty('--color_g', String(adexTheme.colors.g))
-      root.style.setProperty('--color_b', String(adexTheme.colors.b))
-      root.style.setProperty('--color_black', adexTheme.colors.black)
-      root.style.setProperty('--color_light_black', adexTheme.colors.light_black)
-      root.style.setProperty('--color_grey', adexTheme.colors.grey)
-
-      // Apply font CSS variables
-      root.style.setProperty('--font_main', adexTheme.cssvars.font_main)
-      root.style.setProperty('--font_main_light', adexTheme.cssvars.font_main_light)
-
-      // Apply terminal CSS variables
-      root.style.setProperty('--terminal_foreground', adexTheme.terminal.foreground)
-      root.style.setProperty('--terminal_background', adexTheme.terminal.background)
-      root.style.setProperty('--terminal_cursor', adexTheme.terminal.cursor)
-      root.style.setProperty('--terminal_selection', adexTheme.terminal.selection)
-      root.style.setProperty('--terminal_font_family', adexTheme.terminal.fontFamily)
-
-      // Remove previous injected CSS
+      // Drop any previously-injected style (legacy themes' injectCSS).
       if (this.injectedStyleElement) {
         this.injectedStyleElement.remove()
         this.injectedStyleElement = null
-      }
-
-      // Inject custom CSS from theme if present
-      if (adexTheme.injectCSS) {
-        const style = document.createElement('style')
-        style.setAttribute('data-adex-theme', themeId)
-        style.textContent = adexTheme.injectCSS
-        document.head.appendChild(style)
-        this.injectedStyleElement = style
       }
     },
 

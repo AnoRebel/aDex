@@ -7,11 +7,12 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 
 	"aDex-UI/backend/utils"
 	"aDex-UI/internal/events"
 	"github.com/creack/pty"
-	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // Service handles terminal operations and emulation
@@ -21,7 +22,12 @@ type Service struct {
 	termLock  sync.RWMutex
 	nextID    int
 	eventBus  events.IEventBus
-	wailsCtx  context.Context // Wails context for emitting frontend events
+
+	// shellOverride, when non-empty, takes priority over the env-var /
+	// platform-default chain in getShellCommand(). Set via the public
+	// SetShellCommand from Settings → Terminal → "Shell Path".
+	shellOverride   string
+	shellOverrideMu sync.RWMutex
 }
 
 // NewService creates a new terminal service instance
@@ -38,27 +44,47 @@ func (s *Service) SetEventBus(eventBus events.IEventBus) {
 	s.eventBus = eventBus
 }
 
-// SetWailsContext sets the Wails context for emitting frontend events
-func (s *Service) SetWailsContext(ctx context.Context) {
-	s.wailsCtx = ctx
-}
 
-// Terminal represents a terminal session
+// Terminal represents a terminal session.
+//
+// JSON tags are critical: this struct is returned by Wails-bound methods
+// (`CreateTerminal`, `GetTerminalInfo`) and Wails marshals every binding
+// return value through encoding/json. Unmarshalable fields (channels,
+// *exec.Cmd, *os.File, sync.Once, sync.RWMutex) MUST be tagged `-` or
+// the frontend launches with `FAT | json: unsupported type: func() error`.
+//
+// Done MUST be closed exactly once via signalDone(); both the reader goroutine
+// (when PTY EOFs) and CloseTerminal race to it, and double-close panics.
 type Terminal struct {
-	ID         string
-	Width      int
-	Height     int
-	Command    *exec.Cmd
-	PTY        *os.File
-	Output     chan []byte
-	Input      chan []byte
-	Done       chan struct{}
-	WorkingDir string
+	ID         string        `json:"id"`
+	Width      int           `json:"width"`
+	Height     int           `json:"height"`
+	WorkingDir string        `json:"workingDir"`
+	Command    *exec.Cmd     `json:"-"`
+	PTY        *os.File      `json:"-"`
+	Output     chan []byte   `json:"-"`
+	Input      chan []byte   `json:"-"`
+	Done       chan struct{} `json:"-"`
+	doneOnce   sync.Once
 	mu         sync.RWMutex
 }
 
-// CreateTerminal creates a new terminal session
+// signalDone closes Done exactly once.
+func (t *Terminal) signalDone() {
+	t.doneOnce.Do(func() { close(t.Done) })
+}
+
+// CreateTerminal creates a new terminal session in the user's home
+// directory. Equivalent to CreateTerminalIn(ctx, width, height, "").
 func (s *Service) CreateTerminal(ctx context.Context, width, height int) (*Terminal, error) {
+	return s.CreateTerminalIn(ctx, width, height, "")
+}
+
+// CreateTerminalIn creates a new terminal session whose shell starts in
+// the given working directory. Empty `cwd` falls back to the user's home
+// directory; an absolute path is used verbatim. Used by the frontend's
+// Settings → System "Open in" preference (cwd vs home).
+func (s *Service) CreateTerminalIn(ctx context.Context, width, height int, cwd string) (*Terminal, error) {
 	if !s.platform.HasFeature("pty") {
 		return nil, fmt.Errorf("PTY not supported on this platform: %s", s.platform.Platform.OS)
 	}
@@ -72,12 +98,22 @@ func (s *Service) CreateTerminal(ctx context.Context, width, height int) (*Termi
 	// Determine shell command
 	shell := s.getShellCommand()
 
+	// Pick the start directory. We accept anything the caller hands us
+	// without revalidating — the OS will reject a bad path and `cmd.Dir`
+	// will keep the user-visible error attached to the spawn failure
+	// rather than masking it as a generic PTY error.
+	startDir := cwd
+	if startDir == "" {
+		startDir = s.platform.GetHomeDirectory()
+	}
+
 	// Create command
 	cmd := exec.CommandContext(ctx, shell[0], shell[1:]...)
+	cmd.Dir = startDir
 
 	// Set up environment
 	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, fmt.Sprintf("TERM=xterm-256color"))
+	cmd.Env = append(cmd.Env, "TERM=xterm-256color")
 
 	// Start PTY
 	ptyFile, err := pty.Start(cmd)
@@ -105,7 +141,7 @@ func (s *Service) CreateTerminal(ctx context.Context, width, height int) (*Termi
 		Output:     make(chan []byte, 1024),
 		Input:      make(chan []byte, 1024),
 		Done:       make(chan struct{}),
-		WorkingDir: s.platform.GetHomeDirectory(),
+		WorkingDir: startDir,
 	}
 
 	// Store terminal
@@ -120,68 +156,139 @@ func (s *Service) CreateTerminal(ctx context.Context, width, height int) (*Termi
 	return terminal, nil
 }
 
-// getShellCommand returns the appropriate shell command for the platform
+// getShellCommand returns the appropriate shell command for the platform.
+//
+// Resolution order:
+//  1. Explicit override set via SetShellCommand (Settings → Terminal →
+//     "Shell Path"). Honored across all platforms.
+//  2. Environment variable: $SHELL on Linux/macOS, $ComSpec on Windows.
+//     This is the user's actual login shell — picking anything else
+//     surprises them.
+//  3. Platform default chain (zsh/bash/sh on *nix, PowerShell/cmd on
+//     Windows).
+//
+// Each candidate is validated with exec.LookPath before returning so we
+// never hand a bogus path to PTY.Start.
 func (s *Service) getShellCommand() []string {
-	// Try to get shell from settings first (this would be integrated with config service)
-	if shell := s.getShellFromSettings(); shell != "" {
-		return s.parseShellCommand(shell)
+	// 1. Explicit settings override
+	s.shellOverrideMu.RLock()
+	override := s.shellOverride
+	s.shellOverrideMu.RUnlock()
+	if override != "" {
+		if parts := s.parseShellCommand(override); parts != nil {
+			return parts
+		}
 	}
 
-	// Fall back to platform defaults
+	// 2. Environment-variable preferred shell
+	if env := s.envPreferredShell(); env != nil {
+		return env
+	}
+
+	// 3. Platform default chain
 	switch s.platform.Platform.OS {
 	case "windows":
-		// On Windows, try to find PowerShell or cmd
-		if _, err := exec.LookPath("powershell.exe"); err == nil {
-			return []string{"powershell.exe", "-NoExit", "-Command", "-"}
+		// PowerShell is the modern default; -NoLogo keeps the prompt clean.
+		if path, err := exec.LookPath("pwsh.exe"); err == nil {
+			return []string{path, "-NoLogo"}
+		}
+		if path, err := exec.LookPath("powershell.exe"); err == nil {
+			return []string{path, "-NoLogo"}
+		}
+		// cmd.exe is the universal fallback — guaranteed to exist on
+		// Windows. Look it up via $ComSpec first (handles non-default
+		// installs); fall back to the literal name.
+		if comspec := os.Getenv("ComSpec"); comspec != "" {
+			if _, err := exec.LookPath(comspec); err == nil {
+				return []string{comspec}
+			}
 		}
 		return []string{"cmd.exe"}
 	case "darwin":
-		// On macOS, use zsh if available, otherwise bash
-		if _, err := exec.LookPath("zsh"); err == nil {
-			return []string{"zsh", "-l"}
+		// macOS Catalina+ defaults to zsh; honor that, fall back to bash,
+		// then sh which is always present.
+		if path, err := exec.LookPath("zsh"); err == nil {
+			return []string{path, "-l"}
 		}
-		return []string{"bash", "-l"}
+		if path, err := exec.LookPath("bash"); err == nil {
+			return []string{path, "-l"}
+		}
+		return []string{"/bin/sh"}
 	default:
-		// On Linux and other Unix-like systems
-		if _, err := exec.LookPath("bash"); err == nil {
-			return []string{"bash", "-l"}
+		// Linux + other Unix: prefer zsh if installed, then bash, then sh.
+		// (The original code looked up bash first, which clobbered users
+		// whose $SHELL was zsh — that's the bug we're fixing here.)
+		for _, candidate := range []string{"zsh", "bash"} {
+			if path, err := exec.LookPath(candidate); err == nil {
+				return []string{path, "-l"}
+			}
 		}
-		if shell := os.Getenv("SHELL"); shell != "" {
-			return []string{shell, "-l"}
-		}
-		return []string{"sh"}
+		return []string{"/bin/sh"}
 	}
 }
 
-// getShellFromSettings retrieves shell preference from settings
-func (s *Service) getShellFromSettings() string {
-	// This would integrate with the config service
-	// For now, return empty to use defaults
-	// TODO: Integrate with config service when implemented
-	return ""
+// envPreferredShell returns the user's preferred shell from the
+// environment, or nil if it can't be resolved. Linux/macOS use $SHELL,
+// Windows uses $ComSpec.
+func (s *Service) envPreferredShell() []string {
+	if s.platform.Platform.OS == "windows" {
+		// $ComSpec is the canonical "what shell did the user launch this
+		// process under" on Windows. We don't pass any args because cmd
+		// has no equivalent of -l, and PowerShell's invocation flags
+		// belong on the explicit-override path instead.
+		if cs := os.Getenv("ComSpec"); cs != "" {
+			if _, err := exec.LookPath(cs); err == nil {
+				return []string{cs}
+			}
+		}
+		return nil
+	}
+	// $SHELL is set by login shells on Linux/macOS. We add `-l` so the
+	// shell sources its login dotfiles (.zprofile, .bash_profile) — the
+	// user's PATH and aliases come along.
+	if sh := os.Getenv("SHELL"); sh != "" {
+		if _, err := exec.LookPath(sh); err == nil {
+			return []string{sh, "-l"}
+		}
+	}
+	return nil
 }
 
-// parseShellCommand parses a shell command string into command and args
+// parseShellCommand parses a shell command string into command and args.
+// Returns nil if the command can't be located on PATH.
 func (s *Service) parseShellCommand(shell string) []string {
-	// Simple parsing - can be enhanced for complex shell commands
 	parts := strings.Fields(shell)
 	if len(parts) == 0 {
 		return nil
 	}
-
-	// Validate that the shell exists
 	if _, err := exec.LookPath(parts[0]); err != nil {
 		return nil
 	}
-
 	return parts
 }
 
-// SetShellCommand sets a custom shell command (to be called from settings)
+// SetShellCommand stores a user-supplied shell-path override. Empty
+// string clears the override and falls back to env / platform default.
+// Cross-platform: accepts "/usr/bin/zsh -l", "C:\\Windows\\System32\\
+// cmd.exe", "pwsh -NoLogo -NoProfile", etc. Validation happens at
+// terminal-spawn time, not here.
 func (s *Service) SetShellCommand(shell string) error {
-	// This would save to settings/config
-	// For now, this is a placeholder
+	s.shellOverrideMu.Lock()
+	s.shellOverride = strings.TrimSpace(shell)
+	s.shellOverrideMu.Unlock()
 	return nil
+}
+
+// GetActiveShell returns the shell command that getShellCommand() would
+// pick right now — used by the frontend to render the status bar
+// (`/bin/zsh -- /home/ano`) honestly instead of guessing '/bin/bash'.
+// Returns just the executable path (the first arg), not the full argv.
+func (s *Service) GetActiveShell() string {
+	parts := s.getShellCommand()
+	if len(parts) == 0 {
+		return ""
+	}
+	return parts[0]
 }
 
 // GetAvailableShells returns a list of available shells on the system
@@ -215,8 +322,27 @@ func (s *Service) GetAvailableShells(ctx context.Context) ([]string, error) {
 
 // readTerminalOutput reads output from the PTY
 func (s *Service) readTerminalOutput(terminal *Terminal) {
-	defer close(terminal.Done)
-	defer close(terminal.Output)
+	defer terminal.signalDone()
+	// Output is intentionally not closed here: Close races with this goroutine
+	// and consumers (Wails event listeners + ReadFromTerminal channel readers)
+	// must rely on Done as the cancellation signal, not a closed Output chan.
+
+	// Emit a PER-SESSION exit event when the PTY closes (user typed
+	// `exit`, shell crashed, or backend Close fired). We use the
+	// session-id-scoped event name (`terminal.exited.<id>`) rather
+	// than a global `terminal.exited` so each AdexTerminal can
+	// EventsOff its OWN listener without accidentally removing the
+	// listeners other tabs registered (the previous global path
+	// silently disconnected output for ALL tabs whenever any one
+	// component cleaned up).
+	defer func() {
+		if app := application.Get(); app != nil {
+			app.Event.Emit(
+				"terminal.exited."+terminal.ID,
+				map[string]interface{}{"terminalId": terminal.ID},
+			)
+		}
+	}()
 
 	buf := make([]byte, 1024)
 	for {
@@ -229,12 +355,23 @@ func (s *Service) readTerminalOutput(terminal *Terminal) {
 			data := make([]byte, n)
 			copy(data, buf[:n])
 
-			// Emit Wails event directly to frontend FIRST (non-blocking)
-			if s.wailsCtx != nil {
-				wailsRuntime.EventsEmit(s.wailsCtx, "terminal.output", map[string]interface{}{
-					"terminalId": terminal.ID,
-					"data":       data,
-				})
+			// Emit Wails event to frontend. We emit ONLY the per-session
+			// event name (`terminal.output.<id>`) so each AdexTerminal
+			// can EventsOff its own listener at unmount without
+			// disconnecting other tabs — Wails' EventsOff is keyed by
+			// event NAME, so a global `terminal.output` listener
+			// shared across N tabs gets nuked the first time any tab
+			// cleans up. Wails v3 emission needs no caller context;
+			// application.Get() returns nil before the app is up
+			// (e.g. under unit tests), and the emit is skipped.
+			if app := application.Get(); app != nil {
+				app.Event.Emit(
+					"terminal.output."+terminal.ID,
+					map[string]interface{}{
+						"terminalId": terminal.ID,
+						"data":       data,
+					},
+				)
 			}
 
 			// Send to Go channel (may block if channel is full)
@@ -325,6 +462,28 @@ func (s *Service) ReadFromTerminal(ctx context.Context, terminalID string) (<-ch
 	return terminal.Output, nil
 }
 
+// Shutdown closes every active terminal session and kills its child
+// process. Called from coordinator.Shutdown() so the app exits cleanly
+// without leaking PTY children — Linux/macOS will reparent orphans to
+// init, but Windows handles them differently and Wails dev observed
+// these as the reason the binary refused to die ("wails dev" stayed
+// alive because the child shells held console handles).
+func (s *Service) Shutdown() {
+	s.termLock.Lock()
+	ids := make([]string, 0, len(s.terminals))
+	for id := range s.terminals {
+		ids = append(ids, id)
+	}
+	s.termLock.Unlock()
+	// Close each terminal outside the lock (CloseTerminal takes the
+	// lock itself; doing it inline would deadlock).
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	for _, id := range ids {
+		_ = s.CloseTerminal(ctx, id)
+	}
+}
+
 // CloseTerminal closes a terminal session
 func (s *Service) CloseTerminal(ctx context.Context, terminalID string) error {
 	s.termLock.Lock()
@@ -335,8 +494,9 @@ func (s *Service) CloseTerminal(ctx context.Context, terminalID string) error {
 		return fmt.Errorf("terminal not found: %s", terminalID)
 	}
 
-	// Signal goroutines to stop
-	close(terminal.Done)
+	// Signal goroutines to stop. Safe under double-close: signalDone uses
+	// sync.Once internally, so the reader goroutine racing with us is fine.
+	terminal.signalDone()
 
 	// Close PTY
 	if terminal.PTY != nil {
