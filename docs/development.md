@@ -323,7 +323,7 @@ export const useUserStore = defineStore('user', () => {
 package main
 
 import (
-    "github.com/wailsapp/wails/v2/pkg/runtime"
+    "github.com/wailsapp/wails/v3/pkg/application"
 )
 
 func (a *App) GetUser(id string) (*User, error) {
@@ -729,42 +729,68 @@ docs(readme): update installation instructions
 3. **Type errors**: Run TypeScript compiler
 4. **Import issues**: Check file paths and exports
 
-## Wails v2 Workflow
+## Wails v3 Workflow
 
-This project targets **Wails v2.12.0** (`github.com/wailsapp/wails/v2`),
-not v3. Use the v2 CLI:
+This project targets **Wails v3** (`github.com/wailsapp/wails/v3`). v3 is in
+beta and ships fixes frequently, so the project tracks the latest beta rather
+than pinning to one. Last verified against **v3.0.0-beta.14** (2026-08-26).
 
 ```bash
-# Install the CLI (one-time)
-go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+# Install the CLI (one-time; re-run to pick up newer betas)
+go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
-# Live-reload dev (Go backend + Vite-proxied Nuxt frontend)
-wails dev
+# Check the toolchain (Linux needs GTK4 + WebKitGTK 6.0)
+wails3 doctor
+
+# Live-reload dev (Go backend + Nuxt dev server on port 9245)
+wails3 dev
 
 # Production build for the current platform
-wails build
+wails3 task build
 ```
 
-`wails.json` (`frontend:dev:serverUrl`, `assetdir`, `wailsjsdir`) wires
-the Nuxt build into the Wails embed. The frontend is served from
-`frontend/.output/public` at build time and proxied from the Nuxt dev
-server during `wails dev`.
+Configuration lives in `build/config.yml` (project metadata and `dev_mode`)
+plus the root `Taskfile.yml`, which dispatches to the per-platform task files
+under `build/`. There is no `wails.json` — that was v2.
+
+`build/config.yml` is the single source of truth for the application version:
+`frontend/nuxt.config.ts` reads `info.version` from it at config-evaluation
+time so the in-app update checker and the binary always agree. A missing or
+malformed config fails the build rather than silently emitting `0.0.0`.
+
+The Nuxt static bundle is emitted to `frontend/dist` (set via
+`nitro.output.publicDir`), which is what `//go:embed all:frontend/dist` in
+`main.go` embeds. That directory is generated and gitignored, so a clean
+checkout must build the frontend before `go build` will succeed.
+
+### Upstream beta churn
+
+Because the project tracks the latest beta, an upstream release can break the
+build between one day and the next. That is expected, not a defect in this
+codebase: re-run `go get github.com/wailsapp/wails/v3@latest`, reinstall the
+CLI so the two versions match, and re-verify. Keep the CLI and the Go module
+on the same beta.
 
 ### Binding regeneration
 
-Bound Go methods (everything uppercase-leading on `App` and
-`ServiceCoordinator`) are exposed to the frontend. After adding or
-changing a bound method:
+Exported methods on services registered with `application.NewService(...)`
+are exposed to the frontend. After adding or changing one:
 
 ```bash
-wails generate module
+wails3 generate bindings -ts
 ```
 
-This regenerates `frontend/app/lib/wailsjs/`. A hand-written shim at
-`frontend/app/lib/wailsjs/coordinator.ts` keeps the canonical import
-surface stable between regens — keep its TypeScript signatures in sync
-when you add coordinator methods so the frontend type-checks before the
-next regen.
+This regenerates `frontend/bindings/`, laid out by Go import path — the
+coordinator lands at
+`frontend/bindings/aDex-UI/backend/services/coordinator/`. Generation is by
+static analysis of the Go source, so the output cannot drift from the
+implementation, and it preserves doc comments and real parameter names.
+The directory is build output and is gitignored.
+
+`frontend/app/lib/wailsjs/{coordinator,runtime}.ts` are thin facades that
+re-export the generated bindings. They exist so the ~19 importing components
+and stores keep a stable path, and to carry a few historical aliases
+(`GetSchemes` -> `GetColorSchemes`). Do not hand-write IPC in them.
 
 Gotchas (learned the hard way — see
 `openspec/changes/edex-parity-and-uplift/tasks.md` "Launch crash fix"):
@@ -792,7 +818,7 @@ it on the correct thread; running it in parallel deadlocks `sc.mu`.
 ## Evidence Capture Protocol
 
 Several spec items require visual evidence captured from a running
-`wails dev` (screenshots/recordings). The agent workflow can't run
+`wails3 dev` (screenshots/recordings). The agent workflow can't run
 the GUI, so these are captured by a human and dropped into
 `docs/evidence/<feature>/`.
 
@@ -813,7 +839,7 @@ exact capture list per feature.
 
 ## Additional Resources
 
-- [Wails v2 Documentation](https://wails.io/docs/introduction)
+- [Wails v3 Documentation](https://v3.wails.io/)
 - [Nuxt 4 Documentation](https://nuxt.com/)
 - [Vue 3 Documentation](https://vuejs.org/)
 - [Go Documentation](https://golang.org/)

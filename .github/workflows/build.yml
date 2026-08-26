@@ -9,8 +9,12 @@ on:
   workflow_dispatch:
 
 env:
-  GO_VERSION: '1.23'
+  # go.mod requires >= 1.25; Wails v3 beta is developed against current Go.
+  GO_VERSION: '1.25'
   NODE_VERSION: '22'
+  # Track the latest v3 beta rather than pinning: v3 is pre-stable and ships
+  # fixes near-daily. See openspec design D1/D7.
+  WAILS_VERSION: 'latest'
 
 jobs:
   # Build and test on all platforms
@@ -59,23 +63,34 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Cache Node modules
+      - name: Cache frontend dependencies
         uses: actions/cache@v6
         with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('frontend/bun.lock*') }}
           restore-keys: |
-            ${{ runner.os }}-node-
+            ${{ runner.os }}-bun-
 
       - name: Install Task (go-task)
         run: |
           go install github.com/go-task/task/v3/cmd/task@latest
 
+      - name: Install Wails v3 CLI
+        run: |
+          go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+          wails3 version
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
       - name: Install dependencies (Linux)
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+          # Wails v3 targets GTK4 + WebKitGTK 6.0 on Linux.
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
 
       - name: Install dependencies (macOS)
         if: matrix.platform == 'darwin'
@@ -98,7 +113,7 @@ jobs:
 
       - name: Run tests
         run: |
-          task test
+          task verify:go
 
       - name: Package application
         run: |
@@ -176,6 +191,15 @@ jobs:
       - name: Install Task
         run: |
           go install github.com/go-task/task/v3/cmd/task@latest
+
+      - name: Install Wails v3 CLI
+        run: |
+          go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
 
       - name: Cross-compile binary
         run: |

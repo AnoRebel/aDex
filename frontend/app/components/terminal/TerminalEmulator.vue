@@ -43,6 +43,7 @@ const terminalRef = ref<HTMLElement>()
 let terminal: any = null
 let fitAddon: any = null
 let backendTerminalId: string | null = null
+let unsubOutput: (() => void) | undefined
 
 // Wails terminal service
 const { terminal: terminalService } = useWails()
@@ -114,9 +115,10 @@ const initializeTerminal = async () => {
         backendTerminalId = result.id
         console.log('Backend terminal created:', backendTerminalId)
         
-        // Subscribe to terminal output events from backend
-        // Wails v2 EventsOn passes data as separate arguments
-        Events.On('terminal.output', (...args: any[]) => {
+        // Subscribe to terminal output events from backend.
+        // Events.On returns an unsubscribe function (Wails v3); keep it so
+        // teardown removes only this component's listener.
+        unsubOutput = Events.On('terminal.output', (...args: any[]) => {
           const event = args[0]
           if (event && event.terminalId === backendTerminalId) {
             let text = ''
@@ -332,7 +334,8 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   
   // Unsubscribe from terminal output events
-  Events.Off('terminal.output')
+  unsubOutput?.()
+  unsubOutput = undefined
   
   // Close backend terminal if exists
   if (backendTerminalId) {

@@ -53,8 +53,13 @@ func main() {
 	//     replaces the v2 workaround of calling WindowMaximise from
 	//     OnDomReady, which existed because v2's start-state hint raced the
 	//     compositor on Wayland/X11.
-	//   - MinWidth/MinHeight keep the side columns readable when the user
-	//     resizes down.
+	//   - MinWidth/MinHeight are a hard floor enforced by the window manager,
+	//     not a styling hint: below them the window simply cannot be resized,
+	//     however well the CSS reflows. v2 set 900x600, which stopped the app
+	//     fitting on smaller or scaled displays even though the stylesheets
+	//     carry breakpoints down to 480px. They are set to 640x480 here so the
+	//     OS-level floor stops fighting the responsive layout — the reflow
+	//     rules, not the window manager, decide how narrow is usable.
 	//
 	// v2 additionally needed explicit MaxWidth/MaxHeight of 16384 to defeat a
 	// GTK quirk that clamped the window to the current monitor's geometry when
@@ -66,8 +71,8 @@ func main() {
 		Title:            "aDex-UI",
 		Width:            1600,
 		Height:           1000,
-		MinWidth:         900,
-		MinHeight:        600,
+		MinWidth:         640,
+		MinHeight:        480,
 		StartState:       application.WindowStateMaximised,
 		BackgroundColour: application.NewRGB(27, 38, 54),
 		URL:              "/",

@@ -2,20 +2,42 @@
 import tailwindcss from "@tailwindcss/vite";
 import fs from "node:fs";
 import path from "node:path";
+import { parse as parseYaml } from "yaml";
 
-// Read the canonical app version from wails.json's info.productVersion
-// so the frontend version-checker can compare against GitHub Releases
-// without us hand-syncing a string in two places. Falls back to '0.0.0'
-// if the file is missing or malformed — never crash the build over a
-// non-critical injection.
-const wailsConfigPath = path.resolve(__dirname, "..", "wails.json");
-let APP_VERSION = "0.0.0";
-try {
-  const raw = fs.readFileSync(wailsConfigPath, "utf-8");
-  const parsed = JSON.parse(raw) as { info?: { productVersion?: string } };
-  if (parsed?.info?.productVersion) APP_VERSION = parsed.info.productVersion;
-} catch {
-  // Build still proceeds with the 0.0.0 fallback.
+// Read the canonical app version from build/config.yml's `info.version`.
+// That file is the single source of truth: the Wails build tooling stamps the
+// binary from it, and reading it here keeps the frontend's update checker
+// comparing against the same string without a hand-synced duplicate.
+//
+// This runs at Nuxt config-evaluation time — plain Node, outside Vite's module
+// graph — so no Vite YAML plugin is involved (Vite has no native YAML support;
+// it handles JSON, CSS, WASM and workers, but YAML needs a plugin). The `yaml`
+// package is already present in the dependency tree.
+//
+// A missing or malformed config is a hard failure rather than a silent
+// "0.0.0" fallback: shipping a mis-versioned binary breaks update checks in a
+// way that is invisible until users are already on the wrong version.
+const wailsConfigPath = path.resolve(__dirname, "..", "build", "config.yml");
+let APP_VERSION: string;
+{
+  let raw: string;
+  try {
+    raw = fs.readFileSync(wailsConfigPath, "utf-8");
+  } catch (cause) {
+    throw new Error(
+      `Unable to read ${wailsConfigPath}. It is the source of truth for the app version.`,
+      { cause },
+    );
+  }
+
+  const parsed = parseYaml(raw) as { info?: { version?: unknown } } | null;
+  const version = parsed?.info?.version;
+  if (typeof version !== "string" || version.trim() === "") {
+    throw new Error(
+      `${wailsConfigPath} has no usable \`info.version\` (found: ${JSON.stringify(version)}).`,
+    );
+  }
+  APP_VERSION = version;
 }
 
 export default defineNuxtConfig({

@@ -51,7 +51,8 @@
     "prettier": "^3.9.6",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11",
-    "vue-tsc": "^3.3.11"
+    "vue-tsc": "^3.3.11",
+    "yaml": "^2.9.0"
   },
   "trustedDependencies": [
     "@parcel/watcher",

@@ -8,7 +8,7 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
+import { Call as $Call, CancellablePromise as $CancellablePromise } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -81,9 +81,7 @@ export function CreateFontConfiguration(config: any): $CancellablePromise<void> 
  * pre-dates the Settings → System "Open in" preference.
  */
 export function CreateTerminal(width: number, height: number): $CancellablePromise<terminal$0.Terminal | null> {
-    return $Call.ByID(2670237022, width, height).then(($result: any) => {
-        return $$createType1($result);
-    });
+    return $Call.ByID(2670237022, width, height);
 }
 
 /**
@@ -92,9 +90,7 @@ export function CreateTerminal(width: number, height: number): $CancellablePromi
  * the legacy CreateTerminal behavior).
  */
 export function CreateTerminalIn(width: number, height: number, cwd: string): $CancellablePromise<terminal$0.Terminal | null> {
-    return $Call.ByID(1491097665, width, height, cwd).then(($result: any) => {
-        return $$createType1($result);
-    });
+    return $Call.ByID(1491097665, width, height, cwd);
 }
 
 /**
@@ -148,9 +144,7 @@ export function GetCPUUsage(): $CancellablePromise<any> {
  * Replaces the previous HTTP endpoint at /api/terminal/cwd/stats.
  */
 export function GetCWDStats(): $CancellablePromise<terminal$0.CWDStats> {
-    return $Call.ByID(3064388575).then(($result: any) => {
-        return $$createType2($result);
-    });
+    return $Call.ByID(3064388575);
 }
 
 /**
@@ -177,10 +171,8 @@ export function GetColorSchemePreview(id: string): $CancellablePromise<any> {
 /**
  * GetColorSchemes returns all available color schemes
  */
-export function GetColorSchemes(): $CancellablePromise<{ [_ in string]?: any }> {
-    return $Call.ByID(2557206327).then(($result: any) => {
-        return $$createType3($result);
-    });
+export function GetColorSchemes(): $CancellablePromise<{ [_ in string]?: any } | null> {
+    return $Call.ByID(2557206327);
 }
 
 /**
@@ -222,10 +214,8 @@ export function GetFontConfiguration(id: string): $CancellablePromise<any> {
 /**
  * GetFontConfigurations returns all font configurations
  */
-export function GetFontConfigurations(): $CancellablePromise<{ [_ in string]?: any }> {
-    return $Call.ByID(2890470220).then(($result: any) => {
-        return $$createType3($result);
-    });
+export function GetFontConfigurations(): $CancellablePromise<{ [_ in string]?: any } | null> {
+    return $Call.ByID(2890470220);
 }
 
 /**
@@ -252,10 +242,8 @@ export function GetMemoryUsage(): $CancellablePromise<any> {
 /**
  * GetMonospaceFonts returns monospace fonts suitable for terminal use
  */
-export function GetMonospaceFonts(): $CancellablePromise<any[]> {
-    return $Call.ByID(1824599733).then(($result: any) => {
-        return $$createType4($result);
-    });
+export function GetMonospaceFonts(): $CancellablePromise<any[] | null> {
+    return $Call.ByID(1824599733);
 }
 
 /**
@@ -304,9 +292,7 @@ export function GetNetworkStatistics(): $CancellablePromise<any> {
  * GetPlatform returns platform information
  */
 export function GetPlatform(): $CancellablePromise<utils$0.FeatureDetection | null> {
-    return $Call.ByID(1459214277).then(($result: any) => {
-        return $$createType6($result);
-    });
+    return $Call.ByID(1459214277);
 }
 
 /**
@@ -315,10 +301,8 @@ export function GetPlatform(): $CancellablePromise<utils$0.FeatureDetection | nu
  * panel polls this so POWER reflects "AC" vs "Battery" in real time
  * — earlier the frontend hardcoded "AC Power".
  */
-export function GetPowerInfo(): $CancellablePromise<{ [_ in string]?: any }> {
-    return $Call.ByID(4028720851).then(($result: any) => {
-        return $$createType3($result);
-    });
+export function GetPowerInfo(): $CancellablePromise<{ [_ in string]?: any } | null> {
+    return $Call.ByID(4028720851);
 }
 
 /**
@@ -337,10 +321,8 @@ export function GetPowerInfo(): $CancellablePromise<{ [_ in string]?: any }> {
  * Returns an empty map (not error) on total failure so the UI shows
  * "Resolving..." and retries on the next poll cycle.
  */
-export function GetSelfGeoIP(): $CancellablePromise<{ [_ in string]?: any }> {
-    return $Call.ByID(1927000148).then(($result: any) => {
-        return $$createType3($result);
-    });
+export function GetSelfGeoIP(): $CancellablePromise<{ [_ in string]?: any } | null> {
+    return $Call.ByID(1927000148);
 }
 
 /**
@@ -349,18 +331,14 @@ export function GetSelfGeoIP(): $CancellablePromise<{ [_ in string]?: any }> {
  * user picked in Settings → System → "Open in".
  */
 export function GetStartupPaths(): $CancellablePromise<$models.StartupPaths> {
-    return $Call.ByID(1425163917).then(($result: any) => {
-        return $$createType7($result);
-    });
+    return $Call.ByID(1425163917);
 }
 
 /**
  * GetSystemFonts returns all detected system fonts
  */
-export function GetSystemFonts(): $CancellablePromise<{ [_ in string]?: any }> {
-    return $Call.ByID(3265143207).then(($result: any) => {
-        return $$createType3($result);
-    });
+export function GetSystemFonts(): $CancellablePromise<{ [_ in string]?: any } | null> {
+    return $Call.ByID(3265143207);
 }
 
 /**
@@ -376,10 +354,8 @@ export function GetSystemInfo(): $CancellablePromise<any> {
  * pull `{name, temperature, high, critical}` rows for display.
  * Returns an empty array (not error) when sensors are unavailable.
  */
-export function GetTemperatures(): $CancellablePromise<{ [_ in string]?: any }[]> {
-    return $Call.ByID(4270093341).then(($result: any) => {
-        return $$createType8($result);
-    });
+export function GetTemperatures(): $CancellablePromise<({ [_ in string]?: any } | null)[] | null> {
+    return $Call.ByID(4270093341);
 }
 
 /**
@@ -395,9 +371,7 @@ export function GetTerminalCWD(terminalID: string): $CancellablePromise<string> 
  * GetTerminalInfo returns information about a terminal session
  */
 export function GetTerminalInfo(terminalID: string): $CancellablePromise<terminal$0.Terminal | null> {
-    return $Call.ByID(317199030, terminalID).then(($result: any) => {
-        return $$createType1($result);
-    });
+    return $Call.ByID(317199030, terminalID);
 }
 
 /**
@@ -416,9 +390,7 @@ export function GetTopProcesses(metric: string, limit: number): $CancellableProm
  * checkable contract rather than an opaque blob.
  */
 export function GetUISettings(): $CancellablePromise<models$0.UISettings | null> {
-    return $Call.ByID(3302846093).then(($result: any) => {
-        return $$createType10($result);
-    });
+    return $Call.ByID(3302846093);
 }
 
 /**
@@ -452,10 +424,8 @@ export function IsStarted(): $CancellablePromise<boolean> {
 /**
  * ListTerminals returns all active terminal sessions
  */
-export function ListTerminals(): $CancellablePromise<string[]> {
-    return $Call.ByID(1956517423).then(($result: any) => {
-        return $$createType11($result);
-    });
+export function ListTerminals(): $CancellablePromise<string[] | null> {
+    return $Call.ByID(1956517423);
 }
 
 /**
@@ -675,17 +645,3 @@ export function ValidateFont(config: any): $CancellablePromise<any> {
 export function WriteToTerminal(terminalID: string, data: string): $CancellablePromise<void> {
     return $Call.ByID(1503072468, terminalID, data);
 }
-
-// Private type creation functions
-const $$createType0 = terminal$0.Terminal.createFrom;
-const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = terminal$0.CWDStats.createFrom;
-const $$createType3 = $Create.Map($Create.Any, $Create.Any);
-const $$createType4 = $Create.Array($Create.Any);
-const $$createType5 = utils$0.FeatureDetection.createFrom;
-const $$createType6 = $Create.Nullable($$createType5);
-const $$createType7 = $models.StartupPaths.createFrom;
-const $$createType8 = $Create.Array($$createType3);
-const $$createType9 = models$0.UISettings.createFrom;
-const $$createType10 = $Create.Nullable($$createType9);
-const $$createType11 = $Create.Array($Create.Any);

@@ -6,6 +6,6 @@ export {
     ServiceCoordinator
 };
 
-export {
+export type {
     StartupPaths
 } from "./models.js";

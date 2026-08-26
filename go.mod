@@ -10,7 +10,6 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/stretchr/testify v1.11.1
-	github.com/wailsapp/wails/v2 v2.15.0
 	github.com/wailsapp/wails/v3 v3.0.0-beta.14
 	golang.org/x/crypto v0.55.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -25,15 +24,12 @@ require (
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/jchv/go-winloader v0.0.0-20250406163304-c1995be93bd1 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
-	github.com/leaanthony/slicer v1.6.0 // indirect
-	github.com/leaanthony/u v1.1.1 // indirect
 	github.com/lufia/plan9stats v0.0.0-20260802145828-341c2f0c90b5 // indirect
 	github.com/mattn/go-colorable v0.1.15 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20260805114148-88456608a4f6 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
-	github.com/samber/lo v1.53.0 // indirect
 	github.com/shoenig/go-m1cpu v0.2.2 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/tklauser/go-sysconf v0.4.0 // indirect

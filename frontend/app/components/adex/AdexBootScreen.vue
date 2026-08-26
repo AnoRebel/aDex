@@ -60,6 +60,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { onKeyStroke } from '@vueuse/core'
 import { useAdexAudio } from '~/composables/useAdexAudio'
+import { Events } from '~/lib/wailsjs/runtime'
 
 // ---- Types ----
 
@@ -229,15 +230,17 @@ function backendToBootMessage(payload: {
 
 /** Subscribe to backend boot events. Returns an unsubscribe fn or null
  *  when the Wails runtime isn't available (Storybook, browser preview,
- *  jsdom test) — callers fall back to the canned message list. */
+ *  jsdom test) — callers fall back to the canned message list.
+ *
+ *  Wails v3 has no `window.runtime` global; events come from the runtime
+ *  module, and `Events.On` returns the unsubscribe function directly
+ *  (v2 required removing listeners by event name). The null-return
+ *  contract is kept so non-desktop contexts still degrade to the canned
+ *  sequence. */
 function subscribeBootEvents(onComplete: () => void): (() => void) | null {
-  const runtime = (window as unknown as { runtime?: {
-    EventsOn(name: string, cb: (...args: unknown[]) => void): () => void
-    EventsOff(name: string): void
-  } }).runtime
-  if (!runtime?.EventsOn) return null
+  if (typeof window === 'undefined') return null
 
-  const offStage = runtime.EventsOn('boot.stage', (raw: unknown) => {
+  const offStage = Events.On('boot.stage', (raw: unknown) => {
     const payload = raw as {
       stage: 'wait' | 'success' | 'warn' | 'error'
       tag: string
@@ -262,7 +265,7 @@ function subscribeBootEvents(onComplete: () => void): (() => void) | null {
     playMessageSound()
   })
 
-  const offComplete = runtime.EventsOn('boot.complete', () => {
+  const offComplete = Events.On('boot.complete', () => {
     progressPercent.value = 100
     emit('progress', 100)
     onComplete()

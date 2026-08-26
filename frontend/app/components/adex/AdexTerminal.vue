@@ -37,6 +37,7 @@ import { pulseKey } from '~/composables/useKeyboardPulse'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebglAddon } from '@xterm/addon-webgl'
+import { Events } from '~/lib/wailsjs/runtime'
 // NOTE: We deliberately don't import @xterm/addon-canvas here.
 //   1. The package only ships CJS (no `module` field), and Vite's
 //      named-import-from-CJS interop fails for the UMD self-assigning
@@ -259,13 +260,7 @@ function setupWailsEvents() {
   // `data` arrives as a plain number array because Wails JSON-marshals
   // Go's `[]byte` that way; xterm's `term.write` accepts string |
   // Uint8Array but NOT a plain array, so we must convert before writing.
-  const runtime = (window as unknown as {
-    runtime?: {
-      EventsOn(name: string, cb: (...args: unknown[]) => void): () => void
-      EventsOff(name: string): void
-    }
-  }).runtime
-  if (!runtime?.EventsOn) {
+  if (typeof window === 'undefined') {
     console.warn('[AdexTerminal] Wails runtime not available — terminal output will not flow')
     return
   }
@@ -319,18 +314,19 @@ function setupWailsEvents() {
     }
   }
 
-  // Session-scoped output channel ONLY. The backend emits both a
-  // global `terminal.output` and a per-session `terminal.output.<id>`;
-  // earlier we subscribed to both and used the payload's terminalId to
-  // filter. The problem: Wails' EventsOff removes ALL listeners for
-  // the event name, so unmounting one tab silently disconnected
-  // OUTPUT for every other tab. Listening only to the scoped name
-  // means each tab's cleanup affects only itself.
+  // Session-scoped output channel ONLY. The backend emits per-session
+  // `terminal.output.<id>` so each pane owns its own stream.
+  //
+  // Wails v3 returns an unsubscribe function from Events.On, so cleanup
+  // is precise: calling it removes THIS listener and nothing else. (In
+  // v2, EventsOff removed every listener registered for an event name,
+  // which is why subscribing to a shared global channel meant one tab
+  // unmounting silently disconnected output for all the others.)
   const outputEventName = `terminal.output.${props.sessionId}`
-  runtime.EventsOn(outputEventName, handler)
+  const offOutput = Events.On(outputEventName, handler)
 
-  // Per-session exit event (same scoping reason — see above). Backend
-  // emits `terminal.exited.<id>` when the PTY closes.
+  // Per-session exit event. Backend emits `terminal.exited.<id>` when
+  // the PTY closes.
   const exitedEventName = `terminal.exited.${props.sessionId}`
   const exitedHandler = () => {
     if (term) {
@@ -338,11 +334,11 @@ function setupWailsEvents() {
     }
     emit('exited', props.sessionId)
   }
-  runtime.EventsOn(exitedEventName, exitedHandler)
+  const offExited = Events.On(exitedEventName, exitedHandler)
 
   wailsEventCleanup = () => {
-    runtime.EventsOff(outputEventName)
-    runtime.EventsOff(exitedEventName)
+    offOutput()
+    offExited()
   }
 }
 

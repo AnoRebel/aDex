@@ -67,11 +67,15 @@ func TestNetwork_StartStopMonitoring(t *testing.T) {
 		t.Fatalf("freshly-constructed service reports monitoring already active")
 	}
 
-	// StartMonitoring runs the polling loop in the calling goroutine and
-	// only returns once the context is cancelled — the caller is expected
-	// to spawn it in a goroutine. Mirror the production wiring here.
-	loopDone := make(chan error, 1)
-	go func() { loopDone <- s.StartMonitoring(ctx) }()
+	// StartMonitoring spawns its own polling goroutine and returns
+	// immediately, matching the system and audio services. (It previously
+	// ran the loop in the calling goroutine and never returned, which under
+	// Wails v3 blocked ServiceStartup and stopped the window from ever
+	// being created.)
+	if err := s.StartMonitoring(ctx); err != nil {
+		cancel()
+		t.Fatalf("StartMonitoring: %v", err)
+	}
 
 	// Give the loop a tick to mark itself running.
 	deadline := time.Now().Add(500 * time.Millisecond)
@@ -80,15 +84,22 @@ func TestNetwork_StartStopMonitoring(t *testing.T) {
 	}
 	if !s.IsMonitoring() {
 		cancel()
-		<-loopDone
-		t.Fatalf("after StartMonitoring goroutine, IsMonitoring should become true")
+		t.Fatalf("after StartMonitoring, IsMonitoring should become true")
 	}
 
+	// Starting again while already running is a no-op, not an error: the
+	// coordinator starts monitoring during ServiceStartup and the frontend's
+	// network store also asks for it when it initialises.
+	if err := s.StartMonitoring(ctx); err != nil {
+		cancel()
+		t.Fatalf("second StartMonitoring should be a no-op, got: %v", err)
+	}
+
+	// Cancelling the context stops the loop, which then clears the flag.
 	cancel()
-	select {
-	case <-loopDone:
-	case <-time.After(2 * time.Second):
-		t.Fatalf("monitor loop did not exit after ctx cancel")
+	stopDeadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(stopDeadline) && s.IsMonitoring() {
+		time.Sleep(10 * time.Millisecond)
 	}
 	if s.IsMonitoring() {
 		t.Errorf("after ctx cancel, IsMonitoring should be false")

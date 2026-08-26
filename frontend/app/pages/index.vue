@@ -846,19 +846,16 @@ let quitFired = false
 function doQuit() {
   if (quitFired) return
   quitFired = true
-  const win = window as any
   console.info('[quit] firing doQuit')
-  // Prefer the bound Go method so the Go side controls teardown order
-  // (runtime.Quit(ctx) inside QuitApp → OnBeforeClose → OnShutdown →
-  // process exit). Fall back to the JS runtime path only if the bound
-  // method isn't on the window (e.g. running in a plain browser preview
-  // without the Wails bridge).
-  const goQuit = win?.go?.main?.App?.QuitApp
-  if (typeof goQuit === 'function') {
-    try { goQuit() } catch { /* runtime tearing down — ignore */ }
-    return
-  }
-  try { WindowRuntime.Quit() } catch { /* swallow */ }
+  // Ask the Wails runtime to quit. The Go side still controls teardown
+  // order from here: ShouldQuit, then each registered service's
+  // ServiceShutdown in reverse registration order, then process exit.
+  //
+  // Under v2 this first probed the bound `window.go.main.App.QuitApp`
+  // method. Wails v3 has no `window.go` IPC global — bound methods are
+  // reached through generated bindings — so the runtime call is now the
+  // single path.
+  try { WindowRuntime.Quit() } catch { /* runtime tearing down — ignore */ }
 }
 
 // Audio helper

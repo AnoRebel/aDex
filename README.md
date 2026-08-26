@@ -8,7 +8,7 @@
   <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License">
 </p>
 
-A modern terminal emulator with system monitoring, built with Wails v2 and Nuxt 4. This project migrates the classic eDEX-UI experience to a modern, high-performance desktop application.
+A modern terminal emulator with system monitoring, built with Wails v3 and Nuxt 4. This project migrates the classic eDEX-UI experience to a modern, high-performance desktop application.
 
 ## ✨ Features
 
@@ -64,7 +64,7 @@ A modern terminal emulator with system monitoring, built with Wails v2 and Nuxt 
 
 ## Technology Stack
 
-- **Backend**: Go 1.21+ with Wails v2.12.0
+- **Backend**: Go 1.25+ with Wails v3 (beta)
 - **Frontend**: Nuxt v4 + Vue 3 + TypeScript + Pinia
 - **Terminal**: xterm.js v5 with WebGL addon
 - **Monitoring**: gopsutil for cross-platform system metrics
@@ -84,7 +84,12 @@ A modern terminal emulator with system monitoring, built with Wails v2 and Nuxt 
 
 - Go 1.25+ (latest stable)
 - Bun 1.1+ or Node.js 20+ LTS
-- Wails v2.12.0: `go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0`
+- Wails v3 CLI: `go install github.com/wailsapp/wails/v3/cmd/wails3@latest`
+
+  Wails v3 is in beta and ships fixes frequently, so this project tracks the
+  latest beta rather than pinning. Verified against **v3.0.0-beta.14**
+  (2026-08-26). Run `wails3 doctor` to check your environment; on Linux it
+  needs GTK4 and WebKitGTK 6.0.
 
 ### Development
 
@@ -93,14 +98,14 @@ A modern terminal emulator with system monitoring, built with Wails v2 and Nuxt 
    cd frontend && bun install
    ```
 
-2. Generate Wails bindings:
+2. Generate Wails bindings (also done automatically by the build tasks):
    ```bash
-   wails generate module
+   wails3 generate bindings -ts
    ```
 
 3. Run in development mode:
    ```bash
-   wails dev
+   wails3 dev
    ```
 
 4. Or use Taskfile for structured commands:
@@ -112,8 +117,12 @@ A modern terminal emulator with system monitoring, built with Wails v2 and Nuxt 
 
 Build for current platform:
 ```bash
-wails build
+wails3 task build      # or: task build
 ```
+
+The build compiles the Nuxt frontend to `frontend/dist` and embeds it in the
+binary. Because that directory is generated (and gitignored), a clean checkout
+must build the frontend before `go build` will succeed on its own.
 
 Build for all platforms:
 ```bash
