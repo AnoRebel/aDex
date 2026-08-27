@@ -124,7 +124,10 @@ func DefaultUISettings() *UISettings {
 			WorkingDirectory: "/",
 		},
 		Display: UIDisplaySettings{
-			Theme:            "default",
+			// Must be a real id from frontend/app/assets/data/themes-index.json.
+			// This previously shipped "default", which is not in that index, so a
+			// fresh install started with a theme the loader could not resolve.
+			Theme:            "tron",
 			KeyboardLayout:   "en-US",
 			TerminalFontSize: 14,
 			FontFamily:       "'Fira Code', monospace",

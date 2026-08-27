@@ -37,9 +37,24 @@ const modifiers = ref<KbModifiers>({ ...EMPTY_MODIFIERS });
 const isLoading = ref(false);
 const lastError = ref<Error | null>(null);
 
+/* Every keyboard layout JSON, resolved at build time.
+ *
+ * These live under `app/assets/` — a build-time directory that is never served
+ * over HTTP (only `frontend/public/` is) — so they must be bundled, not
+ * fetched. Key shape: "/assets/data/kb_layouts/en-US.json". */
+const layoutModules = import.meta.glob<{ default: unknown }>(
+  "~/assets/data/kb_layouts/*.json",
+);
+
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`fetch ${url}: HTTP ${res.status}`);
+  // A path that does not exist returns index.html with a 200, so status alone
+  // does not mean success.
+  const type = res.headers.get("content-type") ?? "";
+  if (!type.includes("json")) {
+    throw new Error(`fetch ${url}: expected JSON, got ${type || "unknown"}`);
+  }
   return (await res.json()) as T;
 }
 
@@ -63,12 +78,14 @@ async function loadLayout(id: string): Promise<KbLayout> {
   const entry = idx.find((e) => e.id === id);
   if (!entry) throw new Error(`unknown keyboard layout: ${id}`);
 
-  let raw: unknown;
-  try {
-    raw = (await import(/* @vite-ignore */ `~/assets/data/${entry.file}`)).default;
-  } catch {
-    raw = await fetchJson(`${ASSETS_BASE}${entry.file}`);
-  }
+  // Resolve through the build-time glob. A runtime-computed dynamic import
+  // cannot be resolved by the bundler and silently yields the SPA's
+  // index.html; fetching `/assets/data/...` fails the same way, since these
+  // files are not served over HTTP. import.meta.glob is statically
+  // analysable, so the layouts are bundled and need no request at all.
+  const loader = layoutModules[`/assets/data/${entry.file}`];
+  if (!loader) throw new Error(`keyboard layout not bundled: ${entry.file}`);
+  const raw: unknown = (await loader()).default ?? (await loader());
   const layout = preprocessLayout(raw as KbLayout);
   layoutCache.set(id, layout);
   return layout;

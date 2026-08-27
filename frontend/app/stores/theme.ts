@@ -1,4 +1,11 @@
 import { defineStore } from 'pinia'
+
+// Must match useAdexTheme's DEFAULT_THEME_ID and a real id in
+// frontend/app/assets/data/themes-index.json. This store previously
+// fell back to 'cyberpunk', which has never been in that index, so any
+// path through those fallbacks produced an id the loader could not
+// resolve — leaving the interface unstyled and without a layout.
+const FALLBACK_THEME_ID = 'tron'
 import { useTheme } from '~/composables/useTheme'
 import adexThemesData from '~/assets/data/themes.json'
 
@@ -430,7 +437,7 @@ export const useThemeStore = defineStore('theme', {
       }
 
       const customTheme = state.customThemes.find(t => t.name === state.currentThemeId)
-      return customTheme?.theme || state.predefinedThemes[state.currentThemeId] || state.predefinedThemes.cyberpunk
+      return customTheme?.theme || state.predefinedThemes[state.currentThemeId] || state.predefinedThemes[FALLBACK_THEME_ID]
     },
 
     // All available themes
@@ -576,7 +583,7 @@ export const useThemeStore = defineStore('theme', {
     syncWithComposable() {
       const themeComposable = this.themeComposable
 
-      this.currentThemeId = themeComposable.currentTheme.value?.id || 'cyberpunk'
+      this.currentThemeId = themeComposable.currentTheme.value?.id || FALLBACK_THEME_ID
       this.currentTheme = themeComposable.currentTheme.value
       this.isDark = themeComposable.isDark.value
       this.availableThemes = [...themeComposable.availableThemes.value]
@@ -862,7 +869,7 @@ export const useThemeStore = defineStore('theme', {
 
     // Legacy reset method
     reset() {
-      this.currentThemeId = 'cyberpunk'
+      this.currentThemeId = FALLBACK_THEME_ID
       this.currentTheme = null
       this.isDark = true
       this.customThemes = []

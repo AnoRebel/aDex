@@ -38,8 +38,23 @@ const ASSETS_BASE = "/assets/data/";
 async function fetchJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`fetch ${url}: HTTP ${res.status}`);
+  // Guard against the SPA fallback: a request for a path that does not exist
+  // returns index.html with a 200, so status alone does not mean success.
+  const type = res.headers.get("content-type") ?? "";
+  if (!type.includes("json")) {
+    throw new Error(`fetch ${url}: expected JSON, got ${type || "unknown"}`);
+  }
   return (await res.json()) as T;
 }
+
+/* Every theme JSON, resolved at build time.
+ *
+ * These files live under `app/assets/` — a build-time directory that is never
+ * served over HTTP (only `frontend/public/` is) — so they must be bundled
+ * rather than fetched. Verified key shape: "/assets/data/themes/tron.json". */
+const themeModules = import.meta.glob<{ default: unknown }>(
+  "~/assets/data/themes/*.json",
+);
 
 async function loadIndex(): Promise<AdexThemeIndex> {
   if (indexState.value.length > 0) return indexState.value;
@@ -65,13 +80,22 @@ async function loadTheme(id: string): Promise<AdexTheme> {
   const entry = idx.find((e) => e.id === id);
   if (!entry) throw new Error(`unknown theme: ${id}`);
 
-  // Try import-eager first (bundler-resolved), then network fallback.
-  let raw: unknown;
-  try {
-    raw = (await import(/* @vite-ignore */ `~/assets/data/${entry.file}`)).default;
-  } catch {
-    raw = await fetchJson(`${ASSETS_BASE}${entry.file}`);
-  }
+  // Resolve through the build-time glob (see themeModules).
+  //
+  // Neither of the previous strategies worked. `import(/* @vite-ignore */
+  // \`~/assets/data/${...}\`)` has a runtime-computed specifier the bundler
+  // cannot resolve, so the request fell through to the SPA and the import
+  // SUCCEEDED with index.html as its payload — the `catch` never ran, and the
+  // HTML reached the parser as `Unexpected token '<' ... is not valid JSON`.
+  // Fetching `/assets/data/...` fails the same way, because these files live
+  // in `app/assets/` (a build-time directory) and are never served over HTTP;
+  // only `frontend/public/` is. Both paths therefore returned the app shell.
+  //
+  // import.meta.glob is statically analysable, so every theme is bundled and
+  // resolved by the bundler with no network request at all.
+  const loader = themeModules[`/assets/data/${entry.file}`];
+  if (!loader) throw new Error(`theme file not bundled: ${entry.file}`);
+  const raw: unknown = (await loader()).default ?? (await loader());
   const theme = parseAdexTheme(raw);
   themeCache.set(id, theme);
   return theme;
@@ -185,9 +209,30 @@ export function useAdexTheme(): UseAdexThemeApi {
     isLoading.value = true;
     lastError.value = null;
     try {
-      const theme = await loadTheme(id);
+      let theme: AdexTheme;
+      try {
+        theme = await loadTheme(id);
+      } catch (err) {
+        // An id that is not in the index must not abort theme application.
+        // Persisted ids outlive the theme catalogue: settings files, saved
+        // localStorage, and older builds can all name a theme that no longer
+        // exists (this shipped as `default`, which was never a real id). The
+        // old behaviour rethrew here, so a single stale value left the whole
+        // interface unstyled — no colours, and no `data-layout` attribute, so
+        // layout presets stopped applying too.
+        //
+        // Fall back to the default theme, record why, and carry on.
+        if (id === DEFAULT_THEME_ID) throw err;
+        console.warn(
+          `[adex-theme] unknown theme "${id}" — falling back to "${DEFAULT_THEME_ID}"`,
+        );
+        lastError.value = err instanceof Error ? err : new Error(String(err));
+        theme = await loadTheme(DEFAULT_THEME_ID);
+      }
       activeId.value = theme.id;
       activeTheme.value = theme;
+      // Persist the theme that actually loaded, so a stale id is repaired
+      // rather than reported again on every start.
       persistId(theme.id);
       applyTheme(theme);
       return theme;
