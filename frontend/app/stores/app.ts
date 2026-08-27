@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { WindowRuntime } from '~/lib/wailsjs/runtime'
 import { IsStarted } from '~/lib/wailsjs/coordinator'
+import { nowMs } from '~/utils/now'
 
 interface AppAlert {
   id: string
@@ -260,7 +261,7 @@ export const useAppStore = defineStore('app', {
         }
 
         if (hasNow) {
-          this.performance.uptime = performance.now() / 1000 // seconds since page load
+          this.performance.uptime = nowMs() / 1000 // seconds since page load
         } else {
           this.performance.uptime = (Date.now() - startedAt) / 1000
         }

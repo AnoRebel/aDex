@@ -55,6 +55,7 @@ import {
 import { useTerminalStore } from '~/stores/terminal'
 import { Events } from '~/lib/wailsjs/runtime'
 import {
+import { nowMs } from '~/utils/now'
   CreateTerminal,
   WriteToTerminal,
   ResizeTerminal,
@@ -485,9 +486,9 @@ let pingInterval: ReturnType<typeof setInterval> | null = null
 
 function updatePing() {
   // Simple performance-based approximation
-  const start = performance.now()
+  const start = nowMs()
   requestAnimationFrame(() => {
-    const elapsed = Math.round(performance.now() - start)
+    const elapsed = Math.round(nowMs() - start)
     pingMs.value = elapsed
   })
 }

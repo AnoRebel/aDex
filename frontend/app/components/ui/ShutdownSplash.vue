@@ -86,6 +86,7 @@
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
 import { useAdexAudio } from '~/composables/useAdexAudio'
+import { nowMs } from '~/utils/now'
 
 type StepState = 'pending' | 'active' | 'done'
 
@@ -229,7 +230,7 @@ const TICK_MS = 60
 
 const { pause: pauseTick, resume: resumeTick } = useIntervalFn(
   () => {
-    const elapsed = performance.now() - startedAt.value
+    const elapsed = nowMs() - startedAt.value
     progress.value = Math.min(100, (elapsed / props.durationMs) * 100)
     remainingMs.value = Math.max(0, props.durationMs - elapsed)
     countdownLabel.value = fmtCountdown(remainingMs.value)
@@ -284,7 +285,7 @@ onMounted(() => {
   // Defer one frame so the first paint has progress=0 — without this
   // the bar would start at ~2% from the very first tick.
   requestAnimationFrame(() => {
-    startedAt.value = performance.now()
+    startedAt.value = nowMs()
     resumeTick()
   })
 })

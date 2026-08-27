@@ -501,8 +501,16 @@ function effectiveVolume(cue: EdexCue): number {
 function rateLimited(cue: EdexCue): boolean {
   const cap = RATE_LIMIT_MS[cue];
   if (!cap) return false;
+  // Check for the METHOD, not just the object. Some webview contexts expose a
+  // partial `performance` without `now`, so `typeof performance !== "undefined"`
+  // passed and the call then threw `performance.now is not a function` — which
+  // propagated out of playCue and silenced the cue entirely.
+  //
+  // This only ever affected rate-limited cues (stdin, stdout, keypress,
+  // keyboard, click), so interaction sounds went missing while un-limited ones
+  // like the settings and boot cues kept playing.
   const now =
-    typeof performance !== "undefined" ? performance.now() : Date.now();
+    typeof performance?.now === "function" ? performance.now() : Date.now();
   const last = lastFireMs.get(cue) ?? 0;
   if (now - last < cap) return true;
   lastFireMs.set(cue, now);
