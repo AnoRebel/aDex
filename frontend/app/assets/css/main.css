@@ -1049,3 +1049,109 @@ html, body {
     border-right: none;
   }
 }
+
+/* ============================================================
+   Native form controls
+   ============================================================
+   The interface contains ~145 native <input>, <select> and <textarea>
+   elements. Nothing styled them, so they rendered with browser defaults —
+   white backgrounds, system fonts, platform focus rings — against the dark
+   sci-fi shell. That was the reported "fields aren't uniform with the
+   themes" inconsistency.
+
+   These rules derive entirely from the theme custom properties that
+   `applyTheme()` rewrites on every theme change, so controls restyle
+   reactively with the rest of the interface and no per-component wiring is
+   needed. Specificity is deliberately kept to a single element selector
+   scoped under the app shell, so any component-level rule still wins.
+
+   `color-scheme: dark` additionally tells the engine to render the parts we
+   cannot reach — dropdown popups, scrollbars, date pickers — in dark form. */
+
+.adex-app {
+  color-scheme: dark;
+}
+
+.adex-app input:not([type='checkbox']):not([type='radio']):not([type='range']),
+.adex-app select,
+.adex-app textarea {
+  background: var(--color_light_black);
+  color: var(--color_accent);
+  border: var(--border_width, 1px) solid var(--color_accent_dimmed);
+  border-radius: 2px;
+  font-family: var(--font_main);
+  font-size: 0.85rem;
+  padding: 0.35em 0.6em;
+  outline: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+.adex-app input:not([type='checkbox']):not([type='radio']):not([type='range']):hover,
+.adex-app select:hover,
+.adex-app textarea:hover {
+  border-color: var(--color_accent);
+  background: var(--color_grey);
+}
+
+/* Focus: accent border plus a soft accent glow. Keep a visible indicator —
+   `outline: none` above removes the platform ring, so this replaces it
+   rather than dropping it. */
+.adex-app input:not([type='checkbox']):not([type='radio']):not([type='range']):focus-visible,
+.adex-app select:focus-visible,
+.adex-app textarea:focus-visible,
+.adex-app input:not([type='checkbox']):not([type='radio']):not([type='range']):focus,
+.adex-app select:focus,
+.adex-app textarea:focus {
+  border-color: var(--color_accent);
+  box-shadow: 0 0 0 2px var(--color_accent_glow);
+  background: var(--color_black);
+}
+
+.adex-app input::placeholder,
+.adex-app textarea::placeholder {
+  color: var(--color_accent_dimmed);
+  opacity: 0.7;
+}
+
+.adex-app input:disabled,
+.adex-app select:disabled,
+.adex-app textarea:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Dropdown options render in the OS popup layer, which only honours a
+   handful of properties. Set what is respected so the list is not a white
+   slab against a dark interface. */
+.adex-app select option {
+  background: var(--color_light_black);
+  color: var(--color_accent);
+}
+
+/* Checkboxes and radios: accent-color is the one property that reliably
+   themes the native control across engines, and it keeps the platform's
+   own sizing and hit target. */
+.adex-app input[type='checkbox'],
+.adex-app input[type='radio'] {
+  accent-color: var(--color_accent);
+  cursor: pointer;
+}
+
+/* Range sliders (volume, font size) — accent-color themes the track fill
+   and thumb. */
+.adex-app input[type='range'] {
+  accent-color: var(--color_accent);
+  cursor: pointer;
+}
+
+/* Number inputs: hide the spinners, which are unstyleable and clash with
+   the aesthetic. Values remain keyboard-adjustable via arrow keys. */
+.adex-app input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.adex-app input[type='number']::-webkit-outer-spin-button,
+.adex-app input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}

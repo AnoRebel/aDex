@@ -311,6 +311,33 @@ import { useThemeStore } from '~/stores/theme'
 import { useAppStore } from '~/stores/app'
 import { WindowRuntime } from '~/lib/wailsjs/runtime'
 import { useAdexAudio } from '~/composables/useAdexAudio'
+import { useAdexTheme } from '~/composables/useAdexTheme'
+import { useAdexKeyboard } from '~/composables/useAdexKeyboard'
+
+/** Shape emitted by AdexSettingsModal's `settings-changed`. Declared here so a
+ *  future rename in the modal surfaces as a type error rather than a silent
+ *  no-op — which is exactly how the previous `settings.theme` bug hid. */
+interface SettingsPayload {
+  shell?: { path?: string; args?: string; workingDirectory?: string }
+  display?: {
+    theme?: string
+    keyboardLayout?: string
+    terminalFontSize?: number
+    fontFamily?: string
+    layout?: string
+  }
+  audio?: {
+    enabled?: boolean
+    volume?: number
+    soundpack?: string
+    muteInBackground?: boolean
+    boot?: boolean
+    shutdown?: boolean
+    categoryKeyboard?: boolean
+    categoryDestructive?: boolean
+    categoryInterface?: boolean
+  }
+}
 import { useUpdateChecker } from '~/composables/useUpdateChecker'
 import { useSettingsPersistence } from '~/composables/useSettingsPersistence'
 
@@ -751,10 +778,74 @@ function onFsOpen(item: { name: string; path: string; type?: string }) {
 //  terminalStore.sendInput; the listener was dead code.)
 
 // Settings
-function onSettingsChanged(settings: any) {
-  // Apply settings changes (theme, audio, etc.)
-  if (settings.theme) {
-    themeStore.setCurrentTheme?.(settings.theme)
+//
+// Apply everything the user just saved. This previously read
+// `settings.theme`, but the payload nests it as `settings.display.theme` —
+// so the condition was never true and NOTHING was applied on Save. Theme and
+// keyboard only appeared to work because the settings modal applies those two
+// live on selection; every other setting was silently discarded.
+//
+// Each group is applied independently and defensively: one group failing must
+// not stop the rest from being applied.
+function onSettingsChanged(settings: SettingsPayload) {
+  const applyGroup = (label: string, fn: () => void) => {
+    try {
+      fn()
+    } catch (err) {
+      console.error(`[settings] failed to apply ${label}:`, err)
+    }
+  }
+
+  const display = settings?.display
+  if (display) {
+    applyGroup('display.theme', () => {
+      // Live-applied by the modal on selection; re-assert on save so a value
+      // restored by Cancel-then-Save still lands.
+      if (display.theme) void useAdexTheme().setTheme(display.theme)
+    })
+    applyGroup('display.keyboardLayout', () => {
+      if (display.keyboardLayout) void useAdexKeyboard().setLayout(display.keyboardLayout)
+    })
+    applyGroup('display.fonts', () => {
+      const root = document.documentElement
+      if (display.fontFamily) root.style.setProperty('--font_main', display.fontFamily)
+      if (display.terminalFontSize) {
+        root.style.setProperty('--terminal_font_size', `${display.terminalFontSize}px`)
+        // Re-fit every open terminal so the new cell size takes effect now.
+        for (const ref of Object.values(terminalRefs.value)) ref?.fit?.()
+      }
+    })
+    // `display.layout` needs no explicit push: pages/index.vue derives
+    // `activeLayout` reactively from the persisted settings store.
+  }
+
+  const audio = settings?.audio
+  if (audio) {
+    const engine = useAdexAudio()
+    applyGroup('audio.master', () => {
+      engine.setMuted(!audio.enabled)
+      engine.setGlobalVolume(Math.max(0, Math.min(1, (audio.volume ?? 50) / 100)))
+      if (audio.soundpack) engine.setPack(audio.soundpack as 'adex' | 'synth')
+      engine.setBackgroundMuted(!!audio.muteInBackground)
+    })
+    applyGroup('audio.categories', () => {
+      engine.setCategoryEnabled('keyboard', audio.categoryKeyboard !== false)
+      engine.setCategoryEnabled('destructive', audio.categoryDestructive !== false)
+      engine.setCategoryEnabled('interface', audio.categoryInterface !== false)
+      // Boot and shutdown cues are the "system" category.
+      engine.setCategoryEnabled('system', audio.boot !== false || audio.shutdown !== false)
+    })
+  }
+
+  if (settings?.shell) {
+    applyGroup('shell', () => {
+      const path = settings.shell?.path?.trim()
+      if (path) {
+        void import('~/lib/wailsjs/coordinator').then(({ SetShellCommand }) =>
+          SetShellCommand(path),
+        )
+      }
+    })
   }
 }
 
