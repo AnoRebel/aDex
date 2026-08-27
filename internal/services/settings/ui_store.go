@@ -100,6 +100,17 @@ func (s *UIStore) File() string { return s.file }
 func (s *UIStore) load() *models.UISettings {
 	if v, ok := s.tryRead(s.file); ok {
 		s.logger.Info("Loaded UI settings", map[string]interface{}{"file": s.file})
+		// Repair values naming a theme or layout the app does not ship, and
+		// write the repair back so the same fault is not re-reported on every
+		// start. Without this an unresolvable id persists indefinitely.
+		if validateDisplay(v) {
+			s.logger.Warn("Repaired invalid display settings", map[string]interface{}{
+				"theme": v.Display.Theme, "layout": v.Display.Layout,
+			})
+			if err := s.persist(v); err != nil {
+				s.logger.Warn("Failed to persist repaired UI settings", map[string]interface{}{"error": err.Error()})
+			}
+		}
 		return v
 	}
 
