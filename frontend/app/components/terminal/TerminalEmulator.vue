@@ -192,7 +192,7 @@ const initializeTerminal = async () => {
     if (!backendTerminalId) {
       // Only write banner and fake prompt in local/demo mode
       terminal.writeln('\x1b[36m╔════════════════════════════════════════════════════════╗\x1b[0m')
-      terminal.writeln('\x1b[36m║\x1b[0m  \x1b[1;32maDex-UI Terminal\x1b[0m                                      \x1b[36m║\x1b[0m')
+      terminal.writeln('\x1b[36m║\x1b[0m  \x1b[1;32maDex Terminal\x1b[0m                                      \x1b[36m║\x1b[0m')
       terminal.writeln('\x1b[36m║\x1b[0m  \x1b[33mAdvanced Desktop Environment\x1b[0m                          \x1b[36m║\x1b[0m')
       terminal.writeln('\x1b[36m╚════════════════════════════════════════════════════════╝\x1b[0m')
       terminal.writeln('')
@@ -248,7 +248,7 @@ const handleCommand = (cmd: string) => {
       terminal.writeln('  \x1b[33mhostname\x1b[0m - Show system hostname')
       terminal.writeln('  \x1b[33muptime\x1b[0m   - Show system uptime')
       terminal.writeln('  \x1b[33mecho\x1b[0m     - Echo text back')
-      terminal.writeln('  \x1b[33mversion\x1b[0m  - Show aDex-UI version')
+      terminal.writeln('  \x1b[33mversion\x1b[0m  - Show aDex version')
     },
     'clear': () => {
       terminal.clear()
@@ -266,7 +266,7 @@ const handleCommand = (cmd: string) => {
       terminal.writeln('System up for 1 hour, 23 minutes')
     },
     'version': () => {
-      terminal.writeln('aDex-UI v2.0.0')
+      terminal.writeln('aDex v2.0.0')
     }
   }
   

@@ -11,9 +11,9 @@
           <h1
             class="boot-title"
             :class="{ glitching: glitchActive }"
-            data-text="aDex-UI"
+            data-text="aDex"
           >
-            aDex-UI
+            aDex
           </h1>
           <div class="boot-subtitle" :class="{ show: subtitleVisible }">
             ADVANCED DESKTOP EXPERIENCE
@@ -132,7 +132,7 @@ const bootMessages: BootMessage[] = [
   { level: 'wait',    tag: 'network',   text: 'Resolving network interfaces...',           done: false, current: false, delay: 280 },
   { level: 'wait',    tag: 'filesystem',text: 'Mounting filesystem service...',            done: false, current: false, delay: 200 },
   { level: 'wait',    tag: 'terminal',  text: 'Spawning PTY service...',                   done: false, current: false, delay: 260 },
-  { level: 'success', tag: 'kernel',    text: 'aDex-UI ready — handing off to UI',         done: false, current: false, delay: 160 },
+  { level: 'success', tag: 'kernel',    text: 'aDex ready — handing off to UI',         done: false, current: false, delay: 160 },
 ]
 
 const visibleMessages = ref<BootMessage[]>([])

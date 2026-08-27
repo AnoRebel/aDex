@@ -450,7 +450,7 @@ onMounted(async () => {
 
 // SEO
 useHead({
-  title: 'Terminal - aDex-UI',
+  title: 'Terminal - aDex',
   meta: [
     { name: 'description', content: 'Advanced terminal emulator with multiple sessions and command history' }
   ]

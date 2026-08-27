@@ -7,7 +7,7 @@
       </div>
       
       <div class="app-info">
-        <span>&copy; 2025 aDex-UI</span>
+        <span>&copy; 2025 aDex</span>
         <span class="separator">|</span>
         <span>Advanced Desktop Experience</span>
       </div>

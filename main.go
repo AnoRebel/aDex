@@ -32,7 +32,7 @@ func main() {
 	// The terminal service is constructed and torn down by the coordinator
 	// rather than registered separately, so it stays inside that ordering.
 	app := application.New(application.Options{
-		Name:        "aDex-UI",
+		Name:        "aDex",
 		Description: "A modern science fiction desktop environment terminal application",
 		Services: []application.Service{
 			application.NewService(coordinator.NewServiceCoordinator()),
@@ -68,7 +68,7 @@ func main() {
 	// means "no maximum", which is the intended behaviour on multi-monitor
 	// setups.
 	app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:            "aDex-UI",
+		Title:            "aDex",
 		Width:            1600,
 		Height:           1000,
 		MinWidth:         640,

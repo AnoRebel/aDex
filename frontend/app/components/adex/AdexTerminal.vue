@@ -243,7 +243,7 @@ function initTerminal() {
   }
 
   // Write welcome message for the first terminal
-  term.writeln(`\x1b[36mWelcome to aDex-UI Terminal\x1b[0m`)
+  term.writeln(`\x1b[36mWelcome to aDex Terminal\x1b[0m`)
   term.writeln(`\x1b[90mSession: ${props.sessionId}\x1b[0m`)
   term.writeln('')
 }

@@ -9,8 +9,8 @@ version: '3'
 # time so the in-app update checker compares against the same string the binary
 # reports. Do not duplicate the version anywhere else.
 info:
-  companyName: "aDex-UI"
-  productName: "aDex-UI"
+  companyName: "aDex"
+  productName: "aDex"
   productIdentifier: "com.adexui.app"
   description: "A modern science fiction desktop environment terminal application"
   copyright: "Copyright © 2026"

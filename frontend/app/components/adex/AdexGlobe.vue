@@ -55,7 +55,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { useStorage } from '@vueuse/core'
+import { useStorage, useDocumentVisibility } from '@vueuse/core'
 import { useNetworkStore } from '~/stores/network'
 import { GetSelfGeoIP } from '~/lib/wailsjs/coordinator'
 
@@ -366,6 +366,28 @@ const animate = () => {
   animationFrame = requestAnimationFrame(animate)
 }
 
+// The globe drives a continuous requestAnimationFrame loop, which measured as
+// the dominant idle cost of the whole application (~64% CPU with the window
+// merely open). Nothing is visible when the window is hidden or minimised, so
+// suspend the loop instead of rendering frames nobody sees.
+const isVisible = useDocumentVisibility()
+
+function startAnimation() {
+  if (animationFrame === null) animate()
+}
+
+function stopAnimation() {
+  if (animationFrame !== null) {
+    cancelAnimationFrame(animationFrame)
+    animationFrame = null
+  }
+}
+
+watch(isVisible, (v) => {
+  if (v === 'visible') startAnimation()
+  else stopAnimation()
+})
+
 const onMouseMove = (e: MouseEvent) => {
   const rect = canvasRef.value?.getBoundingClientRect()
   if (rect) {
@@ -379,7 +401,7 @@ const onMouseLeave = () => {
 
 onMounted(() => {
   nextTick(() => {
-    animate()
+    startAnimation()
   })
   // Resolve self-geo so the world view + ISP populate. Cheap (cached
   // backend-side) so it's safe to call once per mount.
@@ -387,10 +409,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (animationFrame !== null) {
-    cancelAnimationFrame(animationFrame)
-    animationFrame = null
-  }
+  stopAnimation()
 })
 </script>
 

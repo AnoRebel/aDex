@@ -84,7 +84,7 @@ onMounted(async () => {
 })
 
 useHead({
-  title: 'aDex-UI',
+  title: 'aDex',
   meta: [
     { name: 'description', content: 'A modern science fiction desktop environment' },
     { name: 'viewport', content: 'width=device-width, initial-scale=1' },

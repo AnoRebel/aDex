@@ -6,7 +6,7 @@
         <div class="logo-container">
           <div class="logo-glow"></div>
           <h1 class="logo-text">
-            <span class="logo-letter" v-for="(letter, i) in 'aDex-UI'" :key="i" :style="{ animationDelay: `${i * 0.1}s` }">
+            <span class="logo-letter" v-for="(letter, i) in 'aDex'" :key="i" :style="{ animationDelay: `${i * 0.1}s` }">
               {{ letter }}
             </span>
           </h1>
