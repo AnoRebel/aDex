@@ -72,8 +72,10 @@
 }
 
 html, body {
-  width: 100dvw;
-  height: 100dvh;
+  /* 100% of the initial containing block tracks a desktop window resize
+     synchronously; dvw/dvh update lazily by design and lag it. */
+  width: 100%;
+  height: 100%;
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -88,18 +90,26 @@ html, body {
   user-select: none;
 }
 
-/* The Nuxt + Nuxt UI mount chain. Every level MUST be 100dvw/dvh
- * (not %) — Nuxt UI's <UApp> uses ConfigProvider + TooltipProvider
- * from reka-ui which render as Fragment-style passthroughs in some
- * configurations, breaking the % chain when an ancestor's intrinsic
- * size is 0. Using dvw/dvh directly is bulletproof: each level
- * measures against the viewport, not its parent. */
+/* The Nuxt + Nuxt UI mount chain.
+ *
+ * These cannot use a % chain: Nuxt UI's <UApp> renders ConfigProvider and
+ * TooltipProvider from reka-ui as Fragment-style passthroughs in some
+ * configurations, so an ancestor with 0 intrinsic size collapses the chain.
+ *
+ * They also cannot use dvw/dvh. Dynamic viewport units are specified to
+ * update lazily — they exist for mobile browser chrome that appears and
+ * disappears — so during a desktop window resize they keep reporting the OLD
+ * viewport for a beat. That is what left the interface rendering at its
+ * previous size while the window had already changed.
+ *
+ * `position: fixed` with zero insets sizes against the viewport directly and
+ * tracks it synchronously, which satisfies both constraints. */
 #__nuxt,
 #__layout,
 #app,
 #adex-app {
-  width: 100dvw;
-  height: 100dvh;
+  position: fixed;
+  inset: 0;
   margin: 0;
   padding: 0;
   /* Belt-and-suspenders: even if a parent is shorter, force overflow
@@ -111,10 +121,7 @@ html, body {
 /* Grid Background Pattern (eDEX-UI signature look) */
 .adex-background {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100dvw;
-  height: 100dvh;
+  inset: 0;
   z-index: 0;
   background:
     repeating-linear-gradient(
@@ -147,9 +154,8 @@ html, body {
  * empty strip the user saw as a "phantom button" zone because on
  * Wayland the OS title bar wasn't visible to fill it. */
 .adex-app {
-  position: relative;
-  width: 100dvw;
-  height: 100dvh;
+  position: fixed;
+  inset: 0;
   z-index: 1;
   display: flex;
   flex-direction: column;

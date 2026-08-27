@@ -141,11 +141,26 @@ function initTerminal() {
   fitAddon = new FitAddon()
   term.loadAddon(fitAddon)
 
-  // WebGL renderer for performance. If it ever fails (rare on modern
-  // Wails webviews), xterm's built-in DOM renderer kicks in
-  // automatically — no manual canvas fallback needed.
+  // WebGL renderer for performance.
+  //
+  // The addon must be disposed if the GPU context is lost, otherwise the
+  // terminal keeps rendering to a dead context and shows a BLANK surface with
+  // no recovery. Context loss is not exotic: resizing the window (and any GPU
+  // driver reset) can trigger it. Disposing the addon makes xterm fall back to
+  // its DOM renderer, which is slower but always draws.
+  //
+  // A try/catch alone is not enough — it only covers failure to LOAD the
+  // addon, not loss of the context afterwards.
   try {
-    term.loadAddon(new WebglAddon())
+    const webgl = new WebglAddon()
+    webgl.onContextLoss(() => {
+      // eslint-disable-next-line no-console
+      console.info('[terminal] WebGL context lost — falling back to the DOM renderer')
+      try { webgl.dispose() } catch { /* already gone */ }
+      // Re-fit so the DOM renderer lays out at the current size.
+      try { fitAddon?.fit() } catch { /* container not measured yet */ }
+    })
+    term.loadAddon(webgl)
   } catch {
     // Fall through to xterm's default DOM renderer.
   }
