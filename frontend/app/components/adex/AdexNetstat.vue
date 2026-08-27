@@ -130,8 +130,14 @@ const signalStrength = computed(() => {
 })
 
 const pingLatency = computed(() => {
-  if (pingMs.value !== null) {
-    return `${pingMs.value.toFixed(1)} ms`
+  // Coerce rather than trusting the declared type. A backend call can resolve
+  // to a non-number when the IPC peer is absent (for example when the frontend
+  // is opened in a plain browser for testing), and `.toFixed` on that value
+  // throws inside the computed — which breaks this component's reactivity, not
+  // just the ping readout.
+  const ms = typeof pingMs.value === 'number' ? pingMs.value : Number(pingMs.value)
+  if (pingMs.value !== null && Number.isFinite(ms)) {
+    return `${ms.toFixed(1)} ms`
   }
   return isOnline.value ? 'Measuring...' : 'N/A'
 })
@@ -221,8 +227,12 @@ function pickInterface(): any | null {
 // forever in earlier builds.
 const measurePing = async () => {
   try {
-    const ms = await MeasureLatency(pingTarget.value)
-    pingMs.value = ms < 0 ? null : ms
+    const raw = await MeasureLatency(pingTarget.value)
+    // Guard the shape: a non-numeric result means the call did not reach the
+    // backend, which should read as "no measurement" rather than poisoning the
+    // computed above.
+    const ms = typeof raw === 'number' ? raw : Number(raw)
+    pingMs.value = Number.isFinite(ms) && ms >= 0 ? ms : null
   } catch {
     pingMs.value = null
   }
