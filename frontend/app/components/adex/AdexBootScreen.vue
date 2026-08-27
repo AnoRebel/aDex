@@ -486,8 +486,13 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   gap: 2vh;
-  width: 60vw;
-  max-width: 50vw;
+  /* `width: 60vw` with `max-width: 50vw` clamped the content to half the
+     viewport at every size — the max was smaller than the width, so it always
+     won. Use a clamp so the panel keeps a usable width on small windows and
+     does not sprawl on very wide ones. */
+  width: min(60vw, 68rem);
+  max-width: calc(100vw - 4rem);
+  min-width: min(20rem, calc(100vw - 2rem));
 }
 
 /* Title */
@@ -505,7 +510,9 @@ onBeforeUnmount(() => {
 
 .boot-title {
   font-family: var(--font_main, 'Fira Code', monospace);
-  font-size: 6vh;
+  /* Scale with the viewport but stay legible on short windows and avoid
+     overflowing narrow ones: vh-only sizing gave 36px at any width. */
+  font-size: clamp(1.75rem, 6vh, 4.5rem);
   font-weight: 700;
   color: var(--color_accent, rgb(170, 207, 209));
   letter-spacing: 0.8vw;
@@ -594,7 +601,7 @@ onBeforeUnmount(() => {
 /* Subtitle */
 .boot-subtitle {
   font-family: var(--font_main, 'Fira Code', monospace);
-  font-size: 1.4vh;
+  font-size: clamp(0.7rem, 1.4vh, 1rem);
   color: rgba(var(--color_r, 170), var(--color_g, 207), var(--color_b, 209), 0.5);
   letter-spacing: 0.6vw;
   text-transform: uppercase;
@@ -611,7 +618,7 @@ onBeforeUnmount(() => {
 .boot-messages {
   width: 100%;
   font-family: var(--font_main, 'Fira Code', monospace);
-  font-size: 1.2vh;
+  font-size: clamp(0.65rem, 1.2vh, 0.9rem);
   line-height: 1.8;
   opacity: 0;
   transition: opacity 0.3s ease-out;
@@ -732,7 +739,7 @@ onBeforeUnmount(() => {
 
 .boot-progress-label {
   font-family: var(--font_main, 'Fira Code', monospace);
-  font-size: 1.1vh;
+  font-size: clamp(0.62rem, 1.1vh, 0.85rem);
   color: var(--color_accent, rgb(170, 207, 209));
   font-variant-numeric: tabular-nums;
   min-width: 3vw;
@@ -742,7 +749,7 @@ onBeforeUnmount(() => {
 /* Version */
 .boot-version {
   font-family: var(--font_main, 'Fira Code', monospace);
-  font-size: 1vh;
+  font-size: clamp(0.6rem, 1vh, 0.8rem);
   color: rgba(var(--color_r, 170), var(--color_g, 207), var(--color_b, 209), 0.3);
   letter-spacing: 0.2vw;
   opacity: 0;
