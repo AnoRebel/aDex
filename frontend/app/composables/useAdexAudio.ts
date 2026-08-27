@@ -529,13 +529,72 @@ export function useAdexAudio(): UseAdexAudioApi {
     }
   }
 
-  function playCue(name: string): void {
+  /* Autoplay unlock -----------------------------------------------------------
+ *
+ * Browsers and the Wails WebView refuse to start audio before a user gesture:
+ * a fresh AudioContext is created `suspended`, and `resume()` cannot succeed
+ * until the user has interacted. The boot splash runs immediately on launch,
+ * before any click or keypress, so every one of its cues was scheduled into a
+ * suspended context and silently dropped — the splash played nothing.
+ *
+ * Arm a one-shot listener for the first gesture of any kind. When it fires we
+ * resume the context and replay the cue that was most recently requested while
+ * locked, so the splash is heard from that point rather than staying silent
+ * for the whole sequence.
+ */
+let pendingCue: EdexCue | null = null;
+let gestureArmed = false;
+
+function audioLocked(): boolean {
+  if (typeof window === "undefined") return true;
+  // `userActivation` is the direct signal; where it is unavailable, fall back
+  // to the context's own state.
+  const ua = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation;
+  if (ua) return !ua.hasBeenActive;
+  return synthCtx.value?.state === "suspended";
+}
+
+function armGestureUnlock(): void {
+  if (gestureArmed || typeof window === "undefined") return;
+  gestureArmed = true;
+
+  const unlock = () => {
+    window.removeEventListener("pointerdown", unlock);
+    window.removeEventListener("keydown", unlock);
+    window.removeEventListener("touchstart", unlock);
+
+    // Resume the synth context; Howler arms its own `unlock` handling.
+    if (synthCtx.value?.state === "suspended") {
+      void synthCtx.value.resume().catch(() => undefined);
+    }
+    // Replay whatever was last dropped, so the unlock is audible.
+    const cue = pendingCue;
+    pendingCue = null;
+    if (cue) queueMicrotask(() => playCue(cue));
+  };
+
+  window.addEventListener("pointerdown", unlock, { once: true });
+  window.addEventListener("keydown", unlock, { once: true });
+  window.addEventListener("touchstart", unlock, { once: true });
+}
+
+function playCue(name: string): void {
     const cue = resolveCue(name);
     if (!cue) return;
     if (rateLimited(cue)) return;
 
     const vol = effectiveVolume(cue);
     if (vol <= 0) return;
+
+    // Before the first user gesture the platform will not produce sound.
+    // Remember the cue and arm the unlock rather than scheduling into a
+    // suspended context, where it would be dropped without trace.
+    if (audioLocked()) {
+      pendingCue = cue;
+      armGestureUnlock();
+      return;
+    }
+
     _playCount.value += 1;
 
     if (settings.value.pack === "synth") {
