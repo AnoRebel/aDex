@@ -78,6 +78,12 @@ A modern terminal emulator with system monitoring, built with Wails v3 and Nuxt 
 - Memory usage: <200MB at idle
 - Cross-platform: Windows 10+, macOS 11+, Linux
 
+## Documentation
+
+- **[User guide](docs/user-guide.md)** — the interface, terminal tabs, themes and layouts, settings, keyboard and audio
+- [Resource usage](docs/resource-usage.md) — measured memory and CPU figures
+- [Development](docs/development.md) — building, the Wails v3 workflow, and contributing
+
 ## Getting Started
 
 ### Prerequisites

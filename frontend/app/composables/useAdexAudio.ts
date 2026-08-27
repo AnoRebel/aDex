@@ -547,10 +547,16 @@ let gestureArmed = false;
 
 function audioLocked(): boolean {
   if (typeof window === "undefined") return true;
-  // `userActivation` is the direct signal; where it is unavailable, fall back
-  // to the context's own state.
-  const ua = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation;
-  if (ua) return !ua.hasBeenActive;
+  // Test the AudioContext's OWN state, not navigator.userActivation.
+  //
+  // Activation and audio permission are not the same thing: the packaged
+  // WebView often permits audio before any pointer or key event, and gating on
+  // `hasBeenActive` there suppressed cues that would have played — which made
+  // splash audio intermittent depending on whether the window happened to be
+  // focused yet.
+  //
+  // A context that does not exist yet is not locked: creating it is what
+  // reveals whether the platform will allow playback.
   return synthCtx.value?.state === "suspended";
 }
 

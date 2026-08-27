@@ -874,3 +874,31 @@ theme) existed in both trees. The `internal/` copies had no importers and,
 despite being 3–10x larger, did not implement the methods the coordinator
 calls — they were an abandoned design rather than a fuller implementation, and
 were deleted. See `docs/evidence/wails-v3-migration/service-consolidation-verdicts.md`.
+
+## Testing the frontend in a browser
+
+The frontend can be opened in a normal browser against `bun run dev`, which is
+useful for UI, theming and layout work. **Backend calls do not work there**,
+and they fail in a way that is easy to misread.
+
+A browser has no Wails IPC peer, so a generated binding call posts to a
+runtime endpoint the dev server does not have. The dev server answers with the
+SPA's `index.html` and a **200 status**. The binding therefore resolves
+*successfully* with an HTML string instead of the expected value — it does not
+throw. Downstream code then fails somewhere unrelated, for example
+`toFixed is not a function` inside a computed.
+
+Practical consequences:
+
+- Verify anything backend-dependent against the packaged binary, not a browser.
+- Treat a 200 as meaningless on its own; check the content type. `fetchJson`
+  in the theme and keyboard composables does exactly this, because the same
+  trap silently broke theme loading.
+- Assets under `frontend/app/assets/` are **not** served over HTTP — only
+  `frontend/public/` is. Load them with `import.meta.glob` so the bundler
+  resolves them, never with a runtime-computed `import()` or a fetch.
+
+`tests/visual/` contains a small CDP harness that attaches to an already
+running Chromium-family browser for screenshot evidence. It reads
+`DevToolsActivePort` fresh on each run, since that file's port and path change
+on every browser restart.
