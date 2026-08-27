@@ -562,20 +562,28 @@ function armGestureUnlock(): void {
     window.removeEventListener("pointerdown", unlock);
     window.removeEventListener("keydown", unlock);
     window.removeEventListener("touchstart", unlock);
+    window.removeEventListener("focus", unlock);
+    gestureArmed = false;
 
     // Resume the synth context; Howler arms its own `unlock` handling.
     if (synthCtx.value?.state === "suspended") {
       void synthCtx.value.resume().catch(() => undefined);
     }
-    // Replay whatever was last dropped, so the unlock is audible.
+    // Replay whatever was last deferred, so the unlock is audible.
     const cue = pendingCue;
     pendingCue = null;
     if (cue) queueMicrotask(() => playCue(cue));
   };
 
+  // `focus` is included because the packaged desktop window can receive focus
+  // without a pointer or key event, and WebKitGTK's gesture requirement (which
+  // Wails does not expose a setting for) is satisfied by some window-level
+  // activations. It is harmless where it does not qualify: playCue re-checks
+  // the locked state and simply re-arms.
   window.addEventListener("pointerdown", unlock, { once: true });
   window.addEventListener("keydown", unlock, { once: true });
   window.addEventListener("touchstart", unlock, { once: true });
+  window.addEventListener("focus", unlock, { once: true });
 }
 
 function playCue(name: string): void {
