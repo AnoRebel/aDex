@@ -160,15 +160,23 @@ func (s *Service) PlaySound(ctx context.Context, soundPath string) error {
 	// Play the sound
 	player.Play()
 
-	// Start a goroutine to clean up when done
+	// Start a goroutine to clean up when done.
+	//
+	// Close under the lock and only if this player is still the registered
+	// one. Previously Close() happened OUTSIDE the lock, so it could race
+	// StopAllSounds/Shutdown closing the same player while holding the lock —
+	// a double teardown of a C-backed object, which is the kind of thing that
+	// ends in `corrupted double-linked list`.
 	go func() {
 		for player.IsPlaying() {
 			time.Sleep(100 * time.Millisecond)
 		}
-		player.Close()
 
 		s.mu.Lock()
-		delete(s.players, playerID)
+		if cur, ok := s.players[playerID]; ok && cur == player {
+			player.Close()
+			delete(s.players, playerID)
+		}
 		s.mu.Unlock()
 	}()
 
@@ -209,15 +217,23 @@ func (s *Service) PlaySoundFromBytes(ctx context.Context, soundData []byte, form
 	// Play the sound
 	player.Play()
 
-	// Clean up when done
+	// Clean up when done.
+	//
+	// Close under the lock and only if this player is still the registered
+	// one. Previously Close() happened OUTSIDE the lock, so it could race
+	// StopAllSounds/Shutdown closing the same player while holding the lock —
+	// a double teardown of a C-backed object, which is the kind of thing that
+	// ends in `corrupted double-linked list`.
 	go func() {
 		for player.IsPlaying() {
 			time.Sleep(100 * time.Millisecond)
 		}
-		player.Close()
 
 		s.mu.Lock()
-		delete(s.players, playerID)
+		if cur, ok := s.players[playerID]; ok && cur == player {
+			player.Close()
+			delete(s.players, playerID)
+		}
 		s.mu.Unlock()
 	}()
 
