@@ -79,6 +79,15 @@ func main() {
 		Mac: application.MacWindow{
 			TitleBar:                application.MacTitleBarDefault,
 			InvisibleTitleBarHeight: 0,
+			// NOTE on splash audio: the webview requires a user gesture before
+			// it will play sound, so boot-splash cues only become audible once
+			// the user first interacts. Wails v3 exposes
+			// MacWebviewPreferences.EnableAutoplayWithoutUserAction to lift
+			// this, but (a) it is macOS/iOS only — there is no Linux
+			// equivalent, since Wails never sets WebKitGTK's
+			// media-playback-requires-user-gesture — and (b) its type comes
+			// from wails/v3/internal/optional, which application code cannot
+			// import. So it cannot be set from here on any platform.
 		},
 		// v2 set WebviewIsTransparent/WindowIsTranslucent/DisableWindowIcon
 		// to false on Windows and Linux. Those are the v3 defaults
