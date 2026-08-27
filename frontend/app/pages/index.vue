@@ -861,15 +861,17 @@ function onSettingsChanged(settings: SettingsPayload) {
 // got back a Promise object (always truthy), so the toggle always
 // took the Unmaximise branch — that's why the button looked broken.
 async function onToggleMaximize() {
+  // Wails v3 has no `window.runtime` global — the previous implementation
+  // probed it and returned early every time, which is why this button did
+  // nothing after the v3 port. Window controls now come from the runtime
+  // facade.
   try {
-    const r = (window as any).runtime
-    if (!r?.WindowIsMaximised) return
-    const isMax = await r.WindowIsMaximised()
-    if (isMax) {
-      r.WindowUnmaximise?.()
+    if (await WindowRuntime.IsMaximised()) {
+      WindowRuntime.UnMaximise()
     } else {
-      r.WindowMaximise?.()
+      WindowRuntime.Maximise()
     }
+    try { useAdexAudio().playCue('click') } catch { /* non-fatal */ }
   } catch (err) {
     console.warn('[window] maximize toggle failed:', err)
   }
