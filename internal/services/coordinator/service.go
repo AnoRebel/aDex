@@ -1942,3 +1942,20 @@ func (sc *ServiceCoordinator) CopyFile(src, dst string) error {
 	}
 	return sc.filesystem.CopyFile(sc.ctx, src, dst)
 }
+
+// GetCustomLayouts returns the user's custom panel arrangements, read from
+// layouts.json in the config directory. A missing file yields an empty list —
+// that is the normal case for a user who has defined none.
+//
+// Entries are returned as generic JSON: the frontend owns the panel and region
+// vocabulary and validates against it, so parsing into a typed struct here
+// would duplicate that vocabulary in a second place.
+func (sc *ServiceCoordinator) GetCustomLayouts() ([]interface{}, error) {
+	return settings.LoadCustomLayouts()
+}
+
+// GetCustomLayoutsPath returns where custom layouts are read from, so the
+// settings panel can tell the user which file to create or edit.
+func (sc *ServiceCoordinator) GetCustomLayoutsPath() string {
+	return settings.CustomLayoutsPath()
+}

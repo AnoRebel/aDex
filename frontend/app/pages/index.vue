@@ -135,17 +135,29 @@
 
       <!-- LEFT COLUMN -->
       <aside class="mod-column left">
-        <AdexClock />
-        <AdexSysinfo />
-        <!-- AdexHardware temporarily commented out at user request — the
-             "Manufacturer/Model/Chassis: Unknown/rebel/Desktop" output
-             wasn't useful and the panel was eating column height that
-             the toplist needed. Re-enable when sysinfo is more accurate
-             or we add a settings toggle. -->
-        <!-- <AdexHardware /> -->
-        <AdexCpuInfo />
-        <AdexRamWatcher />
-        <AdexToplist ref="toplistRef" />
+        <!-- A custom layout renders this region from its definition; with no
+             custom layout active the built-in composition below is used, so
+             the shipped presets behave exactly as before. -->
+        <template v-if="customPanelsFor('left')">
+          <component
+            :is="PANEL_COMPONENTS[panel]"
+            v-for="panel in customPanelsFor('left')"
+            :key="'left-' + panel"
+          />
+        </template>
+        <template v-else>
+          <AdexClock />
+          <AdexSysinfo />
+          <!-- AdexHardware temporarily commented out at user request — the
+               "Manufacturer/Model/Chassis: Unknown/rebel/Desktop" output
+               wasn't useful and the panel was eating column height that
+               the toplist needed. Re-enable when sysinfo is more accurate
+               or we add a settings toggle. -->
+          <!-- <AdexHardware /> -->
+          <AdexCpuInfo />
+          <AdexRamWatcher />
+          <AdexToplist ref="toplistRef" />
+        </template>
       </aside>
 
       <!-- CENTER: MAIN SHELL -->
@@ -219,9 +231,18 @@
 
       <!-- RIGHT COLUMN -->
       <aside class="mod-column right">
-        <AdexNetstat />
-        <AdexGlobe />
-        <AdexTraffic />
+        <template v-if="customPanelsFor('right')">
+          <component
+            :is="PANEL_COMPONENTS[panel]"
+            v-for="panel in customPanelsFor('right')"
+            :key="'right-' + panel"
+          />
+        </template>
+        <template v-else>
+          <AdexNetstat />
+          <AdexGlobe />
+          <AdexTraffic />
+        </template>
       </aside>
     </div>
 
@@ -311,6 +332,18 @@ import { useThemeStore } from '~/stores/theme'
 import { useAppStore } from '~/stores/app'
 import { WindowRuntime } from '~/lib/wailsjs/runtime'
 import { useAdexAudio } from '~/composables/useAdexAudio'
+import { useCustomLayouts } from '~/composables/useCustomLayouts'
+import AdexClock from '~/components/adex/AdexClock.vue'
+import AdexSysinfo from '~/components/adex/AdexSysinfo.vue'
+import AdexHardware from '~/components/adex/AdexHardware.vue'
+import AdexCpuInfo from '~/components/adex/AdexCpuInfo.vue'
+import AdexRamWatcher from '~/components/adex/AdexRamWatcher.vue'
+import AdexToplist from '~/components/adex/AdexToplist.vue'
+import AdexFilesystem from '~/components/adex/AdexFilesystem.vue'
+import AdexNetstat from '~/components/adex/AdexNetstat.vue'
+import AdexGlobe from '~/components/adex/AdexGlobe.vue'
+import AdexTraffic from '~/components/adex/AdexTraffic.vue'
+import AdexKeyboard from '~/components/adex/AdexKeyboard.vue'
 import { useAdexTheme } from '~/composables/useAdexTheme'
 import { useAdexKeyboard } from '~/composables/useAdexKeyboard'
 
@@ -523,6 +556,42 @@ const activeLayout = computed<string>(() => {
   const t = themeStore as { activeLayout?: string; currentTheme?: { layout?: string } | null }
   return t.activeLayout ?? t.currentTheme?.layout ?? 'default'
 })
+
+/* Custom layouts ---------------------------------------------------------
+ *
+ * Built-in presets are CSS keyed on `data-layout` and are untouched by this.
+ * A custom layout is DATA — which panels sit in which region, in what order —
+ * so the shell renders those regions from the definition instead of the fixed
+ * template. When no custom layout is active, `customPanels` is null and the
+ * original markup renders exactly as before. */
+const customLayoutEngine = useCustomLayouts()
+
+/** Panel id (what users write in layouts.json) -> component.
+ *  These ids are a compatibility surface: renaming one breaks existing
+ *  user-authored layouts. */
+const PANEL_COMPONENTS: Record<string, unknown> = {
+  clock:      AdexClock,
+  sysinfo:    AdexSysinfo,
+  hardware:   AdexHardware,
+  cpu:        AdexCpuInfo,
+  ram:        AdexRamWatcher,
+  toplist:    AdexToplist,
+  filesystem: AdexFilesystem,
+  netstat:    AdexNetstat,
+  globe:      AdexGlobe,
+  traffic:    AdexTraffic,
+  keyboard:   AdexKeyboard,
+}
+
+const activeCustomLayout = computed(() => customLayoutEngine.find(activeLayout.value))
+
+/** Panels for a region under the active custom layout, or null when the
+ *  built-in template should render instead. */
+function customPanelsFor(region: 'left' | 'centre' | 'right' | 'bottom'): string[] | null {
+  const layout = activeCustomLayout.value
+  if (!layout) return null
+  return layout.regions[region] ?? []
+}
 
 function onBootComplete() {
   booting.value = false
@@ -1043,6 +1112,8 @@ onMounted(async () => {
     safeInit(() => appStore.initialize()),
     safeInit(() => systemStore.initialize()),
     safeInit(() => themeStore.initialize()),
+    // Load user-defined layouts so they are selectable and can be applied.
+    safeInit(() => customLayoutEngine.load()),
     safeInit(() => terminalStore.initialize()),
     safeInit(async () => {
       // Resolve the user's "Open in" preference (Settings → System) to a

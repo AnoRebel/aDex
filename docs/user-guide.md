@@ -80,6 +80,52 @@ If a stored theme or layout no longer exists — after an upgrade, say — the
 application falls back to the default and repairs the stored value, rather
 than starting unstyled.
 
+### Custom layouts
+
+Beyond the six built-in presets you can define your own arrangements in
+`~/.config/aDex-UI/layouts.json`. Create the file with a list of layouts:
+
+```json
+[
+  {
+    "id": "minimal",
+    "displayName": "Minimal",
+    "regions": {
+      "left":  ["clock", "cpu", "ram"],
+      "right": ["netstat"]
+    }
+  }
+]
+```
+
+Each layout needs an `id` (what gets stored as your layout choice) and a
+`regions` map. Regions are `left`, `centre`, `right` and `bottom`; each holds
+the panels to show there, in order.
+
+Available panels:
+
+| Panel | Shows |
+|---|---|
+| `clock` | Time and date |
+| `sysinfo` | System information |
+| `hardware` | Manufacturer, model, chassis |
+| `cpu` | CPU usage and per-core graphs |
+| `ram` | Memory and swap |
+| `toplist` | Process list |
+| `filesystem` | File browser |
+| `netstat` | Network status |
+| `globe` | World view |
+| `traffic` | Network traffic graphs |
+| `keyboard` | On-screen keyboard |
+
+Omit a panel to hide it; reorder the list to reorder the column. Custom
+layouts appear in Settings → Theme → Layout preset marked `(custom)`, and the
+settings panel shows the file path.
+
+Unknown panel or region names are skipped with a warning rather than breaking
+the layout, and a malformed file leaves the built-in presets working. Restart
+the application to pick up changes to the file.
+
 ---
 
 ## Settings

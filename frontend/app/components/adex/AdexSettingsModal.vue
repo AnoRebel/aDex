@@ -120,6 +120,19 @@
                   <strong>Typeleft</strong> — keyboard on the left half.<br/>
                   <strong>Colorfilter</strong> — minimal chrome, single column.
                 </p>
+                <p class="settings-hint">
+                  <strong>Custom layouts</strong> — define your own panel
+                  arrangement by creating
+                  <code>{{ customLayoutsPath || 'layouts.json' }}</code>.
+                  Each entry needs an <code>id</code> and a
+                  <code>regions</code> map of
+                  <code>left</code>/<code>centre</code>/<code>right</code>/<code>bottom</code>
+                  to panel names. Restart to pick up changes.
+                  <span v-if="customLayoutEngine.layouts.value.length">
+                    <br/>{{ customLayoutEngine.layouts.value.length }} custom
+                    layout(s) loaded.
+                  </span>
+                </p>
               </div>
             </div>
 
@@ -814,6 +827,7 @@
 import { ref, reactive, watch, computed, onMounted } from 'vue'
 import { useStorage, useDebounceFn } from '@vueuse/core'
 import { useAdexTheme } from '~/composables/useAdexTheme'
+import { useCustomLayouts } from '~/composables/useCustomLayouts'
 import { useAdexKeyboard } from '~/composables/useAdexKeyboard'
 import { useAdexAudio } from '~/composables/useAdexAudio'
 import { useUpdateChecker } from '~/composables/useUpdateChecker'
@@ -1023,7 +1037,7 @@ const kbMenuItems = computed(() =>
 // Layout preset items — matches the CSS files in assets/css/layouts/.
 // Empty id ('') means "follow the theme's bundled layout" — that's the
 // sentinel pages/index.vue's computed treats as "no override".
-const layoutItems = [
+const BUILTIN_LAYOUTS = [
   { id: '',            label: 'Theme default' },
   { id: 'default',     label: 'Default (classic eDex)' },
   { id: 'disrupted',   label: 'Disrupted (terminal top)' },
@@ -1031,7 +1045,21 @@ const layoutItems = [
   { id: 'fulltype',    label: 'Fulltype (full-width terminal)' },
   { id: 'notype',      label: 'Notype (no on-screen keyboard)' },
   { id: 'colorfilter', label: 'Colorfilter (minimal chrome)' },
-] as const
+]
+
+// Built-ins plus anything the user defined in layouts.json. Custom entries
+// are suffixed so they are distinguishable in the list.
+const customLayoutEngine = useCustomLayouts()
+const layoutItems = computed(() => [
+  ...BUILTIN_LAYOUTS,
+  ...customLayoutEngine.layouts.value.map(l => ({
+    id: l.id,
+    label: `${l.displayName || l.id} (custom)`,
+  })),
+])
+
+/** Where users create or edit custom layouts — surfaced in the Theme panel. */
+const customLayoutsPath = computed(() => customLayoutEngine.path.value)
 
 // Apply theme/keyboard immediately on selection so the user sees the
 // effect without having to hit Save. We still write to localSettings so
@@ -1482,6 +1510,7 @@ onMounted(async () => {
   // USelectMenu lists aren't empty on first open. Both `initialize()`
   // calls early-return when an active theme/layout already exists.
   await Promise.allSettled([
+    customLayoutEngine.load(),
     themeEngine.initialize(),
     kbEngine.initialize(),
     loadColorSchemes(),

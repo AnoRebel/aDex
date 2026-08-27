@@ -3,6 +3,9 @@ package main
 import (
 	"embed"
 	"log"
+	"os"
+	"path/filepath"
+	"runtime/debug"
 
 	"aDex-UI/internal/services/coordinator"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -22,6 +25,23 @@ import (
 var assets embed.FS
 
 func main() {
+	// Native crashes (heap corruption inside the webview or an audio backend)
+	// abort the process without a Go panic, so nothing normally reaches the
+	// log. Route glibc's diagnostics and Go's own crash output to a file the
+	// user can hand over after a crash.
+	//
+	// MALLOC_CHECK_=2 makes glibc abort AT the offending free rather than
+	// later when the heap is already inconsistent, which is the difference
+	// between a usable report and "corrupted double-linked list" with no
+	// context. It is cheap enough to leave on.
+	if os.Getenv("MALLOC_CHECK_") == "" {
+		_ = os.Setenv("MALLOC_CHECK_", "2")
+	}
+	if f, err := os.OpenFile(crashLogPath(), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600); err == nil {
+		// Go writes panics and fatal runtime errors to fd 2.
+		_ = debugSetCrashOutput(f)
+	}
+
 	// The coordinator owns every backend service. Registering it as a Wails v3
 	// service hands its lifecycle to Wails: ServiceStartup runs during
 	// app.Run() before any window is shown — returning an error there aborts
@@ -111,4 +131,23 @@ func main() {
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// crashLogPath returns the file native and runtime crash output is appended to.
+// It sits beside the settings file so a user reporting a crash has one obvious
+// place to look.
+func crashLogPath() string {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return filepath.Join(os.TempDir(), "adex-crash.log")
+	}
+	appDir := filepath.Join(dir, "aDex-UI")
+	_ = os.MkdirAll(appDir, 0o755)
+	return filepath.Join(appDir, "crash.log")
+}
+
+// debugSetCrashOutput wraps debug.SetCrashOutput so the call site stays
+// readable; it duplicates Go's crash output to the given file.
+func debugSetCrashOutput(f *os.File) error {
+	return debug.SetCrashOutput(f, debug.CrashOptions{})
 }
