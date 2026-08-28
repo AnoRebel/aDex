@@ -1019,15 +1019,19 @@ async function onToggleMaximize() {
   // probed it and returned early every time, which is why this button did
   // nothing after the v3 port. Window controls now come from the runtime
   // facade.
+  // TRUE fullscreen, not maximise. The button is labelled "Toggle fullscreen"
+  // and users expect the fullscreen experience; Maximise() only fills the work
+  // area and is ignored outright by tiling window managers, which already own
+  // window geometry.
   try {
-    if (await WindowRuntime.IsMaximised()) {
-      WindowRuntime.UnMaximise()
+    if (await WindowRuntime.IsFullscreen()) {
+      WindowRuntime.UnFullscreen()
     } else {
-      WindowRuntime.Maximise()
+      WindowRuntime.Fullscreen()
     }
     try { useAdexAudio().playCue('click') } catch { /* non-fatal */ }
   } catch (err) {
-    console.warn('[window] maximize toggle failed:', err)
+    console.warn('[window] fullscreen toggle failed:', err)
   }
 }
 

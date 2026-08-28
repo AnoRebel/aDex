@@ -17,7 +17,9 @@
 }
 
 [data-layout="notype"] .adex-filesystem {
-  width: 100dvw;
-  flex: 1 1 100dvw;
+  /* 100dvw inside a flex row overflows the container when any sibling has
+     width; a flex basis of 100% fills exactly the space actually available. */
+  width: 100%;
+  flex: 1 1 100%;
   border-right: none;
 }

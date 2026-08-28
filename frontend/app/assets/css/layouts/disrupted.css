@@ -20,14 +20,32 @@
  *   }
  */
 
+/* The original used absolute positioning, so `left: 29vh` genuinely moved
+ * panels. This shell is flexbox: `left` on a flex child only nudges it
+ * visually, leaving its original space reserved and pushing the right column
+ * off-screen — the interface simply appeared shifted right rather than
+ * rearranged.
+ *
+ * Express the same intent — an asymmetric, broken-up grid — with flex sizing,
+ * which actually reflows: a narrower left column and a wider terminal. */
+[data-layout="disrupted"] .mod-column.left {
+  flex: 0 0 18vw;
+  min-width: 0;
+}
+
 [data-layout="disrupted"] .adex-center {
-  position: relative;
-  left: 29vh;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 [data-layout="disrupted"] .mod-column.right {
-  position: relative;
-  left: 28.5vh;
+  flex: 0 0 22vw;
+  min-width: 0;
+}
+
+/* Break the symmetry vertically too, which is what "disrupted" refers to. */
+[data-layout="disrupted"] .adex-bottom {
+  height: 26vh;
 }
 
 [data-layout="disrupted"] .mod-netstat .netstat-body {

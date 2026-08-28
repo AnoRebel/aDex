@@ -31,6 +31,11 @@ var cueFS embed.FS
 const (
 	cueSampleRate = 44100
 	cueChannels   = 2
+
+	// Upper bound on simultaneously-playing cues. Comfortably above what any
+	// real interaction produces, low enough that a burst cannot flood the
+	// audio device.
+	maxConcurrentCues = 8
 )
 
 var (
@@ -170,6 +175,21 @@ func (s *Service) PlayCue(id string, volume float64) error {
 	pcm, err := decodeCue(id)
 	if err != nil {
 		return err
+	}
+
+	// Cap concurrent players.
+	//
+	// Each player holds a native audio buffer, and the boot splash fires a cue
+	// per stage in quick succession — measured at 40 live players from a rapid
+	// burst. That many simultaneous streams is both wasteful and a plausible
+	// cause of the device dropping the first sound. Interface cues are short,
+	// so dropping one under heavy overlap is inaudible and far better than
+	// starving the audio device.
+	s.mu.RLock()
+	live := len(s.players)
+	s.mu.RUnlock()
+	if live >= maxConcurrentCues {
+		return nil
 	}
 
 	player := s.otoCtx.NewPlayer(bytes.NewReader(pcm))

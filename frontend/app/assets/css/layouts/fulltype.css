@@ -14,8 +14,9 @@
 }
 
 [data-layout="fulltype"] .adex-keyboard {
-  width: 100dvw;
-  flex: 1 1 100dvw;
+  /* Flex basis rather than 100dvw: the viewport unit overflows the row. */
+  width: 100%;
+  flex: 1 1 100%;
 }
 
 [data-layout="fulltype"] .adex-keyboard .kb-key {
