@@ -39,6 +39,18 @@ import { FitAddon } from '@xterm/addon-fit'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Events } from '~/lib/wailsjs/runtime'
 
+const NERD_FONT_FALLBACK = [
+  "'JetBrainsMono Nerd Font'",
+  "'FiraCode Nerd Font'",
+  "'Hack Nerd Font'",
+  "'MesloLGS NF'",
+  "'CaskaydiaCove Nerd Font'",
+  "'Symbols Nerd Font'",
+  "'Fira Code'",
+  'monospace',
+].join(', ')
+
+
 /** Settings → Advanced → WebGL terminal renderer. Off by default: the Mesa
  *  driver has been observed aborting the whole webview process from this path
  *  (SIGABRT inside libgallium). */
@@ -94,16 +106,6 @@ function initTerminal() {
   // Most modern dev setups have at least one of these installed; if
   // none are, xterm falls back to the OS monospace and Nerd glyphs
   // render as boxes — but the prompt text itself stays readable.
-  const NERD_FONT_FALLBACK = [
-    "'JetBrainsMono Nerd Font'",
-    "'FiraCode Nerd Font'",
-    "'Hack Nerd Font'",
-    "'MesloLGS NF'",
-    "'CaskaydiaCove Nerd Font'",
-    "'Symbols Nerd Font'",
-    "'Fira Code'",
-    'monospace',
-  ].join(', ')
   const userFont = style.getPropertyValue('--terminal_font').trim()
   // Append Nerd Font fallbacks AFTER the user's choice so prompt
   // glyphs still resolve even when the user picked a non-NF primary.
@@ -113,7 +115,9 @@ function initTerminal() {
 
   term = new XTerm({
     fontFamily,
-    fontSize: 14,
+    // From Settings -> Font. This was hardcoded to 14, so the size control
+    // could never have had any effect.
+    fontSize: savedFontSize(),
     lineHeight: 1.2,
     cursorStyle: 'block' as const,
     cursorBlink: true,
@@ -400,7 +404,38 @@ function fit() {
   }
 }
 
-defineExpose({ write, focus, fit })
+/** Terminal font size from the persisted settings, with the previous
+ *  hardcoded value as the fallback. */
+function savedFontSize(): number {
+  try {
+    const raw = localStorage.getItem('adex-settings')
+    const size = raw ? JSON.parse(raw)?.display?.terminalFontSize : undefined
+    return typeof size === 'number' && size > 0 ? size : 14
+  } catch {
+    return 14
+  }
+}
+
+/**
+ * Apply a font change to this live terminal.
+ *
+ * xterm keeps its font in instance options, so updating a CSS custom property
+ * does not reach it — the change has to be pushed in and followed by a refit
+ * so the PTY is told the new rows/cols.
+ */
+function applyFont(family?: string, size?: number) {
+  if (!term) return
+  if (family) {
+    term.options.fontFamily = `${family}, ${NERD_FONT_FALLBACK}`
+  }
+  if (typeof size === 'number' && size > 0) {
+    term.options.fontSize = size
+  }
+  // Cell metrics changed, so re-measure and resize the PTY to match.
+  try { fitAddon?.fit() } catch { /* container not measured yet */ }
+}
+
+defineExpose({ write, focus, fit, applyFont })
 
 // ---- Watchers ----
 watch(

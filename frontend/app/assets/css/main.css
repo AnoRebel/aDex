@@ -301,10 +301,14 @@ html, body {
   width: var(--column_width);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  /* Column sizing (justify-content, gap, per-panel flex) is owned by the
+     scoped rules in pages/index.vue — those carry a data-v attribute and so
+     win over anything declared here. Do not duplicate them. */
+  justify-content: flex-start;
   padding: 0.5vh 0.5vw;
   flex-shrink: 0;
   overflow: hidden;
+  min-height: 0;
 }
 
 .mod-column.left {
@@ -1230,8 +1234,20 @@ input[type='number']::-webkit-inner-spin-button {
    single root for the directive to act on. Must not affect layout. */
 .region-wrap {
   /* NOT display:contents — v-show toggles `display:none`, which a contents
-     box would ignore. Behave as a transparent block so the column's flex
-     layout is unchanged while still being a real element. */
-  display: block;
+     box would ignore. It must be a real element, but it also must not break
+     the column's flex chain: as a plain block with `flex: 0 1 auto` it could
+     not grow, so the panels inside it could not either and the right column
+     left ~23% of its height unused.
+     Mirror the child's own flex behaviour instead of imposing its own. */
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
   min-width: 0;
+  min-height: 0;
+}
+
+/* A wrapper around a non-growing panel must not grow either, or it steals
+   space from the panels that should. */
+.region-wrap:has(> .mod-netstat) {
+  flex: 0 1 auto;
 }

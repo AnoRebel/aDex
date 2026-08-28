@@ -50,7 +50,17 @@ interface ModuleState {
   order: Partial<Record<'left' | 'right' | 'bottom', string[]>>
 }
 
-const state = useStorage<ModuleState>('adex.modules', { hidden: {}, order: {} })
+const DEFAULT_HIDDEN: Record<string, boolean> = {
+  // Previously commented out of the template: its output ("Manufacturer:
+  // Unknown") was not useful and it consumed column height the process list
+  // needed. It is switchable now, but stays off unless asked for.
+  hardware: true,
+}
+
+const state = useStorage<ModuleState>('adex.modules', {
+  hidden: { ...DEFAULT_HIDDEN },
+  order: {},
+})
 
 export function useModules() {
   /** Modules for a region, in the user's order, hidden ones removed. */

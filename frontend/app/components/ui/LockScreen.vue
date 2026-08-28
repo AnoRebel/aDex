@@ -42,7 +42,7 @@
  * Terminals keep running while locked: locking hides the session, it does not
  * destroy the user's work.
  */
-import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useIdle, useEventListener } from '@vueuse/core'
 import {
   IsSessionLocked,
@@ -52,7 +52,10 @@ import {
   GetLockIdleTimeout,
 } from '~/lib/wailsjs/coordinator'
 
-const locked = ref(false)
+const lockedState = ref(false)
+/** Only show the overlay when a passphrase exists — otherwise the prompt
+ *  could never be satisfied and the user would be stuck behind it. */
+const locked = computed(() => lockedState.value && configured.value)
 const passphrase = ref('')
 const error = ref('')
 const busy = ref(false)
@@ -66,13 +69,14 @@ const configured = ref(false)
  *  backend rather than owning the state itself. */
 async function refresh() {
   try {
-    locked.value = await IsSessionLocked()
+    lockedState.value = await IsSessionLocked()
     configured.value = await IsLockConfigured()
     idleSeconds.value = await GetLockIdleTimeout()
   } catch {
     // Backend unreachable (browser preview): stay unlocked rather than
     // trapping the user behind an overlay they cannot dismiss.
-    locked.value = false
+    lockedState.value = false
+    configured.value = false
   }
 }
 

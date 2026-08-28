@@ -421,7 +421,13 @@ onUnmounted(() => {
 .globe-container {
   position: relative;
   width: 100%;
-  height: 14vh;
+  /* A fixed 14vh capped the panel regardless of the column's flex sizing, so
+     the right column left ~23% of its height unused and squashed the traffic
+     graph below. Grow into the space the column allocates, with 14vh as the
+     floor rather than the ceiling. */
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 14vh;
   overflow: hidden;
   margin: 0.3vh 0;
 }

@@ -110,17 +110,25 @@ func main() {
 			// from wails/v3/internal/optional, which application code cannot
 			// import. So it cannot be set from here on any platform.
 		},
-		// v2 set WebviewIsTransparent/WindowIsTranslucent/DisableWindowIcon
-		// to false on Windows and Linux. Those are the v3 defaults
-		// (Windows translucency is now expressed as BackdropType, whose
-		// zero value is opaque), so no explicit block is needed. Linux
-		// keeps an explicit entry only to pin GPU policy — leaving
-		// options.Linux nil makes Wails default WebviewGpuPolicy to
-		// Never (wailsapp/wails#2977), which would cost us the WebGL
-		// renderer the globe and terminal rely on.
+		// GPU acceleration is OFF by default on Linux.
+		//
+		// Three WebKitWebProcess coredumps here all point into the Mesa stack:
+		// two SIGABRT heap corruptions inside libgallium mid-session, and a
+		// SIGSEGV inside dri_gbm/libgbm during process exit. The renderer dying
+		// takes the window with it, and none of it is reachable from Go — which
+		// is why the Go crash log stayed empty throughout.
+		//
+		// Note that WebviewGpuPolicyOnDemand is NOT a middle setting on this
+		// platform: WebKitGTK 6.0 removed ON_DEMAND, and Wails maps the value
+		// to ALWAYS, so the previous setting was forcing acceleration on
+		// permanently rather than leaving it to the engine.
+		//
+		// Software rendering costs some compositing performance but keeps the
+		// application alive. ADEX_GPU=1 opts back in for anyone on a driver
+		// where this is not a problem.
 		Linux: application.LinuxWindow{
 			WindowIsTranslucent: false,
-			WebviewGpuPolicy:    application.WebviewGpuPolicyOnDemand,
+			WebviewGpuPolicy:    linuxGpuPolicy(),
 		},
 	})
 
@@ -145,4 +153,16 @@ func crashLogPath() string {
 // readable; it duplicates Go's crash output to the given file.
 func debugSetCrashOutput(f *os.File) error {
 	return debug.SetCrashOutput(f, debug.CrashOptions{})
+}
+
+// linuxGpuPolicy decides whether the webview may use GPU acceleration.
+//
+// Defaults to Never because the Mesa driver on this platform has been observed
+// crashing the web process both mid-session and at exit. Set ADEX_GPU=1 to
+// re-enable it.
+func linuxGpuPolicy() application.WebviewGpuPolicy {
+	if os.Getenv("ADEX_GPU") == "1" {
+		return application.WebviewGpuPolicyAlways
+	}
+	return application.WebviewGpuPolicyNever
 }

@@ -464,11 +464,14 @@ const cmItems = computed<ContextMenuItems>(() => {
 
 .toplist-rows {
   flex: 1 1 0;
-  /* Even on a tightly squeezed column we render at least ~10 rows so
-   * the panel is useful — useVirtualList handles the rest via its
-   * internal scroll. min-height: 0 alone could collapse the area to
-   * a single row when sibling mods take their full natural height. */
-  min-height: calc(10 * 16px);
+  /* Aim for ~10 rows so the panel is useful, but do not INSIST on it: a hard
+   * min-height of 160px could not be satisfied once the other panels took
+   * their natural height, so the panel was pushed past the bottom of the
+   * column and became invisible entirely. A preferred height with a small
+   * hard floor keeps it useful when there is room and merely short when there
+   * is not — useVirtualList scrolls either way. */
+  height: calc(10 * 16px);
+  min-height: calc(3 * 16px);
   overflow: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(var(--color_r, 170), var(--color_g, 207), var(--color_b, 209), 0.25) transparent;

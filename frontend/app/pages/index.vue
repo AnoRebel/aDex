@@ -985,11 +985,22 @@ function onSettingsChanged(settings: SettingsPayload) {
     })
     applyGroup('display.fonts', () => {
       const root = document.documentElement
-      if (display.fontFamily) root.style.setProperty('--font_main', display.fontFamily)
+      if (display.fontFamily) {
+        // Both variables matter: --font_main styles the interface panels and
+        // --terminal_font is what AdexTerminal reads when building xterm's
+        // font stack. Setting only the former left the terminal unchanged,
+        // which is why the font setting appeared to do nothing.
+        root.style.setProperty('--font_main', display.fontFamily)
+        root.style.setProperty('--terminal_font', display.fontFamily)
+      }
       if (display.terminalFontSize) {
         root.style.setProperty('--terminal_font_size', `${display.terminalFontSize}px`)
-        // Re-fit every open terminal so the new cell size takes effect now.
-        for (const ref of Object.values(terminalRefs.value)) ref?.fit?.()
+      }
+      // Push font changes into every live terminal. xterm holds its font in
+      // instance options, so a CSS variable alone never reaches it — the size
+      // was additionally hardcoded at construction.
+      for (const ref of Object.values(terminalRefs.value)) {
+        ref?.applyFont?.(display.fontFamily, display.terminalFontSize)
       }
     })
     // `display.layout` needs no explicit push: pages/index.vue derives
@@ -1401,15 +1412,44 @@ onUnmounted(() => {
  * Without this, every mod was `flex: 1 1 0` and the small mods stole
  * height proportionally, leaving Toplist with ~16px of usable area. */
 .mod-column > * {
-  flex: 0 0 auto;
+  /* `flex: 0 0 auto` meant the small mods could not shrink at all, so with
+     every panel enabled their natural heights exceed the column and the last
+     one (Processes) is pushed out of sight. Allow shrinking: they keep their
+     natural size while there is room and compress only when there is not. */
+  flex: 0 1 auto;
   min-height: 0;
   width: 100%;
   display: flex;
   flex-direction: column;
 }
-.mod-column :deep(.mod-toplist) { flex: 1 1 auto; min-height: 22vh; }
-.mod-column :deep(.mod-traffic) { flex: 1 1 auto; min-height: 16vh; }
-.mod-column :deep(.mod-globe) { flex: 0 1 auto; }
+/* The tall mods still claim the leftover space, but their floors are now a
+   fraction of the column too, so a fixed vh cannot exceed what is available
+   on a short window. */
+.mod-column :deep(.mod-toplist) { flex: 1 1 auto; min-height: min(22vh, 30%); }
+.mod-column :deep(.mod-traffic) { flex: 1 1 auto; min-height: min(16vh, 25%); }
+/* The globe was `flex: 0 1 auto`, so it never grew and the column's leftover
+   height went unclaimed — the right column sat at ~77% filled and the traffic
+   graph looked squashed. Let it take a share of the remainder alongside the
+   traffic panel, while keeping the canvas roughly square via its own aspect
+   handling. */
+.mod-column :deep(.mod-globe) { flex: 1 1 auto; min-height: min(18vh, 28%); }
+
+/* Region wrappers (added so v-show has a real element to act on) sit between
+   the column and its panels. The `.mod-column > *` rule above gives them
+   `flex: 0 1 auto`, which stopped the panel INSIDE from growing — the right
+   column left ~23% of its height unused and the traffic graph looked squashed.
+   These must be declared here, in the scoped block: a plain `.region-wrap`
+   rule in main.css loses to the data-v attribute selector above. */
+.mod-column > .region-wrap {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+/* A wrapper around a panel that should not grow must not grow either. */
+.mod-column > .region-wrap:has(> .mod-netstat) {
+  flex: 0 1 auto;
+}
 
 /* Mod inner contents must respect their parent's height so the canvas
  * elements (cpu chart, ram bar, traffic graph) never overflow. */
