@@ -16,12 +16,13 @@
 // font, semi-transparent terminal-green border that brightens on
 // focus, full-width inside the field column.
 //
-// We export a plain object instead of `defineAppConfig({...})` —
-// Nuxt 4's `defineAppConfig` macro has a regression where it fails
-// to pick up nested `ui.<component>.slots.*` overrides under some
-// build configurations. The plain `export default` form is what the
-// Nuxt UI v4 migration docs use and works reliably.
-export default {
+// MUST be wrapped in defineAppConfig(). Nuxt only registers app config
+// exported through that macro; a bare `export default {...}` is silently
+// ignored, which is exactly what happened here — every override below was
+// dead, so the select controls rendered with stock Nuxt UI styling while the
+// hand-styled inputs beside them looked correct. Every example in the Nuxt UI
+// theming docs uses defineAppConfig.
+export default defineAppConfig({
   ui: {
     selectMenu: {
       slots: {
@@ -30,8 +31,8 @@ export default {
         base: [
           'w-full inline-flex items-center justify-between gap-2',
           'px-2.5 py-1.5',
-          'bg-[rgba(170,207,209,0.05)]',
-          'border border-[rgba(170,207,209,0.3)]',
+          'bg-[var(--color_accent_glow,rgba(170,207,209,0.08))]',
+          'border border-[var(--color_accent_dimmed,rgba(170,207,209,0.35))]',
           'text-[var(--color_accent,rgb(170,207,209))]',
           'font-[var(--font_main,monospace)]',
           'cursor-pointer outline-none transition-colors',
@@ -60,13 +61,13 @@ export default {
           'px-2.5 py-1.5 text-sm',
           'text-[var(--color_accent,rgb(170,207,209))]',
           'cursor-pointer',
-          'data-[highlighted]:bg-[rgba(170,207,209,0.15)]',
+          'data-[highlighted]:bg-[var(--color_accent_glow,rgba(170,207,209,0.15))]',
           'data-[state=checked]:text-[var(--color_accent,rgb(170,207,209))]',
           'data-[state=checked]:font-bold',
           'data-disabled:cursor-not-allowed data-disabled:opacity-50',
         ].join(' '),
         itemLabel: 'truncate',
-        input: 'border-b border-[rgba(170,207,209,0.3)] bg-transparent px-2 py-1 text-[var(--color_accent,rgb(170,207,209))] outline-none w-full',
+        input: 'border-b border-[var(--color_accent_dimmed,rgba(170,207,209,0.35))] bg-transparent px-2 py-1 text-[var(--color_accent,rgb(170,207,209))] outline-none w-full',
       },
     },
     select: {
@@ -74,8 +75,8 @@ export default {
         base: [
           'w-full inline-flex items-center justify-between gap-2',
           'px-2.5 py-1.5',
-          'bg-[rgba(170,207,209,0.05)]',
-          'border border-[rgba(170,207,209,0.3)]',
+          'bg-[var(--color_accent_glow,rgba(170,207,209,0.08))]',
+          'border border-[var(--color_accent_dimmed,rgba(170,207,209,0.35))]',
           'text-[var(--color_accent,rgb(170,207,209))]',
           'font-[var(--font_main,monospace)]',
           'cursor-pointer outline-none transition-colors',
@@ -86,4 +87,4 @@ export default {
       },
     },
   },
-}
+})

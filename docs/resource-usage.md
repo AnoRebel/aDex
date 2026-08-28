@@ -24,7 +24,7 @@ start, which overstates a process that was briefly busy during boot.
 
 | | |
 |---|---|
-| **Binary** | 23.6 MB (single self-contained executable) |
+| **Binary** | ~26 MB (single self-contained executable, including 4 MB of embedded audio) |
 
 The frontend is embedded in the binary, so there are no external asset files
 to deploy. The application also writes a small settings file under

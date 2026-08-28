@@ -186,6 +186,12 @@ Master mute and volume affect everything. Two soundpacks are available:
 cannot load, the application falls back to a synthesized tone rather than
 failing.
 
+Cues are played by the Go backend rather than the embedded browser. The
+browser engine refuses to start audio until you interact with the window,
+which used to make the whole boot sequence silent; playing through the
+system audio stack has no such restriction, so the splash is audible from
+the first frame.
+
 ---
 
 ## File browser

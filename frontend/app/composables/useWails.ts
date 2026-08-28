@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, onUnmounted, readonly } from 'vue'
+import { ref, computed, onMounted, onUnmounted, readonly, getCurrentInstance } from 'vue'
 
 // Wails v3 runtime facade + generated coordinator bindings.
 import { Events, Log } from '~/lib/wailsjs/runtime'
@@ -144,9 +144,15 @@ export function useWails() {
     error.value = null
   }
 
-  onUnmounted(() => {
-    cleanup()
-  })
+  // Only register the hook when there IS a component to attach it to.
+  // Stores call useWails() from actions, outside any setup(), where Vue warns
+  // "onUnmounted is called when there is no active component instance" on
+  // every invocation.
+  if (getCurrentInstance()) {
+    onUnmounted(() => {
+      cleanup()
+    })
+  }
 
   // System service methods - calls the Go backend via Wails bindings
   const system = {
