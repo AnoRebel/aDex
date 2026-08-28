@@ -1,0 +1,36 @@
+/* assets/css/layouts/terminal-focus.css
+ *
+ * Terminal-focus preset — the terminal gets the entire window.
+ *
+ * This is NOT one of the eDEX-UI ports. `fulltype` there (and here) means
+ * "full-WIDTH keyboard, filesystem hidden", which is a different thing and is
+ * a common source of confusion: users reasonably read "fulltype" as
+ * "fullscreen terminal". This preset is the layout that name suggests.
+ *
+ * Everything except the top bar and the terminal is hidden, and the centre
+ * column expands to fill the freed space.
+ */
+
+[data-layout="terminal-focus"] .mod-column.left,
+[data-layout="terminal-focus"] .mod-column.right,
+[data-layout="terminal-focus"] .adex-bottom {
+  display: none;
+}
+
+[data-layout="terminal-focus"] .adex-center {
+  flex: 1 1 100%;
+  width: 100%;
+  max-width: none;
+}
+
+[data-layout="terminal-focus"] .main-shell {
+  width: 100%;
+  height: 100%;
+}
+
+/* The terminal surface itself should take all the height the shell now has,
+   minus its own tab strip and status line. */
+[data-layout="terminal-focus"] .shell-terminal {
+  flex: 1 1 auto;
+  min-height: 0;
+}

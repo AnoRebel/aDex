@@ -25,6 +25,7 @@
     :initial="{ opacity: 0 }"
     :visible-once="{ opacity: 1, transition: { duration: 380, ease: [0.19, 1, 0.22, 1] } }"
     class="adex-app"
+    :class="{ 'perf-mode': performanceMode }"
     :data-layout="activeLayout"
   >
 
@@ -146,7 +147,7 @@
           />
         </template>
         <template v-else>
-          <AdexClock />
+          <AdexClock :use24-hour="use24HourClock" />
           <AdexSysinfo />
           <!-- AdexHardware temporarily commented out at user request — the
                "Manufacturer/Model/Chassis: Unknown/rebel/Desktop" output
@@ -508,10 +509,36 @@ watch(
 // during development. Reading from useStorage means a fresh `nointro`
 // flag picked up on first paint, before the boot screen even mounts.
 const advancedBootSettings = useStorage<{
-  advanced?: { nointro?: boolean }
+  advanced?: { nointro?: boolean; forceFullscreen?: boolean }
+  system?: {
+    bootAnimation?: boolean
+    showGrid?: boolean
+    performanceMode?: boolean
+    clockFormat?: '12h' | '24h'
+  }
 }>('adex-settings', {})
-const booting = ref(!(advancedBootSettings.value?.advanced?.nointro ?? false))
-const solidBg = ref(false)
+
+// Same store, read reactively for the System-panel toggles so changing one
+// takes effect without a restart.
+const systemSettings = advancedBootSettings
+
+/** Settings → System → Clock format. */
+const use24HourClock = computed(
+  () => (systemSettings.value?.system?.clockFormat ?? '24h') !== '12h',
+)
+
+/** Settings → System → Performance mode. Drops the decorative animations
+ *  (scanline sweep, grid drift, globe spin) that dominate idle CPU. */
+const performanceMode = computed(
+  () => systemSettings.value?.system?.performanceMode === true,
+)
+const booting = ref(
+  !(advancedBootSettings.value?.advanced?.nointro ?? false) &&
+  (advancedBootSettings.value?.system?.bootAnimation ?? true),
+)
+// Settings → System → Show grid background. `solidBackground` is the
+// "no grid" state, so this is the inverse of the setting.
+const solidBg = computed(() => systemSettings.value?.system?.showGrid === false)
 const showSettings = ref(false)
 const showQuitConfirm = ref(false)
 

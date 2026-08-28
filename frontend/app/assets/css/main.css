@@ -15,6 +15,7 @@
 @import "./layouts/disrupted.css";
 @import "./layouts/typeleft.css";
 @import "./layouts/fulltype.css";
+@import "./layouts/terminal-focus.css";
 @import "./layouts/notype.css";
 @import "./layouts/colorfilter.css";
 
@@ -1160,4 +1161,31 @@ html, body {
 .adex-app input[type='number']::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+/* ============================================================
+   Performance mode  (Settings → System → Performance mode)
+   ============================================================
+   Idle CPU is dominated by decorative animation — the globe's render loop
+   above all, then the scanline sweep and grid drift. This mode drops those
+   without changing the layout, for low-power machines or long sessions.
+   The globe additionally suspends its own loop when the window is hidden. */
+
+.adex-app.perf-mode .adex-scanlines,
+.adex-app.perf-mode .adex-background {
+  animation: none !important;
+}
+
+.adex-app.perf-mode .adex-scanlines {
+  /* The overlay itself is a full-screen blended layer; hiding it entirely
+     saves a compositing pass per frame. */
+  display: none;
+}
+
+/* Suppress non-essential transitions and keyframe animation app-wide.
+   Scoped to decorative elements so interactive affordances still respond. */
+.adex-app.perf-mode .mod-column *,
+.adex-app.perf-mode .adex-topbar * {
+  animation-duration: 0s !important;
+  transition-duration: 0s !important;
 }

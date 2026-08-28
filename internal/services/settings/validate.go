@@ -29,6 +29,7 @@ var (
 	validLayouts = map[string]bool{
 		"colorfilter": true, "default": true, "disrupted": true,
 		"fulltype": true, "notype": true, "typeleft": true,
+		"terminal-focus": true,
 	}
 )
 
@@ -52,10 +53,34 @@ func validateDisplay(s *models.UISettings) bool {
 		changed = true
 	}
 
-	if s.Display.Layout != "" && !validLayouts[s.Display.Layout] {
+	// Only reject a layout that is neither built in NOR user-defined.
+	// Custom layouts live in layouts.json and their ids are arbitrary, so
+	// validating against the built-in list alone would silently erase a
+	// user's own layout choice on every start.
+	if s.Display.Layout != "" && !validLayouts[s.Display.Layout] && !isCustomLayoutID(s.Display.Layout) {
 		s.Display.Layout = ""
 		changed = true
 	}
 
 	return changed
+}
+
+// isCustomLayoutID reports whether the id matches a layout the user defined in
+// layouts.json. Errors reading that file are treated as "not custom" — the
+// caller then falls back to the default, which is the safe direction.
+func isCustomLayoutID(id string) bool {
+	entries, err := LoadCustomLayouts()
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		m, ok := e.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if v, ok := m["id"].(string); ok && v == id {
+			return true
+		}
+	}
+	return false
 }

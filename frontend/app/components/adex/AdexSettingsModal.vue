@@ -1,9 +1,13 @@
 <template>
   <Transition name="settings-modal">
     <div v-if="modelValue" class="settings-overlay" @click.self="handleOverlayClick">
-      <div class="settings-modal">
-        <!-- Header -->
-        <div class="settings-header">
+      <div
+        ref="modalRef"
+        class="settings-modal"
+        :style="modalStyle"
+      >
+        <!-- Header — doubles as the drag handle. -->
+        <div class="settings-header" @pointerdown="startDrag">
           <div class="settings-header-title">
             <span class="settings-header-bracket">[</span>
             SYSTEM CONFIGURATION
@@ -116,7 +120,8 @@
                   <strong>Default</strong> — classic left mods / terminal / right mods + keyboard.<br/>
                   <strong>Disrupted</strong> — terminal top, file manager + keyboard split bottom.<br/>
                   <strong>Notype</strong> — hide the on-screen keyboard.<br/>
-                  <strong>Fulltype</strong> — terminal full-width, no side mods.<br/>
+                  <strong>Fulltype</strong> — full-width on-screen keyboard, file manager hidden.<br/>
+                  <strong>Terminal focus</strong> — terminal fills the window; side panels, keyboard and file manager hidden.<br/>
                   <strong>Typeleft</strong> — keyboard on the left half.<br/>
                   <strong>Colorfilter</strong> — minimal chrome, single column.
                 </p>
@@ -528,10 +533,14 @@
 
               <div class="settings-field">
                 <label class="settings-label">Clock Format</label>
-                <select v-model="localSettings.system.clockFormat" class="settings-select">
-                  <option value="24h">24-Hour</option>
-                  <option value="12h">12-Hour (AM/PM)</option>
-                </select>
+                <USelectMenu
+                  v-model="localSettings.system.clockFormat"
+                  :items="clockFormatItems"
+                  value-key="id"
+                  label-key="label"
+                  :search-input="false"
+                  class="settings-select"
+                />
               </div>
 
               <!-- Ping Address moved to Settings → Network → Ping Target
@@ -744,16 +753,16 @@
 
               <div class="settings-field">
                 <label class="settings-label">Check frequency</label>
-                <select
+                <USelectMenu
                   v-model="updates.settings.value.interval"
-                  class="settings-select"
+                  :items="updateIntervalItems"
+                  value-key="id"
+                  label-key="label"
+                  :search-input="false"
                   :disabled="!updates.settings.value.enabled"
-                >
-                  <option value="manual">Manual only</option>
-                  <option value="launch">On every launch</option>
-                  <option value="daily">Once a day</option>
-                  <option value="weekly">Once a week</option>
-                </select>
+                  class="settings-select"
+                />
+
                 <p class="settings-hint">
                   GitHub anonymous API allows 60 requests/hour per IP,
                   so even "every launch" is comfortably within budget.
@@ -806,6 +815,13 @@
         </div>
 
         <!-- Footer: action buttons -->
+        <!-- Resize grip: bottom-right corner. -->
+        <div
+          class="settings-resize-grip"
+          title="Drag to resize"
+          @pointerdown="startResize"
+        />
+
         <div class="settings-footer">
           <button class="settings-btn settings-btn-secondary" @click="resetToDefaults">
             RESET DEFAULTS
@@ -825,7 +841,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, watch, computed, onMounted } from 'vue'
-import { useStorage, useDebounceFn } from '@vueuse/core'
+import { useStorage, useDebounceFn, useEventListener } from '@vueuse/core'
 import { useAdexTheme } from '~/composables/useAdexTheme'
 import { useCustomLayouts } from '~/composables/useCustomLayouts'
 import { useAdexKeyboard } from '~/composables/useAdexKeyboard'
@@ -1034,17 +1050,138 @@ const kbMenuItems = computed(() =>
   })),
 )
 
+/* Movable + resizable modal ------------------------------------------------
+ *
+ * Position and size are persisted, so the panel reopens where the user left
+ * it. Both are clamped to the viewport on every change, so a window that
+ * shrinks (or a saved position from a larger display) can never strand the
+ * modal off-screen with no way to reach its header. */
+
+const modalRef = ref<HTMLElement | null>(null)
+
+const modalBox = useStorage('adex.settings.modalBox', {
+  x: null as number | null,
+  y: null as number | null,
+  w: null as number | null,
+  h: null as number | null,
+})
+
+const modalStyle = computed(() => {
+  const { x, y, w, h } = modalBox.value
+  const style: Record<string, string> = {}
+  if (w != null) style.width = `${w}px`
+  if (h != null) style.height = `${h}px`
+  if (x != null && y != null) {
+    // Opt out of the overlay's centring once the user has moved it.
+    style.position = 'fixed'
+    style.left = `${x}px`
+    style.top = `${y}px`
+    style.margin = '0'
+  }
+  return style
+})
+
+const MIN_W = 480
+const MIN_H = 320
+
+function clampToViewport() {
+  const el = modalRef.value
+  if (!el) return
+  const r = el.getBoundingClientRect()
+  const maxX = Math.max(0, window.innerWidth - r.width)
+  const maxY = Math.max(0, window.innerHeight - r.height)
+  const b = modalBox.value
+  if (b.x != null) b.x = Math.min(Math.max(0, b.x), maxX)
+  if (b.y != null) b.y = Math.min(Math.max(0, b.y), maxY)
+  if (b.w != null) b.w = Math.min(Math.max(MIN_W, b.w), window.innerWidth)
+  if (b.h != null) b.h = Math.min(Math.max(MIN_H, b.h), window.innerHeight)
+}
+
+function startDrag(e: PointerEvent) {
+  // Ignore drags that begin on the close button or any control.
+  const target = e.target as HTMLElement
+  if (target.closest('button, input, select, textarea')) return
+
+  const el = modalRef.value
+  if (!el) return
+  const r = el.getBoundingClientRect()
+  const offX = e.clientX - r.left
+  const offY = e.clientY - r.top
+  // Freeze the current geometry so the first move does not jump from the
+  // centred position.
+  modalBox.value = { ...modalBox.value, x: r.left, y: r.top, w: r.width, h: r.height }
+
+  const move = (ev: PointerEvent) => {
+    modalBox.value.x = ev.clientX - offX
+    modalBox.value.y = ev.clientY - offY
+    clampToViewport()
+  }
+  const up = () => {
+    window.removeEventListener('pointermove', move)
+    window.removeEventListener('pointerup', up)
+  }
+  window.addEventListener('pointermove', move)
+  window.addEventListener('pointerup', up)
+  e.preventDefault()
+}
+
+function startResize(e: PointerEvent) {
+  const el = modalRef.value
+  if (!el) return
+  const r = el.getBoundingClientRect()
+  const startX = e.clientX
+  const startY = e.clientY
+  const startW = r.width
+  const startH = r.height
+  modalBox.value = { ...modalBox.value, x: r.left, y: r.top, w: startW, h: startH }
+
+  const move = (ev: PointerEvent) => {
+    modalBox.value.w = Math.max(MIN_W, startW + (ev.clientX - startX))
+    modalBox.value.h = Math.max(MIN_H, startH + (ev.clientY - startY))
+    clampToViewport()
+  }
+  const up = () => {
+    window.removeEventListener('pointermove', move)
+    window.removeEventListener('pointerup', up)
+  }
+  window.addEventListener('pointermove', move)
+  window.addEventListener('pointerup', up)
+  e.preventDefault()
+  e.stopPropagation()
+}
+
+/** Reset to the default centred geometry. */
+function resetModalGeometry() {
+  modalBox.value = { x: null, y: null, w: null, h: null }
+}
+
+// A window resize can leave a saved position off-screen.
+useEventListener(window, 'resize', clampToViewport)
+
 // Layout preset items — matches the CSS files in assets/css/layouts/.
 // Empty id ('') means "follow the theme's bundled layout" — that's the
 // sentinel pages/index.vue's computed treats as "no override".
+const clockFormatItems = [
+  { id: '24h', label: '24-Hour' },
+  { id: '12h', label: '12-Hour (AM/PM)' },
+]
+
+const updateIntervalItems = [
+  { id: 'manual', label: 'Manual only' },
+  { id: 'launch', label: 'On every launch' },
+  { id: 'daily',  label: 'Once a day' },
+  { id: 'weekly', label: 'Once a week' },
+]
+
 const BUILTIN_LAYOUTS = [
   { id: '',            label: 'Theme default' },
   { id: 'default',     label: 'Default (classic eDex)' },
   { id: 'disrupted',   label: 'Disrupted (terminal top)' },
   { id: 'typeleft',    label: 'Typeleft (keyboard left)' },
-  { id: 'fulltype',    label: 'Fulltype (full-width terminal)' },
+  { id: 'fulltype',    label: 'Fulltype (full-width keyboard)' },
   { id: 'notype',      label: 'Notype (no on-screen keyboard)' },
   { id: 'colorfilter', label: 'Colorfilter (minimal chrome)' },
+  { id: 'terminal-focus', label: 'Terminal focus (terminal fills the window)' },
 ]
 
 // Built-ins plus anything the user defined in layouts.json. Custom entries
@@ -1799,6 +1936,32 @@ onMounted(async () => {
   color: var(--ok, #10b981);
   opacity: 1;
 }
+
+/* Drag + resize affordances */
+.settings-header {
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+}
+
+.settings-resize-grip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  touch-action: none;
+  z-index: 3;
+  /* Two short strokes, the conventional resize-corner hint. */
+  background:
+    linear-gradient(135deg, transparent 0 45%,
+      var(--color_accent, rgb(170, 207, 209)) 45% 55%, transparent 55% 100%),
+    linear-gradient(135deg, transparent 0 70%,
+      var(--color_accent, rgb(170, 207, 209)) 70% 80%, transparent 80% 100%);
+  opacity: 0.45;
+}
+.settings-resize-grip:hover { opacity: 0.9; }
 
 /* Select */
 .settings-select {
