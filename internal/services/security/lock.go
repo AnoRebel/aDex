@@ -1,6 +1,7 @@
 package security
 
 import (
+	"aDex-UI/internal/appdir"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
@@ -44,7 +45,7 @@ type lockFile struct {
 	Salt string `json:"salt"`
 	Hash string `json:"hash"`
 	// IdleTimeoutSeconds of 0 means "never lock automatically".
-	IdleTimeoutSeconds int `json:"idleTimeoutSeconds"`
+	IdleTimeoutSeconds int  `json:"idleTimeoutSeconds"`
 	Enabled            bool `json:"enabled"`
 }
 
@@ -57,11 +58,7 @@ type LockService struct {
 }
 
 func NewLockService() *LockService {
-	dir, err := os.UserConfigDir()
-	path := lockFileName
-	if err == nil {
-		path = filepath.Join(dir, "aDex-UI", lockFileName)
-	}
+	path := filepath.Join(appdir.Config(), lockFileName)
 	s := &LockService{file: path}
 	s.load()
 	return s

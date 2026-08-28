@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"aDex-UI/internal/appdir"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -16,11 +17,7 @@ const customLayoutsFileName = "layouts.json"
 // CustomLayoutsPath returns the path the file is read from, whether or not it
 // exists. The settings panel shows this so users know where to create it.
 func CustomLayoutsPath() string {
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		return customLayoutsFileName
-	}
-	return filepath.Join(dir, "aDex-UI", customLayoutsFileName)
+	return filepath.Join(appdir.Config(), customLayoutsFileName)
 }
 
 // LoadCustomLayouts reads the user's layout definitions.

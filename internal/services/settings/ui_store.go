@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"aDex-UI/internal/appdir"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -35,12 +36,7 @@ type UIStore struct {
 // file is recovered from .bak, and failing that from defaults — load
 // never returns an error that would block app start.
 func NewUIStore(log *logger.Logger) (*UIStore, error) {
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user config directory: %w", err)
-	}
-
-	appConfigDir := filepath.Join(configDir, "aDex-UI")
+	appConfigDir := appdir.Config()
 	if err := os.MkdirAll(appConfigDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create config directory: %w", err)
 	}

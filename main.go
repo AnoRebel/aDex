@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 
+	"aDex-UI/internal/appdir"
 	"aDex-UI/internal/services/coordinator"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -137,13 +138,7 @@ func main() {
 // It sits beside the settings file so a user reporting a crash has one obvious
 // place to look.
 func crashLogPath() string {
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		return filepath.Join(os.TempDir(), "adex-crash.log")
-	}
-	appDir := filepath.Join(dir, "aDex-UI")
-	_ = os.MkdirAll(appDir, 0o755)
-	return filepath.Join(appDir, "crash.log")
+	return filepath.Join(appdir.Config(), "crash.log")
 }
 
 // debugSetCrashOutput wraps debug.SetCrashOutput so the call site stays

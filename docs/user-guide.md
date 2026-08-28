@@ -11,7 +11,7 @@ network view behind a single themed interface.
 Run the built binary:
 
 ```bash
-./bin/aDex-UI
+./bin/adex
 ```
 
 The window opens maximised. A boot sequence runs first, reporting each backend
@@ -83,7 +83,7 @@ than starting unstyled.
 ### Custom layouts
 
 Beyond the six built-in presets you can define your own arrangements in
-`~/.config/aDex-UI/layouts.json`. Create the file with a list of layouts:
+`~/.config/aDex/layouts.json`. Create the file with a list of layouts:
 
 ```json
 [
@@ -150,7 +150,7 @@ right, and `RESET DEFAULTS` / `CANCEL` / `SAVE` along the bottom.
 Theme, layout, keyboard, fonts and audio apply **as you change them**, so you
 can judge the effect before committing. `CANCEL` reverts to the last saved
 values; `SAVE` writes them to
-`~/.config/aDex-UI/adex-ui-settings.json` and applies every group.
+`~/.config/aDex/adex-ui-settings.json` and applies every group.
 
 Changing the shell path affects **new** terminals; existing tabs keep the
 shell they started with.
@@ -216,10 +216,34 @@ the process exits.
 | Shortcut | Action |
 |---|---|
 | `Ctrl+,` | Open settings |
-| `Ctrl+Q` | Quit |
+| `Ctrl+Shift+L` | Lock the session |
+| `Ctrl+Shift+Q` | Quit |
+| `Ctrl+Shift+T` | New terminal tab |
+| `Ctrl+Shift+W` | Close terminal tab |
+| `Ctrl+Shift+1…5` | Switch to tab 1–5 |
 | `Ctrl+\`` | Toggle terminal |
 | `Ctrl+Shift+F` | Toggle file browser |
 | `Ctrl+Shift+S` | Toggle system monitor |
+
+---
+
+## Locking the session
+
+Set a passphrase in **Settings → Security**, then press **Ctrl+Shift+L** to
+lock. You can also set an idle timeout so the session locks itself after a
+period of inactivity.
+
+Terminals keep running while locked — locking hides the session, it does not
+kill your work. The backend refuses file, terminal and process access while
+locked, so the overlay is not the only barrier.
+
+This protects an unattended session from someone walking up to your machine.
+It is **not** a substitute for locking your operating-system session: aDex runs
+as your user, so anyone with access to your account can open a terminal
+directly without going through it.
+
+If you forget the passphrase, delete `~/.config/aDex/lock.json` from another
+session to remove the lock.
 
 ---
 
@@ -227,7 +251,7 @@ the process exits.
 
 **The interface looks unstyled.** A stored theme naming something that no
 longer exists is repaired automatically on next start. If it persists, delete
-`~/.config/aDex-UI/adex-ui-settings.json` to return to defaults.
+`~/.config/aDex/adex-ui-settings.json` to return to defaults.
 
 **No sound.** Check Settings → Audio: master enable, volume, and the category
 covering the cue you expect. Sounds are also suppressed when the window is in

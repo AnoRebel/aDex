@@ -1,6 +1,7 @@
 package config
 
 import (
+	"aDex-UI/internal/appdir"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,15 +10,16 @@ import (
 	"path/filepath"
 	"sync"
 
-	"gopkg.in/yaml.v3"
 	"aDex-UI/internal/utils"
+
+	"gopkg.in/yaml.v3"
 )
 
 // Service handles configuration management
 type Service struct {
-	platform *utils.FeatureDetection
-	config   *Config
-	mu       sync.RWMutex
+	platform   *utils.FeatureDetection
+	config     *Config
+	mu         sync.RWMutex
 	configPath string
 }
 
@@ -46,21 +48,10 @@ func NewService() *Service {
 	return service
 }
 
-// getConfigDir returns the appropriate config directory for the platform
-func getConfigDir(platform *utils.FeatureDetection) string {
-	if configHome := os.Getenv("XDG_CONFIG_HOME"); configHome != "" {
-		return filepath.Join(configHome, "aDex-UI")
-	}
-
-	home := platform.GetHomeDirectory()
-	switch platform.Platform.OS {
-	case "windows":
-		return filepath.Join(os.Getenv("APPDATA"), "aDex-UI")
-	case "darwin":
-		return filepath.Join(home, "Library", "Application Support", "aDex-UI")
-	default:
-		return filepath.Join(home, ".config", "aDex-UI")
-	}
+// getConfigDir returns the config directory. The per-platform branching moved
+// into appdir, which is now the single place the location is decided.
+func getConfigDir(_ *utils.FeatureDetection) string {
+	return appdir.Config()
 }
 
 // Config represents application configuration
@@ -84,19 +75,19 @@ type ThemeConfig struct {
 
 // TerminalConfig represents terminal configuration
 type TerminalConfig struct {
-	Shell       string `json:"shell"`
-	FontSize    int    `json:"font_size"`
-	FontFamily  string `json:"font_family"`
-	Opacity     int    `json:"opacity"`
-	Scrollback  int    `json:"scrollback"`
+	Shell      string `json:"shell"`
+	FontSize   int    `json:"font_size"`
+	FontFamily string `json:"font_family"`
+	Opacity    int    `json:"opacity"`
+	Scrollback int    `json:"scrollback"`
 }
 
 // SystemConfig represents system monitoring configuration
 type SystemConfig struct {
-	UpdateInterval    int  `json:"update_interval"`
-	EnableMonitoring  bool `json:"enable_monitoring"`
-	ShowProcesses     bool `json:"show_processes"`
-	MaxProcesses      int  `json:"max_processes"`
+	UpdateInterval   int  `json:"update_interval"`
+	EnableMonitoring bool `json:"enable_monitoring"`
+	ShowProcesses    bool `json:"show_processes"`
+	MaxProcesses     int  `json:"max_processes"`
 }
 
 // FilesystemConfig represents filesystem configuration
@@ -132,7 +123,7 @@ func (s *Service) loadConfig() error {
 // getDefaultConfig returns the default configuration
 func (s *Service) getDefaultConfig() *Config {
 	return &Config{
-		AppName:  "aDex-UI",
+		AppName:  "aDex",
 		Version:  "1.0.0",
 		Settings: make(map[string]interface{}),
 		Theme: ThemeConfig{

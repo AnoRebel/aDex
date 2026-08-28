@@ -284,6 +284,10 @@
       <ErrorBoundary label="KEYBOARD"><AdexKeyboard /></ErrorBoundary>
     </div>
 
+    <!-- Session lock. Mounted at page level so it covers the whole shell,
+         including modals. -->
+    <LockScreen ref="lockScreenRef" />
+
     <!-- Settings modal (toggled via keyboard shortcut or menu) -->
     <AdexSettingsModal
       v-model="showSettings"
@@ -363,6 +367,7 @@ import { useAdexAudio } from '~/composables/useAdexAudio'
 import { useCustomLayouts } from '~/composables/useCustomLayouts'
 import { useModules, MODULES } from '~/composables/useModules'
 import ErrorBoundary from '~/components/ui/ErrorBoundary.vue'
+import LockScreen from '~/components/ui/LockScreen.vue'
 import AdexClock from '~/components/adex/AdexClock.vue'
 import AdexSysinfo from '~/components/adex/AdexSysinfo.vue'
 import AdexHardware from '~/components/adex/AdexHardware.vue'
@@ -622,6 +627,7 @@ const activeLayout = computed<string>(() => {
  * original markup renders exactly as before. */
 const customLayoutEngine = useCustomLayouts()
 const modulesEngine = useModules()
+const lockScreenRef = ref<{ lock: () => Promise<void>; refresh: () => Promise<void> } | null>(null)
 
 /** Human label for a module id, used for the error-boundary caption. */
 function moduleLabel(id: string): string {
@@ -1173,6 +1179,14 @@ onKeyStroke(',', (e) => {
   if (!e.ctrlKey || e.shiftKey || e.altKey || e.metaKey) return
   e.preventDefault()
   showSettings.value = !showSettings.value
+})
+
+// Ctrl+Shift+L — lock the session. Uses the same chord shape as the tab
+// shortcuts so it cannot collide with a readline binding in the terminal.
+onKeyStroke(['l', 'L'], (e) => {
+  if (!isPlainCtrlShift(e)) return
+  e.preventDefault()
+  void lockScreenRef.value?.lock()
 })
 
 // Ctrl+Shift+Q — quit aDex-UI through the same confirm dialog the

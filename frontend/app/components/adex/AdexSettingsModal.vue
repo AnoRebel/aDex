@@ -382,12 +382,61 @@
                 in filesystem and terminal requests. That protection is always
                 on and has nothing to configure.
               </p>
-              <p class="settings-hint" style="opacity: 0.6;">
-                Multi-user authentication, session timeouts and audit logging
-                are not implemented. They are tracked as a separate change
-                rather than partially exposed here, since a half-built
-                authentication panel implies protection that does not exist.
-              </p>
+              <div class="settings-field">
+                <label class="settings-label">
+                  Session Lock {{ lockConfigured ? '(enabled)' : '(not set up)' }}
+                </label>
+                <input
+                  v-model="lockCurrent"
+                  type="password"
+                  class="settings-input"
+                  :placeholder="lockConfigured ? 'current passphrase' : 'not required'"
+                  autocomplete="off"
+                />
+                <input
+                  v-model="lockNext"
+                  type="password"
+                  class="settings-input"
+                  style="margin-top: 0.4rem;"
+                  placeholder="new passphrase (min 4 characters)"
+                  autocomplete="off"
+                />
+                <p v-if="lockMessage" class="settings-hint" :style="{ color: lockError ? '#ff6b6b' : undefined }">
+                  {{ lockMessage }}
+                </p>
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                  <button type="button" class="settings-btn" @click="applyLockPassphrase">
+                    {{ lockConfigured ? 'CHANGE PASSPHRASE' : 'SET PASSPHRASE' }}
+                  </button>
+                  <button
+                    v-if="lockConfigured"
+                    type="button"
+                    class="settings-btn"
+                    @click="removeLock"
+                  >REMOVE LOCK</button>
+                </div>
+                <p class="settings-hint">
+                  Locks the running session behind a passphrase — press
+                  <kbd>Ctrl + Shift + L</kbd> to lock. Terminals keep running
+                  while locked. The backend refuses file, terminal and process
+                  access while locked, so the overlay is not the only barrier.
+                </p>
+              </div>
+
+              <div v-if="lockConfigured" class="settings-field">
+                <label class="settings-label">Auto-lock after idle</label>
+                <USelectMenu
+                  variant="none"
+                  color="neutral"
+                  v-model="lockIdleTimeout"
+                  :items="lockIdleItems"
+                  value-key="id"
+                  label-key="label"
+                  :search-input="false"
+                  class="settings-select"
+                  @update:model-value="applyIdleTimeout"
+                />
+              </div>
             </div>
 
             <!-- AUDIO -->
@@ -536,6 +585,27 @@
             </div>
 
             <!-- SYSTEM -->
+            <!-- KEYBINDS -->
+            <div v-if="activeCategory === 'keybinds'" class="settings-section">
+              <div class="settings-section-title">KEYBOARD SHORTCUTS</div>
+              <p class="settings-hint">
+                Shortcuts use Ctrl+Shift so they cannot collide with the
+                readline bindings your shell uses inside the terminal.
+              </p>
+
+              <div class="keybind-list">
+                <div v-for="bind in KEYBINDS" :key="bind.action" class="keybind-row">
+                  <span class="keybind-action">{{ bind.action }}</span>
+                  <kbd class="keybind-keys">{{ bind.keys }}</kbd>
+                </div>
+              </div>
+
+              <p class="settings-hint" style="opacity: 0.55;">
+                Shortcuts are fixed in this release; remapping is not yet
+                available.
+              </p>
+            </div>
+
             <!-- MODULES -->
             <div v-if="activeCategory === 'modules'" class="settings-section">
               <div class="settings-section-title">MODULES</div>
@@ -1084,6 +1154,7 @@ const categories: Category[] = [
   { id: 'audio',       label: 'AUDIO' },
   { id: 'network',     label: 'NETWORK' },
   { id: 'security',    label: 'SECURITY' },
+  { id: 'keybinds',    label: 'KEYBINDS' },
   { id: 'modules',     label: 'MODULES' },
   { id: 'system',      label: 'SYSTEM' },
   { id: 'advanced',    label: 'ADVANCED' },
@@ -1271,6 +1342,86 @@ function onFramelessApply(value: unknown) {
     console.error('[Settings] failed to apply frameless:', err)
   }
 }
+
+/** The application's keyboard shortcuts, for the Keybinds panel.
+ *  Kept in sync by hand with the onKeyStroke handlers in pages/index.vue. */
+/* Session lock controls ---------------------------------------------------- */
+const lockConfigured = ref(false)
+const lockCurrent = ref('')
+const lockNext = ref('')
+const lockMessage = ref('')
+const lockError = ref(false)
+const lockIdleTimeout = ref(0)
+
+const lockIdleItems = [
+  { id: 0,    label: 'Never' },
+  { id: 300,  label: 'After 5 minutes' },
+  { id: 900,  label: 'After 15 minutes' },
+  { id: 1800, label: 'After 30 minutes' },
+  { id: 3600, label: 'After 1 hour' },
+]
+
+async function refreshLockState() {
+  try {
+    const { IsLockConfigured, GetLockIdleTimeout } = await import('~/lib/wailsjs/coordinator')
+    lockConfigured.value = await IsLockConfigured()
+    lockIdleTimeout.value = await GetLockIdleTimeout()
+  } catch {
+    lockConfigured.value = false
+  }
+}
+
+async function applyLockPassphrase() {
+  lockMessage.value = ''
+  lockError.value = false
+  try {
+    const { SetLockPassphrase } = await import('~/lib/wailsjs/coordinator')
+    await SetLockPassphrase(lockCurrent.value, lockNext.value)
+    lockCurrent.value = ''
+    lockNext.value = ''
+    lockMessage.value = 'Passphrase saved.'
+    await refreshLockState()
+  } catch (err) {
+    lockError.value = true
+    lockMessage.value = err instanceof Error ? err.message : 'Could not set the passphrase'
+  }
+}
+
+async function removeLock() {
+  lockMessage.value = ''
+  lockError.value = false
+  try {
+    const { DisableLock } = await import('~/lib/wailsjs/coordinator')
+    await DisableLock(lockCurrent.value)
+    lockCurrent.value = ''
+    lockMessage.value = 'Lock removed.'
+    await refreshLockState()
+  } catch (err) {
+    lockError.value = true
+    lockMessage.value = err instanceof Error ? err.message : 'Could not remove the lock'
+  }
+}
+
+async function applyIdleTimeout(value: unknown) {
+  try {
+    const { SetLockIdleTimeout } = await import('~/lib/wailsjs/coordinator')
+    await SetLockIdleTimeout(Number(value) || 0)
+  } catch (err) {
+    console.error('[Settings] failed to set idle timeout:', err)
+  }
+}
+
+const KEYBINDS = [
+  { action: 'Open settings',        keys: 'Ctrl + ,' },
+  { action: 'Lock session',         keys: 'Ctrl + Shift + L' },
+  { action: 'New terminal tab',     keys: 'Ctrl + Shift + T' },
+  { action: 'Close terminal tab',   keys: 'Ctrl + Shift + W' },
+  { action: 'Switch to tab 1–5',    keys: 'Ctrl + Shift + 1…5' },
+  { action: 'Quit',                 keys: 'Ctrl + Shift + Q' },
+  { action: 'Toggle terminal',      keys: 'Ctrl + `' },
+  { action: 'Toggle file browser',  keys: 'Ctrl + Shift + F' },
+  { action: 'Toggle system monitor', keys: 'Ctrl + Shift + S' },
+]
 
 const clockFormatItems = [
   { id: '24h', label: '24-Hour' },
@@ -1765,6 +1916,7 @@ onMounted(async () => {
   // calls early-return when an active theme/layout already exists.
   await Promise.allSettled([
     customLayoutEngine.load(),
+    refreshLockState(),
     themeEngine.initialize(),
     kbEngine.initialize(),
     loadColorSchemes(),
@@ -2052,6 +2204,39 @@ onMounted(async () => {
 .settings-readonly-tag-new {
   color: var(--ok, #10b981);
   opacity: 1;
+}
+
+/* Keybind list (Settings -> Keybinds) */
+.keybind-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.8rem;
+}
+
+.keybind-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.35rem 0.6rem;
+  border: var(--border_width, 1px) solid var(--color_accent_dimmed, rgba(170, 207, 209, 0.2));
+  background: var(--color_light_black, #05080d);
+}
+
+.keybind-action {
+  color: var(--color_accent, rgb(170, 207, 209));
+  font-family: var(--font_main, monospace);
+  font-size: 0.78rem;
+}
+
+.keybind-keys {
+  padding: 0.15rem 0.55rem;
+  border: var(--border_width, 1px) solid var(--color_accent_dimmed, rgba(170, 207, 209, 0.35));
+  color: var(--color_accent, rgb(170, 207, 209));
+  font-family: var(--font_main, monospace);
+  font-size: 0.72rem;
+  white-space: nowrap;
 }
 
 /* Module list (Settings -> Modules) */

@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"aDex-UI/internal/appdir"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -22,12 +23,7 @@ type Service struct {
 
 // NewService creates a new settings service
 func NewService(logger *logger.Logger) (*Service, error) {
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user config directory: %w", err)
-	}
-
-	appConfigDir := filepath.Join(configDir, "aDex-UI")
+	appConfigDir := appdir.Config()
 	if err := os.MkdirAll(appConfigDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create config directory: %w", err)
 	}

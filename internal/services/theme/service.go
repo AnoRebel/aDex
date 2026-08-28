@@ -1,6 +1,7 @@
 package theme
 
 import (
+	"aDex-UI/internal/appdir"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -24,7 +25,7 @@ type Service struct {
 // NewService creates a new theme service instance
 func NewService() *Service {
 	platform := utils.DetectPlatform()
-	themesDir := getThemesDir(platform)
+	themesDir := getThemesDir()
 
 	service := &Service{
 		platform:     platform,
@@ -48,21 +49,9 @@ func NewService() *Service {
 }
 
 // getThemesDir returns the appropriate themes directory for the platform
-func getThemesDir(platform *utils.FeatureDetection) string {
-	// Try to use data directory
-	if dataDir := os.Getenv("XDG_DATA_HOME"); dataDir != "" {
-		return filepath.Join(dataDir, "aDex-UI", "themes")
-	}
-
-	home := platform.GetHomeDirectory()
-	switch platform.Platform.OS {
-	case "windows":
-		return filepath.Join(os.Getenv("LOCALAPPDATA"), "aDex-UI", "themes")
-	case "darwin":
-		return filepath.Join(home, "Library", "Application Support", "aDex-UI", "themes")
-	default:
-		return filepath.Join(home, ".local", "share", "aDex-UI", "themes")
-	}
+func getThemesDir() string {
+	// Per-platform branching lives in appdir now.
+	return filepath.Join(appdir.Data(), "themes")
 }
 
 // loadBuiltInThemes loads the built-in themes
@@ -96,19 +85,19 @@ func (s *Service) loadBuiltInThemes() {
 			"xlarge": 18,
 		},
 		Spacing: map[string]int{
-			"xs":  4,
-			"sm":  8,
-			"md":  16,
-			"lg":  24,
-			"xl":  32,
+			"xs": 4,
+			"sm": 8,
+			"md": 16,
+			"lg": 24,
+			"xl": 32,
 		},
 		BorderRadius: map[string]int{
-			"small": 2,
+			"small":  2,
 			"medium": 4,
-			"large": 8,
+			"large":  8,
 		},
 		Shadows: map[string]string{
-			"small": "0 1px 3px rgba(0, 255, 0, 0.2)",
+			"small":  "0 1px 3px rgba(0, 255, 0, 0.2)",
 			"medium": "0 4px 6px rgba(0, 255, 0, 0.3)",
 		},
 	}
@@ -132,12 +121,12 @@ func (s *Service) loadBuiltInThemes() {
 			"success":        "#00aa00",
 			"info":           "#0066cc",
 		},
-		Fonts: defaultDark.Fonts,
-		Sizes: defaultDark.Sizes,
-		Spacing: defaultDark.Spacing,
+		Fonts:        defaultDark.Fonts,
+		Sizes:        defaultDark.Sizes,
+		Spacing:      defaultDark.Spacing,
 		BorderRadius: defaultDark.BorderRadius,
 		Shadows: map[string]string{
-			"small": "0 1px 3px rgba(0, 0, 0, 0.2)",
+			"small":  "0 1px 3px rgba(0, 0, 0, 0.2)",
 			"medium": "0 4px 6px rgba(0, 0, 0, 0.3)",
 		},
 	}
@@ -161,41 +150,41 @@ func (s *Service) loadBuiltInThemes() {
 			"success":        "#00ff00",
 			"info":           "#00aaff",
 		},
-		Fonts: defaultDark.Fonts,
-		Sizes: defaultDark.Sizes,
-		Spacing: defaultDark.Spacing,
+		Fonts:        defaultDark.Fonts,
+		Sizes:        defaultDark.Sizes,
+		Spacing:      defaultDark.Spacing,
 		BorderRadius: defaultDark.BorderRadius,
-		Shadows: defaultDark.Shadows,
+		Shadows:      defaultDark.Shadows,
 	}
 	s.themes["matrix"] = matrixTheme
 }
 
 // Theme represents a visual theme
 type Theme struct {
-	ID          string            `json:"id"`
-	Name        string            `json:"name"`
-	IsDark      bool              `json:"is_dark"`
-	Colors      map[string]string `json:"colors"`
-	Fonts       map[string]string `json:"fonts"`
-	Sizes       map[string]int    `json:"sizes"`
-	Spacing     map[string]int    `json:"spacing"`
-	BorderRadius map[string]int   `json:"border_radius"`
-	Shadows     map[string]string `json:"shadows"`
+	ID           string            `json:"id"`
+	Name         string            `json:"name"`
+	IsDark       bool              `json:"is_dark"`
+	Colors       map[string]string `json:"colors"`
+	Fonts        map[string]string `json:"fonts"`
+	Sizes        map[string]int    `json:"sizes"`
+	Spacing      map[string]int    `json:"spacing"`
+	BorderRadius map[string]int    `json:"border_radius"`
+	Shadows      map[string]string `json:"shadows"`
 }
 
 // ThemeColors represents color palette
 type ThemeColors struct {
-	Primary     string `json:"primary"`
-	Secondary   string `json:"secondary"`
-	Accent      string `json:"accent"`
-	Background  string `json:"background"`
-	Surface     string `json:"surface"`
-	Text        string `json:"text"`
+	Primary       string `json:"primary"`
+	Secondary     string `json:"secondary"`
+	Accent        string `json:"accent"`
+	Background    string `json:"background"`
+	Surface       string `json:"surface"`
+	Text          string `json:"text"`
 	TextSecondary string `json:"text_secondary"`
-	Error       string `json:"error"`
-	Warning     string `json:"warning"`
-	Success     string `json:"success"`
-	Info        string `json:"info"`
+	Error         string `json:"error"`
+	Warning       string `json:"warning"`
+	Success       string `json:"success"`
+	Info          string `json:"info"`
 }
 
 // loadCustomThemes loads custom themes from the themes directory
