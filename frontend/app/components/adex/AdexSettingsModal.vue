@@ -621,8 +621,23 @@
                 />
               </div>
               <p class="settings-hint">
-                Re-maximizes the window after boot even if the OS WM
-                restored a previous windowed state.
+                Puts the window into true fullscreen after boot — no
+                decorations, covering the display. Takes effect on next launch.
+              </p>
+
+              <div class="settings-field settings-field-toggle">
+                <label class="settings-label">Frameless Window</label>
+                <USwitch
+                  v-model="localSettings.advanced.frameless"
+                  size="md"
+                  color="primary"
+                  aria-label="Frameless window"
+                  @update:model-value="onFramelessApply"
+                />
+              </div>
+              <p class="settings-hint">
+                Removes the OS titlebar and border. Applies immediately; use
+                the window controls in the top bar to move, resize and close.
               </p>
 
               <div class="settings-field settings-field-toggle">
@@ -844,6 +859,7 @@ import { ref, reactive, watch, computed, onMounted } from 'vue'
 import { useStorage, useDebounceFn, useEventListener } from '@vueuse/core'
 import { useAdexTheme } from '~/composables/useAdexTheme'
 import { useCustomLayouts } from '~/composables/useCustomLayouts'
+import { WindowRuntime } from '~/lib/wailsjs/runtime'
 import { useAdexKeyboard } from '~/composables/useAdexKeyboard'
 import { useAdexAudio } from '~/composables/useAdexAudio'
 import { useUpdateChecker } from '~/composables/useUpdateChecker'
@@ -933,6 +949,8 @@ interface SettingsData {
     /** Force the window into fullscreen on launch even if the OS WM
      *  would normally honor the saved Windowed state. */
     forceFullscreen: boolean
+    /** Remove the OS titlebar/border. Applied live via the runtime. */
+    frameless: boolean
     /** Hide dotfiles (.git, .config, etc.) in the file manager. */
     hideDotfiles: boolean
     /** Render the file manager as a list instead of the grid. */
@@ -1161,6 +1179,16 @@ useEventListener(window, 'resize', clampToViewport)
 // Layout preset items — matches the CSS files in assets/css/layouts/.
 // Empty id ('') means "follow the theme's bundled layout" — that's the
 // sentinel pages/index.vue's computed treats as "no override".
+/** Frameless applies immediately — Wails v3 can toggle decorations at
+ *  runtime, so there is no reason to make the user restart. */
+function onFramelessApply(value: unknown) {
+  try {
+    WindowRuntime.SetFrameless(value === true)
+  } catch (err) {
+    console.error('[Settings] failed to apply frameless:', err)
+  }
+}
+
 const clockFormatItems = [
   { id: '24h', label: '24-Hour' },
   { id: '12h', label: '12-Hour (AM/PM)' },
@@ -1528,6 +1556,7 @@ function getDefaultSettings(): SettingsData {
       scrollback: 5000,
       nointro: false,
       forceFullscreen: false,
+      frameless: false,
       hideDotfiles: true,
       fsListView: false,
       experimentalGlobeFeatures: false,

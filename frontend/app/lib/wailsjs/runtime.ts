@@ -108,5 +108,9 @@ export const WindowRuntime = {
   IsMaximised: () => WailsWindow.IsMaximised(),
   Center: () => WailsWindow.Center(),
   Fullscreen: () => WailsWindow.Fullscreen(),
+  UnFullscreen: () => WailsWindow.UnFullscreen(),
+  IsFullscreen: () => WailsWindow.IsFullscreen(),
+  /** Toggle window decorations at runtime — no restart needed. */
+  SetFrameless: (frameless: boolean) => WailsWindow.SetFrameless(frameless),
   Quit: () => WailsApplication.Quit(),
 }

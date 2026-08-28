@@ -1075,13 +1075,15 @@ html, body {
    `color-scheme: dark` additionally tells the engine to render the parts we
    cannot reach — dropdown popups, scrollbars, date pickers — in dark form. */
 
-.adex-app {
+/* Applies to the whole document so controls in teleported overlays and
+   page-level modals inherit it too, not just those inside the app shell. */
+:root {
   color-scheme: dark;
 }
 
-.adex-app input:not([type='checkbox']):not([type='radio']):not([type='range']),
-.adex-app select,
-.adex-app textarea {
+input:not([type='checkbox']):not([type='radio']):not([type='range']),
+select,
+textarea {
   background: var(--color_light_black);
   color: var(--color_accent);
   border: var(--border_width, 1px) solid var(--color_accent_dimmed);
@@ -1093,9 +1095,9 @@ html, body {
   transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
 }
 
-.adex-app input:not([type='checkbox']):not([type='radio']):not([type='range']):hover,
-.adex-app select:hover,
-.adex-app textarea:hover {
+input:not([type='checkbox']):not([type='radio']):not([type='range']):hover,
+select:hover,
+textarea:hover {
   border-color: var(--color_accent);
   background: var(--color_grey);
 }
@@ -1103,26 +1105,26 @@ html, body {
 /* Focus: accent border plus a soft accent glow. Keep a visible indicator —
    `outline: none` above removes the platform ring, so this replaces it
    rather than dropping it. */
-.adex-app input:not([type='checkbox']):not([type='radio']):not([type='range']):focus-visible,
-.adex-app select:focus-visible,
-.adex-app textarea:focus-visible,
-.adex-app input:not([type='checkbox']):not([type='radio']):not([type='range']):focus,
-.adex-app select:focus,
-.adex-app textarea:focus {
+input:not([type='checkbox']):not([type='radio']):not([type='range']):focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+input:not([type='checkbox']):not([type='radio']):not([type='range']):focus,
+select:focus,
+textarea:focus {
   border-color: var(--color_accent);
   box-shadow: 0 0 0 2px var(--color_accent_glow);
   background: var(--color_black);
 }
 
-.adex-app input::placeholder,
-.adex-app textarea::placeholder {
+input::placeholder,
+textarea::placeholder {
   color: var(--color_accent_dimmed);
   opacity: 0.7;
 }
 
-.adex-app input:disabled,
-.adex-app select:disabled,
-.adex-app textarea:disabled {
+input:disabled,
+select:disabled,
+textarea:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
@@ -1130,7 +1132,7 @@ html, body {
 /* Dropdown options render in the OS popup layer, which only honours a
    handful of properties. Set what is respected so the list is not a white
    slab against a dark interface. */
-.adex-app select option {
+select option {
   background: var(--color_light_black);
   color: var(--color_accent);
 }
@@ -1138,27 +1140,27 @@ html, body {
 /* Checkboxes and radios: accent-color is the one property that reliably
    themes the native control across engines, and it keeps the platform's
    own sizing and hit target. */
-.adex-app input[type='checkbox'],
-.adex-app input[type='radio'] {
+input[type='checkbox'],
+input[type='radio'] {
   accent-color: var(--color_accent);
   cursor: pointer;
 }
 
 /* Range sliders (volume, font size) — accent-color themes the track fill
    and thumb. */
-.adex-app input[type='range'] {
+input[type='range'] {
   accent-color: var(--color_accent);
   cursor: pointer;
 }
 
 /* Number inputs: hide the spinners, which are unstyleable and clash with
    the aesthetic. Values remain keyboard-adjustable via arrow keys. */
-.adex-app input[type='number'] {
+input[type='number'] {
   -moz-appearance: textfield;
   appearance: textfield;
 }
-.adex-app input[type='number']::-webkit-outer-spin-button,
-.adex-app input[type='number']::-webkit-inner-spin-button {
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }

@@ -140,24 +140,26 @@
              custom layout active the built-in composition below is used, so
              the shipped presets behave exactly as before. -->
         <template v-if="customPanelsFor('left')">
-          <component
-            :is="PANEL_COMPONENTS[panel]"
+          <ErrorBoundary
             v-for="panel in customPanelsFor('left')"
             :key="'left-' + panel"
-          />
+            :label="panel.toUpperCase()"
+          >
+            <component :is="PANEL_COMPONENTS[panel]" />
+          </ErrorBoundary>
         </template>
         <template v-else>
-          <AdexClock :use24-hour="use24HourClock" />
-          <AdexSysinfo />
+          <ErrorBoundary label="CLOCK"><AdexClock :use24-hour="use24HourClock" /></ErrorBoundary>
+          <ErrorBoundary label="SYSTEM INFO"><AdexSysinfo /></ErrorBoundary>
           <!-- AdexHardware temporarily commented out at user request — the
                "Manufacturer/Model/Chassis: Unknown/rebel/Desktop" output
                wasn't useful and the panel was eating column height that
                the toplist needed. Re-enable when sysinfo is more accurate
                or we add a settings toggle. -->
           <!-- <AdexHardware /> -->
-          <AdexCpuInfo />
-          <AdexRamWatcher />
-          <AdexToplist ref="toplistRef" />
+          <ErrorBoundary label="CPU"><AdexCpuInfo /></ErrorBoundary>
+          <ErrorBoundary label="MEMORY"><AdexRamWatcher /></ErrorBoundary>
+          <ErrorBoundary label="PROCESSES"><AdexToplist ref="toplistRef" /></ErrorBoundary>
         </template>
       </aside>
 
@@ -190,15 +192,23 @@
 
           <!-- Terminal emulator surface (one per tab, only active is visible) -->
           <div class="shell-terminal">
-            <AdexTerminal
+            <!-- One boundary PER TAB, so a crash in one terminal cannot take
+                 down the others (or the app). auto-retry remounts once, which
+                 recovers transient failures such as a lost WebGL context. -->
+            <ErrorBoundary
               v-for="(tab, idx) in shellTabs"
               v-show="activeTabIndex === idx"
-              :key="tab.id"
-              :ref="(el: any) => terminalRefs[tab.id] = el"
-              :session-id="tab.sessionId"
-              :active="activeTabIndex === idx"
-              @exited="onTerminalExited"
-            />
+              :key="'eb-' + tab.id"
+              label="TERMINAL"
+              auto-retry
+            >
+              <AdexTerminal
+                :ref="(el: any) => terminalRefs[tab.id] = el"
+                :session-id="tab.sessionId"
+                :active="activeTabIndex === idx"
+                @exited="onTerminalExited"
+              />
+            </ErrorBoundary>
             <!-- Recovery CTA: shown when boot couldn't spawn a shell.
                  Surfaces the last error so the user can see exactly
                  why createSession failed — blank-button-with-no-feedback
@@ -233,16 +243,18 @@
       <!-- RIGHT COLUMN -->
       <aside class="mod-column right">
         <template v-if="customPanelsFor('right')">
-          <component
-            :is="PANEL_COMPONENTS[panel]"
+          <ErrorBoundary
             v-for="panel in customPanelsFor('right')"
             :key="'right-' + panel"
-          />
+            :label="panel.toUpperCase()"
+          >
+            <component :is="PANEL_COMPONENTS[panel]" />
+          </ErrorBoundary>
         </template>
         <template v-else>
-          <AdexNetstat />
-          <AdexGlobe />
-          <AdexTraffic />
+          <ErrorBoundary label="NETWORK"><AdexNetstat /></ErrorBoundary>
+          <ErrorBoundary label="WORLD VIEW"><AdexGlobe /></ErrorBoundary>
+          <ErrorBoundary label="TRAFFIC"><AdexTraffic /></ErrorBoundary>
         </template>
       </aside>
     </div>
@@ -254,7 +266,7 @@
            a stale `@key="onVirtualKey"` listener was removed because the
            component never emits `key`. The @key prop dropped here on
            purpose to avoid implying a double-injection contract. -->
-      <AdexKeyboard />
+      <ErrorBoundary label="KEYBOARD"><AdexKeyboard /></ErrorBoundary>
     </div>
 
     <!-- Settings modal (toggled via keyboard shortcut or menu) -->
@@ -334,6 +346,7 @@ import { useAppStore } from '~/stores/app'
 import { WindowRuntime } from '~/lib/wailsjs/runtime'
 import { useAdexAudio } from '~/composables/useAdexAudio'
 import { useCustomLayouts } from '~/composables/useCustomLayouts'
+import ErrorBoundary from '~/components/ui/ErrorBoundary.vue'
 import AdexClock from '~/components/adex/AdexClock.vue'
 import AdexSysinfo from '~/components/adex/AdexSysinfo.vue'
 import AdexHardware from '~/components/adex/AdexHardware.vue'
@@ -509,7 +522,7 @@ watch(
 // during development. Reading from useStorage means a fresh `nointro`
 // flag picked up on first paint, before the boot screen even mounts.
 const advancedBootSettings = useStorage<{
-  advanced?: { nointro?: boolean; forceFullscreen?: boolean }
+  advanced?: { nointro?: boolean; forceFullscreen?: boolean; frameless?: boolean; allowWindowedMode?: boolean }
   system?: {
     bootAnimation?: boolean
     showGrid?: boolean
@@ -636,10 +649,28 @@ function onBootComplete() {
   // floating mode — the second call after the layout settles is the
   // one that actually sticks. We use useTimeoutFn so the timer
   // self-cleans on unmount.
-  if (advancedBootSettings.value?.advanced?.forceFullscreen) {
+  // Force Fullscreen means TRUE fullscreen — no window decorations, covering
+  // the display. The previous implementation called Maximise(), which only
+  // fills the work area and keeps the titlebar, so the setting never did what
+  // its name promised.
+  const adv = advancedBootSettings.value?.advanced
+  if (adv?.forceFullscreen) {
+    useTimeoutFn(() => {
+      try { WindowRuntime.Fullscreen() } catch { /* non-critical */ }
+    }, 750)
+  } else if (adv?.allowWindowedMode === false) {
+    // Windowed mode disallowed: keep the window maximised rather than letting
+    // the WM restore a previous floating geometry. Previously this setting had
+    // no consumer at all and did nothing.
     useTimeoutFn(() => {
       try { WindowRuntime.Maximise() } catch { /* non-critical */ }
     }, 750)
+  }
+
+  // Frameless is applied live from Settings, but must also be restored on
+  // launch so the choice survives a restart.
+  if (adv?.frameless) {
+    try { WindowRuntime.SetFrameless(true) } catch { /* non-critical */ }
   }
 
   // Update check — fire-and-forget. The composable honors the user's
