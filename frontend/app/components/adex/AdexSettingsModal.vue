@@ -144,6 +144,39 @@
                 </p>
               </div>
 
+              <!-- Globe rendering style. Two genuinely different panels,
+                   not a cosmetic toggle: the classic globe is the stylised
+                   dot grid, the geo one projects real country outlines. -->
+              <div class="settings-field">
+                <label class="settings-label">Globe style</label>
+                <USelectMenu
+                  variant="none"
+                  color="neutral"
+                  v-model="localSettings.display.globeStyle"
+                  :items="globeStyleItems"
+                  value-key="id"
+                  label-key="label"
+                  :search-input="false"
+                  class="settings-select"
+                  @update:model-value="persistCurrentSettings"
+                />
+                <p class="settings-hint">
+                  <strong>Classic</strong> (default) — the stylised rotating
+                  dot-grid globe. Cheapest to draw.<br/>
+                  <strong>Countries</strong> — an orthographic projection of real
+                  country outlines, so the connection marker sits on a
+                  recognisable landmass. Adds roughly 105&nbsp;KB of map data,
+                  loaded only when this style is selected.
+                </p>
+                <p class="settings-hint">
+                  <strong>Countries costs more CPU than Classic.</strong> It
+                  redraws real country geometry rather than a dot grid; the
+                  redraw rate is capped to limit the impact, but on slower
+                  machines the interface can still feel less responsive.
+                  Switch back to Classic if you notice lag.
+                </p>
+              </div>
+
               <!-- Terminal palette. Merged in from what used to be its own
                    COLOR SCHEME panel: two controls did not justify a separate
                    section, and the palette is part of theming. -->
@@ -1095,6 +1128,9 @@ interface SettingsData {
      *  assets/css/layouts/: 'default', 'disrupted', 'typeleft',
      *  'fulltype', 'notype', 'colorfilter'. Read by pages/index.vue. */
     layout: string
+    /** Globe panel implementation: 'classic' dot grid or 'geo' country
+     *  outlines. */
+    globeStyle: string
   }
   audio: {
     enabled: boolean
@@ -1389,6 +1425,12 @@ function resetModalGeometry() {
 
 // A window resize can leave a saved position off-screen.
 useEventListener(window, 'resize', clampToViewport)
+
+// Globe style items — must match validGlobeStyles in the Go validator.
+const globeStyleItems = [
+  { id: 'classic', label: 'Classic (dot grid)' },
+  { id: 'geo', label: 'Countries (outlines)' },
+]
 
 // Layout preset items — matches the CSS files in assets/css/layouts/.
 // Empty id ('') means "follow the theme's bundled layout" — that's the
@@ -1848,6 +1890,8 @@ function getDefaultSettings(): SettingsData {
       // Empty string = follow the theme's bundled layout. User-picked
       // values override that and persist via Settings → Theme → Layout.
       layout: '',
+      // Matches the Go default in models.DefaultUISettings.
+      globeStyle: 'classic',
     },
     audio: {
       // Audio defaults to ON so first-launch users get the boot fanfare

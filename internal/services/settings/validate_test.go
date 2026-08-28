@@ -72,3 +72,41 @@ func TestDefaultUISettings_AreValid(t *testing.T) {
 			s.Display.Theme, s.Display.Layout)
 	}
 }
+
+func TestValidateDisplay_RepairsUnknownGlobeStyle(t *testing.T) {
+	s := models.DefaultUISettings()
+	s.Display.GlobeStyle = "hologram"
+
+	if !validateDisplay(s) {
+		t.Fatal("expected an unknown globe style to be reported as repaired")
+	}
+	if s.Display.GlobeStyle != defaultGlobeStyle {
+		t.Fatalf("globe style = %q, want %q", s.Display.GlobeStyle, defaultGlobeStyle)
+	}
+}
+
+// A settings file written before the globe style existed has no value for it.
+// That is an upgrade, not corruption, so it must be filled in rather than
+// left empty for the frontend to guess at.
+func TestValidateDisplay_FillsMissingGlobeStyle(t *testing.T) {
+	s := models.DefaultUISettings()
+	s.Display.GlobeStyle = ""
+
+	if !validateDisplay(s) {
+		t.Fatal("expected a missing globe style to be reported as repaired")
+	}
+	if s.Display.GlobeStyle != defaultGlobeStyle {
+		t.Fatalf("globe style = %q, want %q", s.Display.GlobeStyle, defaultGlobeStyle)
+	}
+}
+
+func TestValidateDisplay_KeepsGeoGlobeStyle(t *testing.T) {
+	s := models.DefaultUISettings()
+	s.Display.GlobeStyle = "geo"
+
+	validateDisplay(s)
+
+	if s.Display.GlobeStyle != "geo" {
+		t.Fatalf("globe style = %q, want it left as %q", s.Display.GlobeStyle, "geo")
+	}
+}

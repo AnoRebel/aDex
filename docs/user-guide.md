@@ -136,16 +136,30 @@ right, and `RESET DEFAULTS` / `CANCEL` / `SAVE` along the bottom.
 | Panel | What it controls |
 |---|---|
 | **Terminal** | Shell path, arguments, working directory |
-| **Theme** | Theme and layout preset |
+| **Theme** | Theme, layout preset, globe style, terminal colour palette |
 | **Keyboard** | On-screen keyboard layout |
 | **Font** | Interface and terminal fonts, terminal font size |
-| **Colour scheme** | Terminal colour palette |
 | **Audio** | Master enable, volume, soundpack, per-category cues |
 | **Network** | Ping target and refresh behaviour |
 | **Security** | Security-related options |
 | **System** | Startup directory and system behaviour |
 | **Advanced** | Diagnostics and lower-level options |
 | **Updates** | Update checking |
+
+### Globe style
+
+Settings → Theme → **Globe style** chooses how the world view in the right
+column is drawn:
+
+- **Classic** (default) — the stylised rotating dot-grid globe.
+- **Countries** — an orthographic projection of real country outlines, so the
+  connection marker sits on a recognisable landmass. The map data
+  (~105&nbsp;KB) is downloaded only when this style is selected.
+
+**Countries costs more CPU than Classic**, because it redraws real country
+geometry rather than a dot grid. Its redraw rate is capped to limit the
+impact, but on slower machines the interface can still feel less responsive.
+Switch back to Classic if you notice lag.
 
 Theme, layout, keyboard, fonts and audio apply **as you change them**, so you
 can judge the effect before committing. `CANCEL` reverts to the last saved

@@ -63,9 +63,34 @@ On this 12-core machine, ~25% of a core is roughly 2% of total CPU capacity.
 The figure is nonetheless higher than a mostly-static interface warrants, and
 the globe is the reason.
 
+### Globe style and CPU
+
+Settings → Theme → **Globe style** changes what the world view draws, and the
+two options do not cost the same. Measured back-to-back on the same machine,
+same layout, same window size, whole process group (application + WebKit
+render process), 15-second samples:
+
+| Globe style | CPU (of one core) |
+|---|---|
+| **Classic** (dot grid, default) | ~70% |
+| **Countries** (country outlines) | ~99% |
+
+Countries costs roughly 40% more than Classic. Both figures were taken while
+the machine was under other load, so treat them as a *ratio* rather than as
+absolute idle numbers.
+
+The Countries globe projects its geometry inline rather than through d3-geo's
+`geoPath`. That is not a micro-optimisation: `geoPath` costs ~21 ms per redraw
+on this data (177 countries, 286 rings, 10,587 points), against ~0.3 ms for a
+direct projection pass — d3's generic per-point stream (clipping, adaptive
+resampling, transform plumbing) dominates, and an orthographic globe at panel
+size needs none of it. Redraws are additionally capped at 20 fps, since the
+globe turns only 6°/second.
+
 ### Reducing CPU further
 
 - Minimise or switch away from the window: rendering stops.
+- Use the **Classic** globe style rather than **Countries**.
 - Themes without the globe panel (the `notype` and `fulltype` layout presets
   change which panels are shown) avoid the animation cost.
 

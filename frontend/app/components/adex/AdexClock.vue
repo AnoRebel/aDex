@@ -1,5 +1,8 @@
 <template>
-  <div class="mod-panel">
+  <!-- `mod-clock-panel` on the root so the column can size this panel by
+       name, as it does for every other module. The inner `mod-clock` is the
+       digits themselves and was already taken. -->
+  <div class="mod-panel mod-clock-panel">
     <div class="mod-clock" :class="{ 'clock-blink': colonVisible }">
       <template v-for="(char, index) in displayChars" :key="index">
         <em v-if="char === ':'">:</em>

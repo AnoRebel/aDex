@@ -36,6 +36,15 @@ var (
 // defaultThemeID must match useAdexTheme's DEFAULT_THEME_ID.
 const defaultThemeID = "tron"
 
+// Globe rendering styles, matching the components pages/index.vue selects
+// between: the stylised dot grid and the country-outline projection.
+var validGlobeStyles = map[string]bool{
+	"classic": true,
+	"geo":     true,
+}
+
+const defaultGlobeStyle = "classic"
+
 // validateDisplay repairs display settings that name something the
 // application does not ship. Returns true when a value was changed, so the
 // caller can persist the repair instead of re-reporting it every start.
@@ -50,6 +59,16 @@ func validateDisplay(s *models.UISettings) bool {
 
 	if !validThemes[s.Display.Theme] {
 		s.Display.Theme = defaultThemeID
+		changed = true
+	}
+
+	// An unset globe style means an older settings file written before the
+	// choice existed; fill in the default rather than treating it as invalid.
+	if s.Display.GlobeStyle == "" {
+		s.Display.GlobeStyle = defaultGlobeStyle
+		changed = true
+	} else if !validGlobeStyles[s.Display.GlobeStyle] {
+		s.Display.GlobeStyle = defaultGlobeStyle
 		changed = true
 	}
 

@@ -59,6 +59,8 @@ type UIDisplaySettings struct {
 	FontFamily       string `json:"fontFamily"`
 	// Layout preset override. Empty = follow the active theme's layout.
 	Layout string `json:"layout"`
+	// Globe rendering style: "classic" (stylised dot grid) or "geo" (country outlines).
+	GlobeStyle string `json:"globeStyle"`
 }
 
 // UIAudioSettings ← SettingsData.audio
@@ -132,6 +134,7 @@ func DefaultUISettings() *UISettings {
 			TerminalFontSize: 14,
 			FontFamily:       "'Fira Code', monospace",
 			Layout:           "",
+			GlobeStyle:       "classic",
 		},
 		Audio: UIAudioSettings{
 			Enabled:             true,

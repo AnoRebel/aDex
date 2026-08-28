@@ -150,7 +150,7 @@
             :key="'left-' + panel"
             :label="panel.toUpperCase()"
           >
-            <component :is="PANEL_COMPONENTS[panel]" />
+            <component :is="panelComponent(panel)" />
           </ErrorBoundary>
         </template>
         <template v-else>
@@ -164,7 +164,7 @@
             :label="moduleLabel(id)"
           >
             <component
-              :is="PANEL_COMPONENTS[id]"
+              :is="panelComponent(id)"
               v-bind="id === 'clock' ? { use24Hour: use24HourClock } : {}"
             />
           </ErrorBoundary>
@@ -256,7 +256,7 @@
             :key="'right-' + panel"
             :label="panel.toUpperCase()"
           >
-            <component :is="PANEL_COMPONENTS[panel]" />
+            <component :is="panelComponent(panel)" />
           </ErrorBoundary>
         </template>
         <template v-else>
@@ -267,7 +267,7 @@
             class="region-wrap"
           >
             <ErrorBoundary :label="moduleLabel(id)">
-              <component :is="PANEL_COMPONENTS[id]" />
+              <component :is="panelComponent(id)" />
             </ErrorBoundary>
           </div>
         </template>
@@ -377,6 +377,7 @@ import AdexToplist from '~/components/adex/AdexToplist.vue'
 import AdexFilesystem from '~/components/adex/AdexFilesystem.vue'
 import AdexNetstat from '~/components/adex/AdexNetstat.vue'
 import AdexGlobe from '~/components/adex/AdexGlobe.vue'
+import AdexGeoGlobe from '~/components/adex/AdexGeoGlobe.vue'
 import AdexTraffic from '~/components/adex/AdexTraffic.vue'
 import AdexKeyboard from '~/components/adex/AdexKeyboard.vue'
 import { useAdexTheme } from '~/composables/useAdexTheme'
@@ -551,6 +552,7 @@ const advancedBootSettings = useStorage<{
     performanceMode?: boolean
     clockFormat?: '12h' | '24h'
   }
+  display?: { globeStyle?: 'classic' | 'geo' }
 }>('adex-settings', {})
 
 // Same store, read reactively for the System-panel toggles so changing one
@@ -631,6 +633,16 @@ const modulesEngine = useModules()
 const lockScreenRef = ref<{ lock: () => Promise<void>; refresh: () => Promise<void> } | null>(null)
 
 /** Human label for a module id, used for the error-boundary caption. */
+/** Settings → Theme → Globe style. 'geo' draws real country outlines; the
+ *  default is the stylised dot-grid globe. */
+const globeStyle = computed(() => systemSettings.value?.display?.globeStyle ?? 'classic')
+
+/** Resolve a panel id to its component, honouring the globe-style choice. */
+function panelComponent(id: string): unknown {
+  if (id === 'globe') return globeStyle.value === 'geo' ? AdexGeoGlobe : AdexGlobe
+  return PANEL_COMPONENTS[id]
+}
+
 function moduleLabel(id: string): string {
   return (MODULES.find(m => m.id === id)?.label ?? id).toUpperCase()
 }
@@ -647,7 +659,7 @@ const PANEL_COMPONENTS: Record<string, unknown> = {
   toplist:    AdexToplist,
   filesystem: AdexFilesystem,
   netstat:    AdexNetstat,
-  globe:      AdexGlobe,
+  globe:      AdexGlobe,  // replaced at render time by globeComponent
   traffic:    AdexTraffic,
   keyboard:   AdexKeyboard,
 }
@@ -1435,14 +1447,37 @@ onUnmounted(() => {
 /* The tall mods still claim the leftover space, but their floors are now a
    fraction of the column too, so a fixed vh cannot exceed what is available
    on a short window. */
+/* Text-only panels must never be compressed: they have no canvas to scale
+   down, so `flex-shrink` just hides their last rows behind the panel's
+   `overflow: hidden` — SYSTEM INFO lost its RAM line and HARDWARE INSPECTOR
+   its CHASSIS line exactly this way. Pin them to their content height and
+   let the panels that CAN scale (the charts and the process list) absorb
+   the pressure instead.
+
+   The left column renders panels as DIRECT children (no .region-wrap), so
+   `.mod-column > *` applies to the panel itself and this override needs the
+   same shape to beat it. */
+.mod-column > :deep(.mod-sysinfo),
+.mod-column > :deep(.mod-hardware),
+.mod-column > :deep(.mod-clock-panel) {
+  flex: 0 0 auto;
+}
+
 .mod-column :deep(.mod-toplist) { flex: 1 1 auto; min-height: min(22vh, 30%); }
 .mod-column :deep(.mod-traffic) { flex: 1 1 auto; min-height: min(16vh, 25%); }
-/* The globe was `flex: 0 1 auto`, so it never grew and the column's leftover
-   height went unclaimed — the right column sat at ~77% filled and the traffic
-   graph looked squashed. Let it take a share of the remainder alongside the
-   traffic panel, while keeping the canvas roughly square via its own aspect
-   handling. */
-.mod-column :deep(.mod-globe) { flex: 0 1 auto; min-height: min(14vh, 22%); }
+/* The globe's wrapper grows to claim the column's leftover height, so the
+   panel inside must grow with it — left at `flex: 0 1 auto` the panel kept
+   its natural height and the surplus showed up as a dead gap between the
+   world view and the traffic chart. `1 1 auto` makes the panel fill the
+   wrapper it was already given. */
+.mod-column :deep(.mod-globe) { flex: 1 1 auto; min-height: min(14vh, 22%); }
+
+/* The countries globe sizes itself: a square canvas plus four readout rows.
+   Imposing a vh cap here fought that intrinsic height and clipped whichever
+   of the two lost, so let the panel take the height its content needs. */
+.mod-column :deep(.mod-geo-globe) {
+  flex: 0 0 auto;
+}
 
 /* Region wrappers (added so v-show has a real element to act on) sit between
    the column and its panels. The `.mod-column > *` rule above gives them
@@ -1456,9 +1491,27 @@ onUnmounted(() => {
   flex-direction: column;
   min-height: 0;
 }
-/* A wrapper around a panel that should not grow must not grow either. */
+/* A wrapper around a panel that should not grow must not grow either.
+   ErrorBoundary sits between the wrapper and the panel, so match the panel
+   at any depth rather than as a direct child. Without this the countries
+   globe's wrapper stretched while the fixed-height panel inside it did not,
+   leaving a large empty gap above the traffic chart. */
 .mod-column > .region-wrap:has(> .mod-netstat) {
   flex: 0 1 auto;
+}
+
+/* The countries globe has a fixed intrinsic height (a square canvas plus
+   four readout rows), so its wrapper must not stretch — the extra height
+   would just be an empty gap above the traffic chart.
+
+   This has to live in the SCOPED block, immediately after the
+   `.mod-column > .region-wrap` rule it overrides: that rule carries the
+   page's data-v attribute (specificity 0,3,1), so the same rule written
+   unscoped in main.css loses the cascade and does nothing. `:deep()` is
+   what lets :has() match .mod-geo-globe, which carries the child
+   component's scope id rather than this page's. */
+.mod-column > .region-wrap:has(:deep(.mod-geo-globe)) {
+  flex: 0 0 auto;
 }
 
 /* Mod inner contents must respect their parent's height so the canvas
