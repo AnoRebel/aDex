@@ -39,18 +39,21 @@
     <nav class="adex-topbar" role="navigation" aria-label="Section navigation">
       <div
         class="topbar-section"
-        :class="{ active: topSection === 'panel' }"
-        @click="setTopSection('panel')"
+        :class="{ active: regions.left }"
+        title="Show or hide the left panel column"
+        @click="toggleRegion('left')"
       >PANEL</div>
       <div
         class="topbar-section"
-        :class="{ active: topSection === 'system' }"
-        @click="setTopSection('system')"
+        :class="{ active: regions.bottom }"
+        title="Show or hide the file manager and keyboard"
+        @click="toggleRegion('bottom')"
       >SYSTEM</div>
       <div
         class="topbar-section"
-        :class="{ active: topSection === 'terminal' }"
-        @click="setTopSection('terminal')"
+        :class="{ active: regions.terminal }"
+        title="Show or hide the terminal"
+        @click="toggleRegion('terminal')"
       >TERMINAL</div>
 
       <div class="topbar-spacer" />
@@ -96,13 +99,15 @@
 
       <div
         class="topbar-section"
-        :class="{ active: topSection === 'rightPanel' }"
-        @click="setTopSection('rightPanel')"
+        :class="{ active: regions.right }"
+        title="Show or hide the right panel column"
+        @click="toggleRegion('right')"
       >PANEL</div>
       <div
         class="topbar-section"
-        :class="{ active: topSection === 'network' }"
-        @click="setTopSection('network')"
+        :class="{ active: regions.network }"
+        title="Show or hide the network panels"
+        @click="toggleRegion('network')"
       >NETWORK</div>
 
       <!-- Window controls — pinned right -->
@@ -135,7 +140,7 @@
     <div class="adex-main">
 
       <!-- LEFT COLUMN -->
-      <aside class="mod-column left">
+      <aside v-show="regions.left" class="mod-column left">
         <!-- A custom layout renders this region from its definition; with no
              custom layout active the built-in composition below is used, so
              the shipped presets behave exactly as before. -->
@@ -164,7 +169,7 @@
       </aside>
 
       <!-- CENTER: MAIN SHELL -->
-      <section class="adex-center">
+      <section v-show="regions.terminal" class="adex-center">
         <div class="main-shell">
           <!-- Tab strip inside the shell -->
           <div class="shell-tabs">
@@ -241,7 +246,7 @@
       </section>
 
       <!-- RIGHT COLUMN -->
-      <aside class="mod-column right">
+      <aside v-show="regions.right" class="mod-column right">
         <template v-if="customPanelsFor('right')">
           <ErrorBoundary
             v-for="panel in customPanelsFor('right')"
@@ -252,15 +257,15 @@
           </ErrorBoundary>
         </template>
         <template v-else>
-          <ErrorBoundary label="NETWORK"><AdexNetstat /></ErrorBoundary>
+          <ErrorBoundary v-show="regions.network" label="NETWORK"><AdexNetstat /></ErrorBoundary>
           <ErrorBoundary label="WORLD VIEW"><AdexGlobe /></ErrorBoundary>
-          <ErrorBoundary label="TRAFFIC"><AdexTraffic /></ErrorBoundary>
+          <ErrorBoundary v-show="regions.network" label="TRAFFIC"><AdexTraffic /></ErrorBoundary>
         </template>
       </aside>
     </div>
 
     <!-- BOTTOM SECTION: FILESYSTEM + KEYBOARD -->
-    <div class="adex-bottom">
+    <div v-show="regions.bottom" class="adex-bottom">
       <AdexFilesystem @navigate="onFsNavigate" @open="onFsOpen" />
       <!-- AdexKeyboard sends keystrokes directly via terminalStore.sendInput;
            a stale `@key="onVirtualKey"` listener was removed because the
@@ -694,10 +699,32 @@ function onBootComplete() {
 }
 
 // Top bar active section (cosmetic)
-const topSection = ref('terminal')
-function setTopSection(section: string) {
-  topSection.value = section
+/* Top-bar region toggles.
+ *
+ * These labels previously did nothing: setTopSection wrote a ref that only
+ * five :class bindings ever read, so clicking them moved a highlight and
+ * changed no layout. They now show and hide the region each one names, which
+ * is what their eDEX-UI counterparts implied.
+ *
+ * Persisted so a hidden panel stays hidden across launches. */
+const regions = useStorage('adex.regions', {
+  left: true,
+  right: true,
+  bottom: true,
+  terminal: true,
+  network: true,
+})
+
+function toggleRegion(name: 'left' | 'right' | 'bottom' | 'terminal' | 'network') {
+  regions.value = { ...regions.value, [name]: !regions.value[name] }
+  try { useAdexAudio().playCue('panels') } catch { /* non-fatal */ }
+  // Terminals size themselves to their container, so refit after the layout
+  // settles or the visible tab keeps its old dimensions.
+  void nextTick(() => {
+    for (const ref of Object.values(terminalRefs.value)) ref?.fit?.()
+  })
 }
+
 
 // Shell tabs
 interface ShellTab {

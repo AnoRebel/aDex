@@ -84,6 +84,8 @@
               <div class="settings-field">
                 <label class="settings-label">Theme ({{ themeIndex.length }} available)</label>
                 <USelectMenu
+                  variant="none"
+                  color="neutral"
                   v-model="localSettings.display.theme"
                   :items="themeMenuItems"
                   value-key="id"
@@ -106,6 +108,8 @@
               <div class="settings-field">
                 <label class="settings-label">Layout preset</label>
                 <USelectMenu
+                  variant="none"
+                  color="neutral"
                   v-model="localSettings.display.layout"
                   :items="layoutItems"
                   value-key="id"
@@ -148,6 +152,8 @@
               <div class="settings-field">
                 <label class="settings-label">Layout ({{ kbIndex.length }} available)</label>
                 <USelectMenu
+                  variant="none"
+                  color="neutral"
                   v-model="localSettings.display.keyboardLayout"
                   :items="kbMenuItems"
                   value-key="id"
@@ -182,6 +188,8 @@
               <div class="settings-field">
                 <label class="settings-label">Terminal Font Family</label>
                 <USelectMenu
+                  variant="none"
+                  color="neutral"
                   v-model="localSettings.display.fontFamily"
                   :items="fontFamilyItems"
                   value-key="id"
@@ -217,6 +225,8 @@
               <div v-if="!useThemeColors" class="settings-field">
                 <label class="settings-label">Scheme</label>
                 <USelectMenu
+                  variant="none"
+                  color="neutral"
                   v-model="selectedColorScheme"
                   :items="colorSchemeItems"
                   value-key="id"
@@ -240,6 +250,8 @@
                   </span>
                 </label>
                 <USelectMenu
+                  variant="none"
+                  color="neutral"
                   v-model="localSettings.network.adapter"
                   :items="adapterItems"
                   value-key="id"
@@ -257,6 +269,8 @@
               <div class="settings-field">
                 <label class="settings-label">Ping Target</label>
                 <USelectMenu
+                  variant="none"
+                  color="neutral"
                   v-model="pingTargetPreset"
                   :items="pingTargetPresetItems"
                   value-key="id"
@@ -408,6 +422,8 @@
               <div class="settings-field">
                 <label class="settings-label">Soundpack</label>
                 <USelectMenu
+                  variant="none"
+                  color="neutral"
                   v-model="localSettings.audio.soundpack"
                   :items="audioPackItems"
                   value-key="id"
@@ -526,6 +542,8 @@
               <div class="settings-field">
                 <label class="settings-label">Open Terminal & File Manager In</label>
                 <USelectMenu
+                  variant="none"
+                  color="neutral"
                   v-model="localSettings.system.initialCwd"
                   :items="initialCwdItems"
                   value-key="id"
@@ -545,6 +563,8 @@
               <div class="settings-field">
                 <label class="settings-label">Clock Format</label>
                 <USelectMenu
+                  variant="none"
+                  color="neutral"
                   v-model="localSettings.system.clockFormat"
                   :items="clockFormatItems"
                   value-key="id"
@@ -780,6 +800,8 @@
               <div class="settings-field">
                 <label class="settings-label">Check frequency</label>
                 <USelectMenu
+                  variant="none"
+                  color="neutral"
                   v-model="updates.settings.value.interval"
                   :items="updateIntervalItems"
                   value-key="id"
