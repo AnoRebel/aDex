@@ -86,17 +86,34 @@ func decodeCue(id string) ([]byte, error) {
 		return nil, fmt.Errorf("decode cue %q: %w", id, err)
 	}
 
-	// Normalise integer PCM to -1..1. Float-encoded WAVs already are.
-	scale := 1.0
-	if buf.SourceBitDepth > 0 && dec.WavAudioFormat != 3 {
-		scale = 1.0 / float64(int64(1)<<(buf.SourceBitDepth-1))
-	}
-
 	srcCh := buf.Format.NumChannels
 	if srcCh < 1 {
 		srcCh = 1
 	}
-	frames := len(buf.Data) / srcCh
+
+	// Convert the decoder's ints into real sample values.
+	//
+	// go-audio does NOT decode IEEE-float WAVs (format 3): it hands back the
+	// raw 32-bit float BIT PATTERNS widened into ints, so the values span
+	// roughly +/-2e9 rather than -1..1. Reading those as integer PCM produces
+	// pure noise — which is why every float-encoded cue was distorted while
+	// the integer ones (the click and keypress sounds) played correctly.
+	samples := make([]float64, len(buf.Data))
+	if dec.WavAudioFormat == 3 {
+		for i, v := range buf.Data {
+			samples[i] = float64(math.Float32frombits(uint32(int32(v))))
+		}
+	} else {
+		scale := 1.0
+		if buf.SourceBitDepth > 0 {
+			scale = 1.0 / float64(int64(1)<<(buf.SourceBitDepth-1))
+		}
+		for i, v := range buf.Data {
+			samples[i] = float64(v) * scale
+		}
+	}
+
+	frames := len(samples) / srcCh
 
 	// Linear resample when the cue's rate differs from the context's. These
 	// are short interface sounds, so nearest-neighbour is inaudible here and
@@ -117,7 +134,7 @@ func decodeCue(id string) ([]byte, error) {
 			if sc >= srcCh {
 				sc = srcCh - 1
 			}
-			v := float64(buf.Data[src*srcCh+sc]) * scale
+			v := samples[src*srcCh+sc]
 			if v > 1 {
 				v = 1
 			} else if v < -1 {

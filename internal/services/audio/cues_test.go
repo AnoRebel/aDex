@@ -1,6 +1,10 @@
 package audio
 
-import "testing"
+import (
+	"encoding/binary"
+	"math"
+	"testing"
+)
 
 // Every shipped cue must decode. The cues span several WAV encodings
 // (24000/44100/48000 Hz, 16/24/32-bit, integer and float), so this is the
@@ -41,5 +45,35 @@ func TestDecodeCue_IsCached(t *testing.T) {
 	}
 	if len(a) != len(b) {
 		t.Fatalf("cached decode differs: %d vs %d bytes", len(a), len(b))
+	}
+}
+
+// Decoded audio must land in -1..1. IEEE-float WAVs (format 3) previously
+// decoded to raw float BIT PATTERNS widened into ints — values around +/-2e9 —
+// which played as pure noise. Integer-PCM cues were unaffected, which is why
+// only the click and keypress sounds were correct.
+func TestDecodeCue_SamplesAreNormalised(t *testing.T) {
+	for id := range CueNames {
+		pcm, err := decodeCue(id)
+		if err != nil {
+			t.Errorf("cue %q: %v", id, err)
+			continue
+		}
+		var peak float32
+		for i := 0; i+4 <= len(pcm); i += 4 {
+			v := math.Float32frombits(binary.LittleEndian.Uint32(pcm[i : i+4]))
+			if v < 0 {
+				v = -v
+			}
+			if v > peak {
+				peak = v
+			}
+		}
+		if peak > 1.0001 {
+			t.Errorf("cue %q: peak amplitude %g exceeds full scale — samples are not normalised", id, peak)
+		}
+		if peak == 0 {
+			t.Errorf("cue %q: decoded to silence", id)
+		}
 	}
 }
