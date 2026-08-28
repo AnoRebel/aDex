@@ -154,17 +154,20 @@
           </ErrorBoundary>
         </template>
         <template v-else>
-          <ErrorBoundary label="CLOCK"><AdexClock :use24-hour="use24HourClock" /></ErrorBoundary>
-          <ErrorBoundary label="SYSTEM INFO"><AdexSysinfo /></ErrorBoundary>
-          <!-- AdexHardware temporarily commented out at user request — the
-               "Manufacturer/Model/Chassis: Unknown/rebel/Desktop" output
-               wasn't useful and the panel was eating column height that
-               the toplist needed. Re-enable when sysinfo is more accurate
-               or we add a settings toggle. -->
-          <!-- <AdexHardware /> -->
-          <ErrorBoundary label="CPU"><AdexCpuInfo /></ErrorBoundary>
-          <ErrorBoundary label="MEMORY"><AdexRamWatcher /></ErrorBoundary>
-          <ErrorBoundary label="PROCESSES"><AdexToplist ref="toplistRef" /></ErrorBoundary>
+          <!-- Rendered from module state so Settings → Modules controls both
+               which panels appear and their order. AdexHardware is included
+               again but hidden by default, since it is now switchable rather
+               than commented out. -->
+          <ErrorBoundary
+            v-for="id in modulesEngine.visibleIn('left')"
+            :key="'left-' + id"
+            :label="moduleLabel(id)"
+          >
+            <component
+              :is="PANEL_COMPONENTS[id]"
+              v-bind="id === 'clock' ? { use24Hour: use24HourClock } : {}"
+            />
+          </ErrorBoundary>
         </template>
       </aside>
 
@@ -257,9 +260,16 @@
           </ErrorBoundary>
         </template>
         <template v-else>
-          <ErrorBoundary v-show="regions.network" label="NETWORK"><AdexNetstat /></ErrorBoundary>
-          <ErrorBoundary label="WORLD VIEW"><AdexGlobe /></ErrorBoundary>
-          <ErrorBoundary v-show="regions.network" label="TRAFFIC"><AdexTraffic /></ErrorBoundary>
+          <div
+            v-for="id in modulesEngine.visibleIn('right')"
+            v-show="id === 'globe' || regions.network"
+            :key="'right-' + id"
+            class="region-wrap"
+          >
+            <ErrorBoundary :label="moduleLabel(id)">
+              <component :is="PANEL_COMPONENTS[id]" />
+            </ErrorBoundary>
+          </div>
         </template>
       </aside>
     </div>
@@ -351,6 +361,7 @@ import { useAppStore } from '~/stores/app'
 import { WindowRuntime } from '~/lib/wailsjs/runtime'
 import { useAdexAudio } from '~/composables/useAdexAudio'
 import { useCustomLayouts } from '~/composables/useCustomLayouts'
+import { useModules, MODULES } from '~/composables/useModules'
 import ErrorBoundary from '~/components/ui/ErrorBoundary.vue'
 import AdexClock from '~/components/adex/AdexClock.vue'
 import AdexSysinfo from '~/components/adex/AdexSysinfo.vue'
@@ -610,6 +621,12 @@ const activeLayout = computed<string>(() => {
  * template. When no custom layout is active, `customPanels` is null and the
  * original markup renders exactly as before. */
 const customLayoutEngine = useCustomLayouts()
+const modulesEngine = useModules()
+
+/** Human label for a module id, used for the error-boundary caption. */
+function moduleLabel(id: string): string {
+  return (MODULES.find(m => m.id === id)?.label ?? id).toUpperCase()
+}
 
 /** Panel id (what users write in layouts.json) -> component.
  *  These ids are a compatibility surface: renaming one breaks existing

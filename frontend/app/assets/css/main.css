@@ -1224,3 +1224,14 @@ input[type='number']::-webkit-inner-spin-button {
   flex: 1 1 100%;
   width: 100%;
 }
+
+/* Wrapper used where a region toggle needs a real element to receive
+   v-show's inline style — ErrorBoundary renders a bare slot, which has no
+   single root for the directive to act on. Must not affect layout. */
+.region-wrap {
+  /* NOT display:contents — v-show toggles `display:none`, which a contents
+     box would ignore. Behave as a transparent block so the column's flex
+     layout is unchanged while still being a real element. */
+  display: block;
+  min-width: 0;
+}

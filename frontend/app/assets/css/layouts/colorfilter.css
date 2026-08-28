@@ -10,10 +10,19 @@
  * their `layout` to `colorfilter`.
  */
 
-[data-layout="colorfilter"] .adex-app {
-  filter: contrast(1.05) saturate(1.1);
+/* `data-layout` is set ON .adex-app, so `[data-layout="..."] .adex-app` is a
+ * descendant selector that matches nothing — this preset did literally nothing
+ * before. Use &-style self-selection instead.
+ *
+ * The effect was also far too subtle to perceive (contrast 1.05 / saturate
+ * 1.1). Make it a real monochrome pass, which is what the name implies: the
+ * interface renders in shades of the accent colour rather than full colour. */
+.adex-app[data-layout="colorfilter"] {
+  filter: grayscale(1) contrast(1.15) brightness(1.05);
 }
 
-[data-layout="colorfilter"] .adex-background {
-  filter: hue-rotate(-6deg);
+/* Keep the terminal readable in colour — monochroming program output makes
+ * syntax highlighting and ls colours useless. */
+.adex-app[data-layout="colorfilter"] .shell-terminal {
+  filter: grayscale(0);
 }

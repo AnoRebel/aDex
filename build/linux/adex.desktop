@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=aDex-UI
-Exec=aDex-UI
-Icon=aDex-UI
+Name=adex
+Exec=adex
+Icon=adex
 Categories=Development;
 Terminal=false
 Keywords=wails

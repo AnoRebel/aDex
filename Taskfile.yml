@@ -7,7 +7,7 @@ includes:
   linux: ./build/linux/Taskfile.yml
 
 vars:
-  APP_NAME: "aDex-UI"
+  APP_NAME: "adex"
   BIN_DIR: "bin"
   # This project uses bun (see frontend/package.json packageManager). The v3
   # build Taskfile dispatches frontend install/build/dev through this var.

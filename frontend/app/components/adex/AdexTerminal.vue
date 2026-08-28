@@ -18,7 +18,7 @@
  *   fit()        – refit the terminal to its container
  */
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
-import { useResizeObserver, useTimeoutFn, useDebounceFn } from '@vueuse/core'
+import { useResizeObserver, useTimeoutFn, useDebounceFn, useStorage } from '@vueuse/core'
 import { useTerminalStore } from '~/stores/terminal'
 import { useAdexAudio } from '~/composables/useAdexAudio'
 import { pulseKey } from '~/composables/useKeyboardPulse'
@@ -38,6 +38,11 @@ import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Events } from '~/lib/wailsjs/runtime'
+
+/** Settings → Advanced → WebGL terminal renderer. Off by default: the Mesa
+ *  driver has been observed aborting the whole webview process from this path
+ *  (SIGABRT inside libgallium). */
+const useWebglRenderer = useStorage<boolean>('adex.terminal.webgl', false)
 // NOTE: We deliberately don't import @xterm/addon-canvas here.
 //   1. The package only ships CJS (no `module` field), and Vite's
 //      named-import-from-CJS interop fails for the UMD self-assigning
@@ -151,18 +156,39 @@ function initTerminal() {
   //
   // A try/catch alone is not enough — it only covers failure to LOAD the
   // addon, not loss of the context afterwards.
-  try {
-    const webgl = new WebglAddon()
-    webgl.onContextLoss(() => {
-      // eslint-disable-next-line no-console
-      console.info('[terminal] WebGL context lost — falling back to the DOM renderer')
-      try { webgl.dispose() } catch { /* already gone */ }
-      // Re-fit so the DOM renderer lays out at the current size.
-      try { fitAddon?.fit() } catch { /* container not measured yet */ }
-    })
-    term.loadAddon(webgl)
-  } catch {
-    // Fall through to xterm's default DOM renderer.
+  // WebGL is OPT-IN, and off by default.
+  //
+  // Two captured coredumps show WebKitWebProcess aborting with SIGABRT on a
+  // glibc heap error raised inside libgallium — the Mesa GPU driver — which is
+  // what killed the app mid-session. xterm's WebGL addon is the only WebGL
+  // consumer in the interface (the globe is a 2D canvas), so it is the path
+  // driving that code.
+  //
+  // This is a driver-level fault, not something the application can fix:
+  // libgallium heap crashes on Intel are a known Mesa 26.x pattern (26.2.1
+  // alone shipped fixes for a persistent-buffer refcounting leak affecting
+  // multiple Gallium backends). Observed here on Mesa 26.2.1 with Intel Iris
+  // Xe and WebKitGTK 2.52.6 — which is well past the WebKitGTK 2.50.6 heap-
+  // corruption fix, so that separate upstream bug is not the cause.
+  //
+  // The DOM renderer is slower on very heavy output but is stable and always
+  // draws, which is the better default for a terminal you leave open. Users on
+  // a known-good driver can turn WebGL back on in Settings → Advanced.
+  if (useWebglRenderer.value) {
+    try {
+      const webgl = new WebglAddon()
+      // Dispose on context loss, otherwise the terminal keeps drawing to a
+      // dead context and renders blank with no recovery.
+      webgl.onContextLoss(() => {
+        // eslint-disable-next-line no-console
+        console.info('[terminal] WebGL context lost — falling back to the DOM renderer')
+        try { webgl.dispose() } catch { /* already gone */ }
+        try { fitAddon?.fit() } catch { /* container not measured yet */ }
+      })
+      term.loadAddon(webgl)
+    } catch {
+      // Fall through to xterm's default DOM renderer.
+    }
   }
 
   // Open and fit. We defer the first fit() via VueUse's useTimeoutFn

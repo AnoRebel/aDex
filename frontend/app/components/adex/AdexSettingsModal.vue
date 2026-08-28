@@ -536,6 +536,54 @@
             </div>
 
             <!-- SYSTEM -->
+            <!-- MODULES -->
+            <div v-if="activeCategory === 'modules'" class="settings-section">
+              <div class="settings-section-title">MODULES</div>
+              <p class="settings-hint">
+                Show, hide and reorder individual panels. The top-bar buttons
+                toggle whole columns; this is the per-panel control.
+              </p>
+
+              <div v-for="region in (['left','right','bottom'] as const)" :key="region" class="settings-field">
+                <label class="settings-label">{{ regionLabel(region) }}</label>
+                <div class="module-list">
+                  <div
+                    v-for="(mod, idx) in modulesEngine.allIn(region)"
+                    :key="mod.id"
+                    class="module-row"
+                    :class="{ 'module-hidden': modulesEngine.isHidden(mod.id) }"
+                  >
+                    <USwitch
+                      :model-value="!modulesEngine.isHidden(mod.id)"
+                      size="sm"
+                      color="primary"
+                      :aria-label="'Show ' + mod.label"
+                      @update:model-value="(v: boolean) => modulesEngine.setHidden(mod.id, !v)"
+                    />
+                    <span class="module-name">{{ mod.label }}</span>
+                    <button
+                      type="button"
+                      class="module-move"
+                      :disabled="idx === 0"
+                      title="Move up"
+                      @click="modulesEngine.move(mod.id, -1)"
+                    >▲</button>
+                    <button
+                      type="button"
+                      class="module-move"
+                      :disabled="idx === modulesEngine.allIn(region).length - 1"
+                      title="Move down"
+                      @click="modulesEngine.move(mod.id, 1)"
+                    >▼</button>
+                  </div>
+                </div>
+              </div>
+
+              <button type="button" class="settings-btn" @click="modulesEngine.reset()">
+                RESET MODULE LAYOUT
+              </button>
+            </div>
+
             <div v-if="activeCategory === 'system'" class="settings-section">
               <div class="settings-section-title">SYSTEM SETTINGS</div>
 
@@ -892,6 +940,7 @@ import { ref, reactive, watch, computed, onMounted } from 'vue'
 import { useStorage, useDebounceFn, useEventListener } from '@vueuse/core'
 import { useAdexTheme } from '~/composables/useAdexTheme'
 import { useCustomLayouts } from '~/composables/useCustomLayouts'
+import { useModules } from '~/composables/useModules'
 import { WindowRuntime } from '~/lib/wailsjs/runtime'
 import { useAdexKeyboard } from '~/composables/useAdexKeyboard'
 import { useAdexAudio } from '~/composables/useAdexAudio'
@@ -1035,6 +1084,7 @@ const categories: Category[] = [
   { id: 'audio',       label: 'AUDIO' },
   { id: 'network',     label: 'NETWORK' },
   { id: 'security',    label: 'SECURITY' },
+  { id: 'modules',     label: 'MODULES' },
   { id: 'system',      label: 'SYSTEM' },
   { id: 'advanced',    label: 'ADVANCED' },
   { id: 'updates',     label: 'UPDATES' },
@@ -1248,6 +1298,11 @@ const BUILTIN_LAYOUTS = [
 // Built-ins plus anything the user defined in layouts.json. Custom entries
 // are suffixed so they are distinguishable in the list.
 const customLayoutEngine = useCustomLayouts()
+const modulesEngine = useModules()
+
+function regionLabel(region: 'left' | 'right' | 'bottom'): string {
+  return { left: 'Left column', right: 'Right column', bottom: 'Bottom row' }[region]
+}
 const layoutItems = computed(() => [
   ...BUILTIN_LAYOUTS,
   ...customLayoutEngine.layouts.value.map(l => ({
@@ -1998,6 +2053,43 @@ onMounted(async () => {
   color: var(--ok, #10b981);
   opacity: 1;
 }
+
+/* Module list (Settings -> Modules) */
+.module-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.module-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.3rem 0.5rem;
+  border: var(--border_width, 1px) solid var(--color_accent_dimmed, rgba(170, 207, 209, 0.25));
+  background: var(--color_light_black, #05080d);
+}
+
+.module-row.module-hidden .module-name { opacity: 0.4; }
+
+.module-name {
+  flex: 1 1 auto;
+  color: var(--color_accent, rgb(170, 207, 209));
+  font-family: var(--font_main, monospace);
+  font-size: 0.78rem;
+}
+
+.module-move {
+  flex: 0 0 auto;
+  padding: 0.1rem 0.45rem;
+  background: transparent;
+  border: var(--border_width, 1px) solid var(--color_accent_dimmed, rgba(170, 207, 209, 0.3));
+  color: var(--color_accent, rgb(170, 207, 209));
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+.module-move:hover:not(:disabled) { background: var(--color_accent_glow, rgba(170, 207, 209, 0.15)); }
+.module-move:disabled { opacity: 0.25; cursor: not-allowed; }
 
 /* Drag + resize affordances */
 .settings-header {

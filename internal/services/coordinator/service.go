@@ -24,6 +24,7 @@ import (
 	"aDex-UI/internal/services/colorscheme"
 	"aDex-UI/internal/services/font"
 	"aDex-UI/internal/services/network"
+	"aDex-UI/internal/services/security"
 	"aDex-UI/internal/services/settings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -66,6 +67,9 @@ type ServiceCoordinator struct {
 	// cache seeded from / flushed to this store.
 	uiSettings *settings.UIStore
 
+	// Session lock. Nil only if construction failed; every accessor guards.
+	lock *security.LockService
+
 	// Service state
 	isStarted bool
 	mu        sync.RWMutex
@@ -94,6 +98,7 @@ func NewServiceCoordinator() *ServiceCoordinator {
 	return &ServiceCoordinator{
 		platform: platform,
 		eventBus: events.GetEventBus(),
+		lock:     security.NewLockService(),
 	}
 }
 
@@ -618,6 +623,10 @@ func emitBootStage(stage, tag, text, detail string) {
 // directory. Kept for backwards compatibility with frontend code that
 // pre-dates the Settings → System "Open in" preference.
 func (sc *ServiceCoordinator) CreateTerminal(width, height int) (*terminal.Terminal, error) {
+	if err := sc.guardLocked(); err != nil {
+		return nil, err
+	}
+
 	sc.mu.RLock()
 	defer sc.mu.RUnlock()
 
@@ -661,6 +670,10 @@ func (sc *ServiceCoordinator) CreateTerminalIn(width, height int, cwd string) (*
 // arrow-key escape sequences) correctly because xterm.js sends them
 // as raw byte strings in the same encoding the PTY expects.
 func (sc *ServiceCoordinator) WriteToTerminal(terminalID string, data string) error {
+	if err := sc.guardLocked(); err != nil {
+		return err
+	}
+
 	sc.mu.RLock()
 	defer sc.mu.RUnlock()
 
@@ -1846,6 +1859,10 @@ func (sc *ServiceCoordinator) GetTopProcesses(metric string, limit int) (interfa
 // boundary stays stable and platform-neutral; the system service maps
 // the name onto a syscall.Signal internally.
 func (sc *ServiceCoordinator) SignalProcess(pid int, signal string) error {
+	if err := sc.guardLocked(); err != nil {
+		return err
+	}
+
 	sc.mu.RLock()
 	defer sc.mu.RUnlock()
 
@@ -1857,6 +1874,10 @@ func (sc *ServiceCoordinator) SignalProcess(pid int, signal string) error {
 
 // ReadDirectory reads the contents of a directory
 func (sc *ServiceCoordinator) ReadDirectory(path string) (interface{}, error) {
+	if err := sc.guardLocked(); err != nil {
+		return nil, err
+	}
+
 	sc.mu.RLock()
 	defer sc.mu.RUnlock()
 
@@ -1911,6 +1932,10 @@ func (sc *ServiceCoordinator) CreateFile(path string) error {
 // DeleteFile permanently removes a file or empty directory.
 // The frontend MUST confirm with the user before calling this.
 func (sc *ServiceCoordinator) DeleteFile(path string) error {
+	if err := sc.guardLocked(); err != nil {
+		return err
+	}
+
 	sc.mu.RLock()
 	defer sc.mu.RUnlock()
 
@@ -1998,4 +2023,83 @@ func (sc *ServiceCoordinator) GetAvailableCues() []string {
 		return []string{}
 	}
 	return svc.AvailableCues()
+}
+
+/* Session lock -----------------------------------------------------------
+ *
+ * Scope: this gates an already-running session against someone who walks up
+ * to an unattended machine. It is NOT authentication. The application runs as
+ * the invoking OS user, so anyone with access to that account can open a
+ * terminal directly without going through aDex.
+ *
+ * Enforcement lives here rather than only in the UI: `guardLocked` is applied
+ * to the methods that expose the filesystem, terminals and process control, so
+ * a locked session refuses to serve even if the overlay is bypassed. */
+
+// guardLocked returns ErrLocked when the session is locked.
+func (sc *ServiceCoordinator) guardLocked() error {
+	if sc.lock != nil && sc.lock.IsLocked() {
+		return security.ErrLocked
+	}
+	return nil
+}
+
+// LockSession engages the lock. Fails when no passphrase is configured, so a
+// user cannot lock themselves out with no way back in.
+func (sc *ServiceCoordinator) LockSession() error {
+	if sc.lock == nil {
+		return fmt.Errorf("lock unavailable")
+	}
+	return sc.lock.Lock()
+}
+
+// UnlockSession clears the lock when the passphrase matches.
+func (sc *ServiceCoordinator) UnlockSession(passphrase string) error {
+	if sc.lock == nil {
+		return fmt.Errorf("lock unavailable")
+	}
+	return sc.lock.Unlock(passphrase)
+}
+
+// IsSessionLocked reports the current lock state.
+func (sc *ServiceCoordinator) IsSessionLocked() bool {
+	return sc.lock != nil && sc.lock.IsLocked()
+}
+
+// IsLockConfigured reports whether a passphrase has been set.
+func (sc *ServiceCoordinator) IsLockConfigured() bool {
+	return sc.lock != nil && sc.lock.IsConfigured()
+}
+
+// SetLockPassphrase sets or changes the passphrase. Changing an existing one
+// requires the current value.
+func (sc *ServiceCoordinator) SetLockPassphrase(current, next string) error {
+	if sc.lock == nil {
+		return fmt.Errorf("lock unavailable")
+	}
+	return sc.lock.SetPassphrase(current, next)
+}
+
+// DisableLock removes the lock; requires the current passphrase.
+func (sc *ServiceCoordinator) DisableLock(passphrase string) error {
+	if sc.lock == nil {
+		return fmt.Errorf("lock unavailable")
+	}
+	return sc.lock.Disable(passphrase)
+}
+
+// GetLockIdleTimeout returns the auto-lock delay in seconds; 0 means never.
+func (sc *ServiceCoordinator) GetLockIdleTimeout() int {
+	if sc.lock == nil {
+		return 0
+	}
+	return sc.lock.IdleTimeoutSeconds()
+}
+
+// SetLockIdleTimeout sets the auto-lock delay in seconds; 0 disables it.
+func (sc *ServiceCoordinator) SetLockIdleTimeout(seconds int) error {
+	if sc.lock == nil {
+		return fmt.Errorf("lock unavailable")
+	}
+	return sc.lock.SetIdleTimeout(seconds)
 }
