@@ -521,6 +521,7 @@ export function useAdexAudio(): UseAdexAudioApi {
   async function initialize() {
     if (isInitialized.value) return;
     isInitialized.value = true;
+    await probeBackendAudio();
     if (settings.value.pack === "adex") {
       // Best-effort preload of the most common cues. Failures fall back to synth.
       await Promise.allSettled(
@@ -542,6 +543,46 @@ export function useAdexAudio(): UseAdexAudioApi {
  * locked, so the splash is heard from that point rather than staying silent
  * for the whole sequence.
  */
+/* Backend playback ---------------------------------------------------------
+ *
+ * Availability is probed once. When the backend cannot play a cue — no audio
+ * device, or running in a browser with no IPC peer — we fall back to the
+ * webview path rather than going silent. */
+let backendAudioAvailable = false;
+let backendProbe: Promise<void> | null = null;
+
+function probeBackendAudio(): Promise<void> {
+  if (backendProbe) return backendProbe;
+  backendProbe = (async () => {
+    try {
+      const { GetAvailableCues } = await import("~/lib/wailsjs/coordinator");
+      const cues = await GetAvailableCues();
+      backendAudioAvailable = Array.isArray(cues) && cues.length > 0;
+    } catch {
+      backendAudioAvailable = false;
+    }
+  })();
+  return backendProbe;
+}
+
+// Probe eagerly at module load. The boot splash plays cues before anything
+// calls initialize(), so waiting for that would miss exactly the sequence this
+// change exists to fix.
+if (typeof window !== "undefined") {
+  void probeBackendAudio();
+}
+
+async function playViaBackend(cue: EdexCue, volume: number): Promise<void> {
+  try {
+    const { PlayCue } = await import("~/lib/wailsjs/coordinator");
+    await PlayCue(cue, volume);
+  } catch {
+    // A single failed call must not silence the app: drop back to the
+    // webview path for the rest of the session.
+    backendAudioAvailable = false;
+  }
+}
+
 let pendingCue: EdexCue | null = null;
 let gestureArmed = false;
 
@@ -600,16 +641,38 @@ function playCue(name: string): void {
     const vol = effectiveVolume(cue);
     if (vol <= 0) return;
 
-    // Before the first user gesture the platform will not produce sound.
-    // Remember the cue and arm the unlock rather than scheduling into a
-    // suspended context, where it would be dropped without trace.
+    _playCount.value += 1;
+
+    // Prefer the Go backend.
+    //
+    // The webview refuses to start audio before a user gesture, which silently
+    // dropped every boot-splash cue. Go plays through the OS audio stack, where
+    // no such policy applies, so the splash is audible from the first frame.
+    // Policy stays here: `vol` is already resolved from per-cue volume, the
+    // category gates and the master mute, so the backend only performs
+    // playback.
+    if (backendAudioAvailable) {
+      void playViaBackend(cue, vol);
+      return;
+    }
+
+    // The probe may still be in flight when the boot splash fires its first
+    // cue. Wait for it rather than falling through to the webview, which is
+    // precisely the path that cannot play before a user gesture.
+    if (backendProbe) {
+      void backendProbe.then(() => {
+        if (backendAudioAvailable) void playViaBackend(cue, vol);
+      });
+      return;
+    }
+
+    // Webview fallback (browser preview, or backend audio unavailable). Under
+    // the autoplay policy the first cues may be deferred until a gesture.
     if (audioLocked()) {
       pendingCue = cue;
       armGestureUnlock();
       return;
     }
-
-    _playCount.value += 1;
 
     if (settings.value.pack === "synth") {
       playSynth(cue, vol);

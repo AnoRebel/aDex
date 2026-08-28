@@ -1959,3 +1959,43 @@ func (sc *ServiceCoordinator) GetCustomLayouts() ([]interface{}, error) {
 func (sc *ServiceCoordinator) GetCustomLayoutsPath() string {
 	return settings.CustomLayoutsPath()
 }
+
+// PlayCue plays an interface sound from the Go side.
+//
+// Audio moved out of the webview because the webview will not start playback
+// before a user gesture (WebKitGTK's media-playback-requires-user-gesture,
+// which Wails exposes no Linux setting for). That silently dropped every boot
+// splash cue until the user first clicked or typed. Playing through the OS
+// audio stack has no such precondition, so splash audio works from the first
+// frame.
+//
+// Volume is the already-resolved value for this cue (0..1): the frontend still
+// owns policy — per-cue volume, category mutes, rate limiting — and this call
+// performs playback only.
+//
+// Returns nil when audio is unavailable. Cues are decorative and must never
+// turn a missing sound device into a caller-visible failure.
+func (sc *ServiceCoordinator) PlayCue(id string, volume float64) error {
+	sc.mu.RLock()
+	svc := sc.audio
+	started := sc.isStarted
+	sc.mu.RUnlock()
+
+	if !started || svc == nil {
+		return nil
+	}
+	return svc.PlayCue(id, volume)
+}
+
+// GetAvailableCues lists the cue ids the backend can play, so the frontend can
+// tell whether to use the Go path or fall back to its own webview playback.
+func (sc *ServiceCoordinator) GetAvailableCues() []string {
+	sc.mu.RLock()
+	svc := sc.audio
+	sc.mu.RUnlock()
+
+	if svc == nil {
+		return []string{}
+	}
+	return svc.AvailableCues()
+}

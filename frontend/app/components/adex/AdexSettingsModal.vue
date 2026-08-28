@@ -357,11 +357,22 @@
             <!-- SECURITY -->
             <div v-if="activeCategory === 'security'" class="settings-section">
               <div class="settings-section-title">SECURITY</div>
+              <p class="settings-hint">
+                aDex runs as a single-user desktop application: it inherits
+                your operating-system session and adds no separate login.
+                Terminals run as your user, with your permissions.
+              </p>
+              <p class="settings-hint" style="opacity: 0.75;">
+                The backend does apply input validation to paths and shell
+                arguments — blocking directory traversal and command injection
+                in filesystem and terminal requests. That protection is always
+                on and has nothing to configure.
+              </p>
               <p class="settings-hint" style="opacity: 0.6;">
-                Multi-user authentication, session timeouts, and audit
-                logging are exposed by `internal/services/security` but
-                not yet wired through this panel. Single-user mode is
-                the current default and requires no configuration.
+                Multi-user authentication, session timeouts and audit logging
+                are not implemented. They are tracked as a separate change
+                rather than partially exposed here, since a half-built
+                authentication panel implies protection that does not exist.
               </p>
             </div>
 
