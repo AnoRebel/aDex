@@ -6,9 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"time"
 
 	"aDex-UI/internal/appdir"
 	"aDex-UI/internal/services/coordinator"
+	"aDex-UI/internal/services/settings"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -110,22 +112,20 @@ func main() {
 			// from wails/v3/internal/optional, which application code cannot
 			// import. So it cannot be set from here on any platform.
 		},
-		// GPU acceleration is OFF by default on Linux.
+		// GPU acceleration is ON by default, and configurable.
 		//
-		// Three WebKitWebProcess coredumps here all point into the Mesa stack:
-		// two SIGABRT heap corruptions inside libgallium mid-session, and a
-		// SIGSEGV inside dri_gbm/libgbm during process exit. The renderer dying
-		// takes the window with it, and none of it is reachable from Go — which
-		// is why the Go crash log stayed empty throughout.
+		// Three WebKitWebProcess coredumps here point into the Mesa stack (two
+		// SIGABRT heap corruptions in libgallium, one SIGSEGV in dri_gbm during
+		// exit). Turning acceleration off avoids that path — but it makes the
+		// interface noticeably laggy, which is too high a price to impose by
+		// default for a driver bug that may not affect a given machine.
 		//
-		// Note that WebviewGpuPolicyOnDemand is NOT a middle setting on this
-		// platform: WebKitGTK 6.0 removed ON_DEMAND, and Wails maps the value
-		// to ALWAYS, so the previous setting was forcing acceleration on
-		// permanently rather than leaving it to the engine.
+		// So it stays on, and Settings -> Advanced exposes it with a warning.
+		// Users hitting the crash can turn it off and trade smoothness for
+		// stability.
 		//
-		// Software rendering costs some compositing performance but keeps the
-		// application alive. ADEX_GPU=1 opts back in for anyone on a driver
-		// where this is not a problem.
+		// Note WebviewGpuPolicyOnDemand is NOT a middle setting here: WebKitGTK
+		// 6.0 removed ON_DEMAND and Wails maps it to ALWAYS.
 		Linux: application.LinuxWindow{
 			WindowIsTranslucent: false,
 			WebviewGpuPolicy:    linuxGpuPolicy(),
@@ -137,9 +137,31 @@ func main() {
 	// teardown path: ShouldQuit, then each service's ServiceShutdown in
 	// reverse registration order. The coordinator's Shutdown is idempotent
 	// (guarded by isStarted), so a repeated call is harmless.
-	if err := app.Run(); err != nil {
+	// Record how the run ended.
+	//
+	// Three of the crashes so far left NO Go panic and no core dump for this
+	// process: the WebKit renderer died and Wails unwound the parent normally,
+	// so there was nothing to find afterwards. Writing the outcome here means
+	// the next unexplained exit at least says whether app.Run returned an
+	// error, returned cleanly, or never returned at all.
+	logSessionEvent("run: start")
+	err := app.Run()
+	if err != nil {
+		logSessionEvent("run: exited with error: " + err.Error())
 		log.Fatal(err)
 	}
+	logSessionEvent("run: exited cleanly")
+}
+
+// logSessionEvent appends a timestamped line to the crash log. Best-effort:
+// diagnostics must never themselves break the application.
+func logSessionEvent(msg string) {
+	f, err := os.OpenFile(crashLogPath(), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	_, _ = f.WriteString(time.Now().Format(time.RFC3339) + " " + msg + "\n")
 }
 
 // crashLogPath returns the file native and runtime crash output is appended to.
@@ -157,12 +179,20 @@ func debugSetCrashOutput(f *os.File) error {
 
 // linuxGpuPolicy decides whether the webview may use GPU acceleration.
 //
-// Defaults to Never because the Mesa driver on this platform has been observed
-// crashing the web process both mid-session and at exit. Set ADEX_GPU=1 to
-// re-enable it.
+// On by default: software rendering is stable but visibly laggy. The setting
+// is read from the UI settings file rather than a flag, so the choice persists
+// and is changeable from Settings -> Advanced. ADEX_GPU overrides it for a
+// single run (1 = on, 0 = off), which is useful when the crash makes the app
+// hard to reach.
 func linuxGpuPolicy() application.WebviewGpuPolicy {
-	if os.Getenv("ADEX_GPU") == "1" {
+	switch os.Getenv("ADEX_GPU") {
+	case "1":
 		return application.WebviewGpuPolicyAlways
+	case "0":
+		return application.WebviewGpuPolicyNever
 	}
-	return application.WebviewGpuPolicyNever
+	if settings.GPUAccelerationDisabled() {
+		return application.WebviewGpuPolicyNever
+	}
+	return application.WebviewGpuPolicyAlways
 }

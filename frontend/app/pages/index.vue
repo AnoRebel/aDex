@@ -392,6 +392,7 @@ interface SettingsPayload {
     keyboardLayout?: string
     terminalFontSize?: number
     fontFamily?: string
+    uiFontFamily?: string
     layout?: string
   }
   audio?: {
@@ -985,12 +986,21 @@ function onSettingsChanged(settings: SettingsPayload) {
     })
     applyGroup('display.fonts', () => {
       const root = document.documentElement
+      // Interface font: empty means "follow the theme", so an explicit clear
+      // must remove the override rather than being skipped.
+      if (typeof display.uiFontFamily === 'string') {
+        if (display.uiFontFamily.trim()) {
+          root.style.setProperty('--font_main', display.uiFontFamily)
+          root.style.setProperty('--font_main_light', display.uiFontFamily)
+        } else {
+          root.style.removeProperty('--font_main')
+          root.style.removeProperty('--font_main_light')
+        }
+      }
       if (display.fontFamily) {
-        // Both variables matter: --font_main styles the interface panels and
-        // --terminal_font is what AdexTerminal reads when building xterm's
-        // font stack. Setting only the former left the terminal unchanged,
-        // which is why the font setting appeared to do nothing.
-        root.style.setProperty('--font_main', display.fontFamily)
+        // Terminal only. --terminal_font is what AdexTerminal reads when
+        // building xterm's font stack; the interface font is a separate
+        // setting above, so this must not touch --font_main.
         root.style.setProperty('--terminal_font', display.fontFamily)
       }
       if (display.terminalFontSize) {
@@ -1432,7 +1442,7 @@ onUnmounted(() => {
    graph looked squashed. Let it take a share of the remainder alongside the
    traffic panel, while keeping the canvas roughly square via its own aspect
    handling. */
-.mod-column :deep(.mod-globe) { flex: 1 1 auto; min-height: min(18vh, 28%); }
+.mod-column :deep(.mod-globe) { flex: 0 1 auto; min-height: min(14vh, 22%); }
 
 /* Region wrappers (added so v-show has a real element to act on) sit between
    the column and its panels. The `.mod-column > *` rule above gives them

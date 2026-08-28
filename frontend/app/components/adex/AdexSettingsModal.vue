@@ -143,6 +143,43 @@
                   </span>
                 </p>
               </div>
+
+              <!-- Terminal palette. Merged in from what used to be its own
+                   COLOR SCHEME panel: two controls did not justify a separate
+                   section, and the palette is part of theming. -->
+              <div class="settings-section-title" style="margin-top: 1.2rem;">
+                TERMINAL PALETTE
+              </div>
+
+
+              <div class="settings-field settings-field-toggle">
+                <label class="settings-label">Use theme colors</label>
+                <USwitch
+                  v-model="useThemeColors"
+                  size="md"
+                  color="primary"
+                  aria-label="Use theme colors"
+                />
+              </div>
+              <p class="settings-hint">
+                When ON, the terminal palette derives from the active
+                theme. Turn OFF to pick a separate color scheme.
+              </p>
+
+              <div v-if="!useThemeColors" class="settings-field">
+                <label class="settings-label">Scheme</label>
+                <USelectMenu
+                  variant="none"
+                  color="neutral"
+                  v-model="selectedColorScheme"
+                  :items="colorSchemeItems"
+                  value-key="id"
+                  label-key="label"
+                  :search-input="{ placeholder: 'Search schemes...' }"
+                  class="settings-select"
+                  @update:model-value="onColorSchemeApply"
+                />
+              </div>
             </div>
 
             <!-- KEYBOARD -->
@@ -198,43 +235,28 @@
                   class="settings-select"
                 />
                 <p class="settings-hint">
-                  Applies to the terminal renderer. Mod panels use the
-                  theme-defined display font.
+                  Applies to the terminal renderer only.
                 </p>
               </div>
-            </div>
 
-            <!-- COLOR SCHEME -->
-            <div v-if="activeCategory === 'colorscheme'" class="settings-section">
-              <div class="settings-section-title">COLOR SCHEME</div>
-
-              <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Use theme colors</label>
-                <USwitch
-                  v-model="useThemeColors"
-                  size="md"
-                  color="primary"
-                  aria-label="Use theme colors"
-                />
-              </div>
-              <p class="settings-hint">
-                When ON, the terminal palette derives from the active
-                theme. Turn OFF to pick a separate color scheme.
-              </p>
-
-              <div v-if="!useThemeColors" class="settings-field">
-                <label class="settings-label">Scheme</label>
+              <div class="settings-field">
+                <label class="settings-label">Interface Font Family</label>
                 <USelectMenu
                   variant="none"
                   color="neutral"
-                  v-model="selectedColorScheme"
-                  :items="colorSchemeItems"
+                  v-model="localSettings.display.uiFontFamily"
+                  :items="uiFontFamilyItems"
                   value-key="id"
                   label-key="label"
-                  :search-input="{ placeholder: 'Search schemes...' }"
+                  :search-input="false"
                   class="settings-select"
-                  @update:model-value="onColorSchemeApply"
+                  @update:model-value="onUiFontApply"
                 />
+                <p class="settings-hint">
+                  Applies to the panels, settings and top bar.
+                  <strong>Theme default</strong> uses whichever display font
+                  the active theme ships with.
+                </p>
               </div>
             </div>
 
@@ -775,6 +797,23 @@
               </p>
 
               <div class="settings-field settings-field-toggle">
+                <label class="settings-label">Disable GPU Acceleration</label>
+                <USwitch
+                  v-model="localSettings.advanced.disableGpu"
+                  size="md"
+                  color="primary"
+                  aria-label="Disable GPU acceleration"
+                />
+              </div>
+              <p class="settings-hint">
+                <strong>Only turn this on if the app crashes.</strong> Some
+                graphics drivers crash the rendering process — if aDex closes
+                by itself, this usually stops it. The cost is a noticeably
+                less responsive interface, since drawing falls back to the
+                CPU. Takes effect on next launch.
+              </p>
+
+              <div class="settings-field settings-field-toggle">
                 <label class="settings-label">Frameless Window</label>
                 <USwitch
                   v-model="localSettings.advanced.frameless"
@@ -1033,6 +1072,8 @@ interface SettingsData {
     keyboardLayout: string
     terminalFontSize: number
     fontFamily: string
+    /** Interface font. Empty means follow the active theme. */
+    uiFontFamily: string
     /** Layout preset override. Empty string = follow the active theme's
      *  layout. Otherwise one of the layout CSS files in
      *  assets/css/layouts/: 'default', 'disrupted', 'typeleft',
@@ -1101,6 +1142,8 @@ interface SettingsData {
     /** Force the window into fullscreen on launch even if the OS WM
      *  would normally honor the saved Windowed state. */
     forceFullscreen: boolean
+    /** Fall back to CPU rendering. Costs responsiveness; avoids driver crashes. */
+    disableGpu: boolean
     /** Remove the OS titlebar/border. Applied live via the runtime. */
     frameless: boolean
     /** Hide dotfiles (.git, .config, etc.) in the file manager. */
@@ -1150,7 +1193,6 @@ const categories: Category[] = [
   { id: 'theme',       label: 'THEME' },
   { id: 'keyboard',    label: 'KEYBOARD' },
   { id: 'font',        label: 'FONT' },
-  { id: 'colorscheme', label: 'COLOR SCHEME' },
   { id: 'audio',       label: 'AUDIO' },
   { id: 'network',     label: 'NETWORK' },
   { id: 'security',    label: 'SECURITY' },
@@ -1422,6 +1464,28 @@ const KEYBINDS = [
   { action: 'Toggle file browser',  keys: 'Ctrl + Shift + F' },
   { action: 'Toggle system monitor', keys: 'Ctrl + Shift + S' },
 ]
+
+/** Interface font choices. The empty id means "follow the theme". */
+const uiFontFamilyItems = computed(() => [
+  { id: '', label: 'Theme default' },
+  ...fontFamilyItems.value.map(f => ({ id: f.id, label: f.label })),
+])
+
+/** Applied live so the effect is visible before saving, matching theme and
+ *  keyboard. An empty value restores the theme's own display font. */
+function onUiFontApply(value: unknown) {
+  const root = document.documentElement
+  const font = typeof value === 'string' ? value.trim() : ''
+  if (font) {
+    root.style.setProperty('--font_main', font)
+    root.style.setProperty('--font_main_light', font)
+  } else {
+    // Clearing the override lets the theme's value apply again.
+    root.style.removeProperty('--font_main')
+    root.style.removeProperty('--font_main_light')
+    void themeEngine.setTheme(themeEngine.activeId.value)
+  }
+}
 
 const clockFormatItems = [
   { id: '24h', label: '24-Hour' },
@@ -1746,6 +1810,7 @@ function getDefaultSettings(): SettingsData {
       keyboardLayout: 'en-US',
       terminalFontSize: 14,
       fontFamily: "'Fira Code', monospace",
+      uiFontFamily: '',
       // Empty string = follow the theme's bundled layout. User-picked
       // values override that and persist via Settings → Theme → Layout.
       layout: '',
@@ -1795,6 +1860,7 @@ function getDefaultSettings(): SettingsData {
       scrollback: 5000,
       nointro: false,
       forceFullscreen: false,
+      disableGpu: false,
       frameless: false,
       hideDotfiles: true,
       fsListView: false,

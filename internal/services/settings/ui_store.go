@@ -174,3 +174,25 @@ func (s *UIStore) persist(v *models.UISettings) error {
 	}
 	return nil
 }
+
+// GPUAccelerationDisabled reports whether the user turned off webview GPU
+// acceleration in Settings → Advanced.
+//
+// Read directly from the file rather than through the store, because the
+// window is constructed before services start — there is no coordinator to
+// ask yet.
+func GPUAccelerationDisabled() bool {
+	data, err := os.ReadFile(filepath.Join(appdir.Config(), uiSettingsFileName))
+	if err != nil {
+		return false
+	}
+	var probe struct {
+		Advanced struct {
+			DisableGPU bool `json:"disableGpu"`
+		} `json:"advanced"`
+	}
+	if err := json.Unmarshal(data, &probe); err != nil {
+		return false
+	}
+	return probe.Advanced.DisableGPU
+}
