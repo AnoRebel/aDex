@@ -11,21 +11,22 @@ import (
 	"sync"
 	"time"
 
-	"aDex-UI/internal/services/audio"
-	"aDex-UI/internal/services/config"
-	"aDex-UI/internal/services/filesystem"
-	"aDex-UI/internal/services/system"
-	"aDex-UI/internal/services/terminal"
-	"aDex-UI/internal/services/theme"
-	"aDex-UI/internal/utils"
 	"aDex-UI/internal/events"
 	"aDex-UI/internal/logger"
 	"aDex-UI/internal/models"
+	"aDex-UI/internal/services/audio"
 	"aDex-UI/internal/services/colorscheme"
+	"aDex-UI/internal/services/config"
+	"aDex-UI/internal/services/filesystem"
 	"aDex-UI/internal/services/font"
 	"aDex-UI/internal/services/network"
 	"aDex-UI/internal/services/security"
 	"aDex-UI/internal/services/settings"
+	"aDex-UI/internal/services/system"
+	"aDex-UI/internal/services/terminal"
+	"aDex-UI/internal/services/theme"
+	"aDex-UI/internal/utils"
+	"github.com/wailsapp/wails/v3/pkg/services/notifications"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -70,6 +71,9 @@ type ServiceCoordinator struct {
 	// Session lock. Nil only if construction failed; every accessor guards.
 	lock *security.LockService
 
+	// Desktop notifications via the platform notification centre.
+	notifications *notifications.NotificationService
+
 	// Service state
 	isStarted bool
 	mu        sync.RWMutex
@@ -96,9 +100,10 @@ func NewServiceCoordinator() *ServiceCoordinator {
 	platform := utils.DetectPlatform()
 
 	return &ServiceCoordinator{
-		platform: platform,
-		eventBus: events.GetEventBus(),
-		lock:     security.NewLockService(),
+		platform:      platform,
+		eventBus:      events.GetEventBus(),
+		lock:          security.NewLockService(),
+		notifications: notifications.New(),
 	}
 }
 
@@ -463,7 +468,7 @@ func (sc *ServiceCoordinator) Shutdown() error {
 // oto context — none of which JSON-encode. Returning any of those
 // triggers a launch fatal:
 //
-//   FAT | json: unsupported type: func() error
+//	FAT | json: unsupported type: func() error
 //
 // The returned `interface{}` is non-nil for known types, nil otherwise;
 // callers type-assert.
@@ -1625,7 +1630,9 @@ func tryIpifyAndIplocate(ctx context.Context) map[string]interface{} {
 	if err != nil {
 		return nil
 	}
-	var ipResult struct{ IP string `json:"ip"` }
+	var ipResult struct {
+		IP string `json:"ip"`
+	}
 	if err := json.Unmarshal(ipBody, &ipResult); err != nil || ipResult.IP == "" {
 		return nil
 	}
@@ -2102,4 +2109,89 @@ func (sc *ServiceCoordinator) SetLockIdleTimeout(seconds int) error {
 		return fmt.Errorf("lock unavailable")
 	}
 	return sc.lock.SetIdleTimeout(seconds)
+}
+
+/* Desktop notifications ---------------------------------------------------
+ *
+ * Backed by the Wails notifications service, which uses the platform's own
+ * notification centre (freedesktop on Linux, Notification Center on macOS,
+ * Action Center on Windows) rather than an in-window toast — so a message
+ * about a long-running operation still reaches the user when aDex is behind
+ * another window, which is the whole point.
+ *
+ * The frontend decides WHETHER to notify (the user's category preferences);
+ * this only performs delivery. */
+
+// SendNotification posts a desktop notification.
+//
+// Returns nil when notifications are unavailable or the platform denies
+// permission: a missing notification must never turn into a failure in the
+// operation that triggered it.
+func (sc *ServiceCoordinator) SendNotification(title, body string) error {
+	if sc.notifications == nil {
+		return nil
+	}
+	err := sc.notifications.SendNotification(notifications.NotificationOptions{
+		// A stable-ish id keyed on the title lets repeated notifications of
+		// the same kind replace one another instead of stacking up.
+		ID:    "adex-" + title,
+		Title: title,
+		Body:  body,
+	})
+	if err != nil {
+		// Swallowed deliberately: a notification that does not arrive must not
+		// fail the operation that asked for it. Logged so it is diagnosable.
+		fmt.Printf("[notifications] not delivered: %v\n", err)
+	}
+	return nil
+}
+
+// RequestNotificationPermission asks the platform for permission, where the
+// platform requires it. Reports whether notifications may be sent.
+func (sc *ServiceCoordinator) RequestNotificationPermission() (bool, error) {
+	if sc.notifications == nil {
+		return false, nil
+	}
+	return sc.notifications.RequestNotificationAuthorization()
+}
+
+// NotificationsAvailable reports whether the platform will accept
+// notifications, so the settings panel can say so rather than offering a
+// toggle that silently does nothing.
+func (sc *ServiceCoordinator) NotificationsAvailable() bool {
+	if sc.notifications == nil {
+		return false
+	}
+	ok, err := sc.notifications.CheckNotificationAuthorization()
+	return err == nil && ok
+}
+
+/* User-authored themes ----------------------------------------------------
+ *
+ * The bundled themes are compiled into the binary. These let a user add their
+ * own by dropping a JSON file in the config directory — the same shape as
+ * custom layouts. Entries stay generic JSON because the frontend owns the
+ * theme schema and validates against it. */
+
+// GetUserThemes returns the user's own themes. A missing directory yields an
+// empty list, which is the normal case.
+func (sc *ServiceCoordinator) GetUserThemes() ([]interface{}, error) {
+	return settings.LoadUserThemes()
+}
+
+// GetUserThemesPath returns where user themes are read from, so the settings
+// panel can tell the user which directory to use.
+func (sc *ServiceCoordinator) GetUserThemesPath() string {
+	return settings.UserThemesPath()
+}
+
+// SaveUserTheme writes a user theme. The id becomes the filename and is
+// validated against path traversal.
+func (sc *ServiceCoordinator) SaveUserTheme(id string, theme interface{}) error {
+	return settings.SaveUserTheme(id, theme)
+}
+
+// DeleteUserTheme removes a user theme. Bundled themes are unaffected.
+func (sc *ServiceCoordinator) DeleteUserTheme(id string) error {
+	return settings.DeleteUserTheme(id)
 }

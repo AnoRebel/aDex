@@ -797,6 +797,22 @@
               </p>
 
               <div class="settings-field settings-field-toggle">
+                <label class="settings-label">Desktop Notifications</label>
+                <USwitch
+                  v-model="localSettings.advanced.notifications"
+                  size="md"
+                  color="primary"
+                  aria-label="Desktop notifications"
+                  @update:model-value="onNotificationsToggle"
+                />
+              </div>
+              <p class="settings-hint">
+                Posts to your desktop's notification centre when a long-running
+                operation finishes, so the result reaches you even when aDex is
+                behind another window. Short operations never notify.
+              </p>
+
+              <div class="settings-field settings-field-toggle">
                 <label class="settings-label">Disable GPU Acceleration</label>
                 <USwitch
                   v-model="localSettings.advanced.disableGpu"
@@ -1144,6 +1160,8 @@ interface SettingsData {
     forceFullscreen: boolean
     /** Fall back to CPU rendering. Costs responsiveness; avoids driver crashes. */
     disableGpu: boolean
+    /** Post desktop notifications for long-running operations. */
+    notifications: boolean
     /** Remove the OS titlebar/border. Applied live via the runtime. */
     frameless: boolean
     /** Hide dotfiles (.git, .config, etc.) in the file manager. */
@@ -1441,6 +1459,22 @@ async function removeLock() {
   } catch (err) {
     lockError.value = true
     lockMessage.value = err instanceof Error ? err.message : 'Could not remove the lock'
+  }
+}
+
+/** Ask the platform for permission the first time notifications are enabled;
+ *  without it the toggle would appear on while nothing is ever delivered. */
+async function onNotificationsToggle(value: unknown) {
+  if (value !== true) return
+  try {
+    const { RequestNotificationPermission } = await import('~/lib/wailsjs/coordinator')
+    const granted = await RequestNotificationPermission()
+    if (!granted) {
+      localSettings.advanced.notifications = false
+      console.warn('[Settings] notification permission was refused')
+    }
+  } catch (err) {
+    console.error('[Settings] could not request notification permission:', err)
   }
 }
 
@@ -1861,6 +1895,7 @@ function getDefaultSettings(): SettingsData {
       nointro: false,
       forceFullscreen: false,
       disableGpu: false,
+      notifications: true,
       frameless: false,
       hideDotfiles: true,
       fsListView: false,

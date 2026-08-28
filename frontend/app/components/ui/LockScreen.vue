@@ -137,10 +137,20 @@ useEventListener(document, 'focusin', (e) => {
 })
 
 let poll: ReturnType<typeof setInterval> | null = null
+
 onMounted(async () => {
   await refresh()
-  poll = setInterval(refresh, 3000)
+
+  // Poll only when a passphrase is configured, and slowly.
+  //
+  // A fixed 3s poll ran three backend round-trips per tick for the entire
+  // session even when the lock was never set up — pure IPC traffic for
+  // nothing. Skip it entirely in the common case.
+  if (configured.value) {
+    poll = setInterval(refresh, 15_000)
+  }
 })
+
 onUnmounted(() => {
   if (poll) clearInterval(poll)
 })
