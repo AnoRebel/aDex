@@ -22,8 +22,8 @@ caller → playCue(name)
 
 WAV assets live in `frontend/app/assets/audio/adex/` and are imported
 with Vite's `?url` suffix so they emit as hashed bundle assets
-(`_nuxt/<name>.<hash>.wav`) — this works identically under `wails dev`,
-`wails build`, and a standalone Nuxt deploy. (The earlier
+(`_nuxt/<name>.<hash>.wav`) — this works identically under `wails3 dev`,
+`wails3 task build`, and a standalone Nuxt deploy. (The earlier
 `import.meta.glob` / `new URL(...)` approaches were unreliable under
 the Nuxt 4 + Wails pipeline; explicit `?url` imports are the only
 form that consistently transformed.)

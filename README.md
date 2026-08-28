@@ -13,7 +13,7 @@ A modern terminal emulator with system monitoring, built with Wails v3 and Nuxt 
 ## ✨ Features
 
 🖥️ **Terminal Emulator**
-- Multi-tab terminal with xterm.js and WebGL rendering
+- Multi-tab terminal (up to 5) with xterm.js; optional WebGL renderer
 - Full curses application support (htop, vim, tmux, etc.)
 - Real-time current working directory tracking
 - Customizable color schemes and fonts
@@ -22,7 +22,7 @@ A modern terminal emulator with system monitoring, built with Wails v3 and Nuxt 
 📊 **System Monitoring**
 - Real-time CPU, memory, disk, and process monitoring
 - Professional animated charts with Chart.js
-- <3% CPU usage with throttled updates
+- Throttled updates; see [resource usage](docs/resource-usage.md) for measured figures
 - Process sorting and filtering
 - Temperature and sensor monitoring (where available)
 
@@ -32,6 +32,23 @@ A modern terminal emulator with system monitoring, built with Wails v3 and Nuxt 
 - Active connection tracking
 - IP address information
 - GeoIP support (optional, lazy loaded)
+
+🎨 **Theming & Layout**
+- 21 themes, applied instantly and persisted
+- 7 layout presets, plus user-defined layouts in `layouts.json`
+- Every panel individually toggleable and reorderable
+- Movable, resizable settings panel
+
+🔒 **Session Lock**
+- Passphrase-protected lock screen with idle auto-lock (`Ctrl+Shift+L`)
+- Enforced in the backend, not just the UI — file, terminal and process
+  access is refused while locked
+- Terminals keep running while locked
+
+🔊 **Audio**
+- Cues for boot, shutdown, typing, tab changes and destructive actions
+- Played by the Go backend, so the splash is audible from the first frame
+- Per-category mutes, master volume, two soundpacks
 
 📁 **File Browser**
 - Visual file management with icon support
@@ -80,9 +97,21 @@ A modern terminal emulator with system monitoring, built with Wails v3 and Nuxt 
 
 ## Documentation
 
-- **[User guide](docs/user-guide.md)** — the interface, terminal tabs, themes and layouts, settings, keyboard and audio
+**Using aDex**
+- **[User guide](docs/user-guide.md)** — interface, terminal tabs, themes and layouts, settings, keyboard, audio and the session lock
+- [Troubleshooting](docs/troubleshooting.md) — common problems and fixes
 - [Resource usage](docs/resource-usage.md) — measured memory and CPU figures
-- [Development](docs/development.md) — building, the Wails v3 workflow, and contributing
+
+**Extending aDex**
+- [Themes](docs/themes.md) — writing a theme, the colour and layout schema
+- [Custom layouts](docs/user-guide.md#custom-layouts) — arranging panels via `layouts.json`
+- [Keyboard layouts](docs/keyboards.md) — adding an on-screen keyboard layout
+- [Audio cues](docs/audio.md) — the cue vocabulary and soundpacks
+
+**Developing aDex**
+- [Development](docs/development.md) — building, the Wails v3 workflow, project layout
+- [Contributing](CONTRIBUTING.md) — workflow, conventions, what a good change looks like
+- [Cross-platform packaging](docs/cross-platform-packaging.md) — building for other platforms
 
 ## Getting Started
 
@@ -176,18 +205,10 @@ aDex-UI/
 - **Nuxt Config**: `frontend/nuxt.config.ts`
 - **Build Tasks**: `Taskfile.yml` and `build/Taskfile.yml`
 
-## Documentation
-
-- Development guide: `docs/development.md`
-- Troubleshooting: `docs/troubleshooting.md`
-- Theme documentation: `docs/themes/`
-
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch from main
-3. Implement changes with proper testing
-4. Submit a pull request with description
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for the workflow, conventions and
+what to check before opening a pull request.
 
 ## License
 

@@ -28,7 +28,7 @@ start, which overstates a process that was briefly busy during boot.
 
 The frontend is embedded in the binary, so there are no external asset files
 to deploy. The application also writes a small settings file under
-`~/.config/aDex-UI/`.
+`~/.config/aDex/`.
 
 ## Memory
 

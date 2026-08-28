@@ -15,7 +15,7 @@ Programmatically: `useAdexTheme().setTheme(id)`.
 
 ## Layout vs theme
 
-Every theme declares a `layout` field — one of the six layout presets
+Every theme declares a `layout` field — one of the seven layout presets
 (see [Layout presets](#layout-presets)). By default the active theme's
 bundled layout drives the shell. The user can **override** the layout
 independently via Settings → THEME → **Layout preset**; the override
@@ -36,11 +36,12 @@ via the `data-layout` attribute on `.adex-app`.
 | Preset        | Description |
 |---------------|-------------|
 | `default`     | Classic eDEX — left mods column, center terminal + tabs, file manager bottom-left, on-screen keyboard bottom-right, right mods column. |
-| `disrupted`   | Terminal takes the full top row; network/globe in the right gutter; file manager + keyboard split the bottom row. |
-| `typeleft`    | Keyboard on the left half. |
-| `fulltype`    | Terminal full-width, no side mods. |
-| `notype`      | On-screen keyboard hidden entirely. |
-| `colorfilter` | Minimal chrome, single column. |
+| `disrupted`   | Asymmetric grid — narrower left column, wider right column, terminal between them. |
+| `typeleft`    | File manager and keyboard swap sides in the bottom row. |
+| `fulltype`    | Full-**width on-screen keyboard**, file manager hidden. (Not a fullscreen terminal — see `terminal-focus`.) |
+| `notype`      | On-screen keyboard hidden; the file manager takes the whole bottom row. |
+| `colorfilter` | Monochrome pass over the interface; the terminal keeps its colours so program output stays readable. |
+| `terminal-focus` | Terminal fills the window; side columns, keyboard and file manager hidden. |
 
 Every panel (left mods, right mods, keyboard, file manager, terminal)
 is a first-class layout slot. New panels MUST add their
