@@ -72,20 +72,53 @@ render process), 15-second samples:
 
 | Globe style | CPU (of one core) |
 |---|---|
-| **Classic** (dot grid, default) | ~70% |
-| **Countries** (country outlines) | ~99% |
+| **Classic** (dot grid, default) | ~158% |
+| **Countries** (country outlines) | ~151% |
 
-Countries costs roughly 40% more than Classic. Both figures were taken while
-the machine was under other load, so treat them as a *ratio* rather than as
-absolute idle numbers.
+The two are now at parity — Countries is no more expensive than Classic.
+Both figures were taken while the machine was under heavy other load, so
+treat them as a *ratio* rather than as absolute idle numbers.
 
-The Countries globe projects its geometry inline rather than through d3-geo's
-`geoPath`. That is not a micro-optimisation: `geoPath` costs ~21 ms per redraw
-on this data (177 countries, 286 rings, 10,587 points), against ~0.3 ms for a
-direct projection pass — d3's generic per-point stream (clipping, adaptive
-resampling, transform plumbing) dominates, and an orthographic globe at panel
-size needs none of it. Redraws are additionally capped at 20 fps, since the
-globe turns only 6°/second.
+Getting there took two changes, in order of impact:
+
+1. **Rendering moved off the main thread.** The Countries globe draws in a
+   Web Worker against an `OffscreenCanvas` transferred from the component.
+   The main thread never touches that canvas again; it only posts state
+   changes (size, colour, endpoint, visibility), because a worker has no DOM
+   and cannot measure elements or read CSS variables itself. An expensive
+   frame therefore cannot stutter the terminal, the charts or input handling.
+   Before this, Countries cost ~99% against Classic's ~70% on the same
+   machine.
+
+2. **The projection is computed inline** rather than through d3-geo's
+   `geoPath`, which measures ~21 ms per redraw on this data (177 countries,
+   286 rings, 10,587 points) against ~0.3 ms for a direct pass. d3's generic
+   per-point stream — clipping, adaptive resampling, transform plumbing —
+   dominates, and an orthographic globe at panel size needs none of it. All
+   rings go into a single path before one `stroke()`, which is markedly
+   faster than stroking per ring. Redraws are capped at 20 fps on top of
+   that, since the globe turns only 6°/second.
+
+### A note on the numbers
+
+Idle CPU for this application is dominated by `WebKitWebProcess`, not by
+anything aDex draws. High idle CPU in the WebKitGTK renderer is a known,
+long-standing issue for webview-based desktop applications on Linux
+(it affects Tauri and Wails alike), and it is not something the application
+can fix from inside the page. If the interface feels laggy, check the system
+load first — during these measurements the machine was running unrelated
+builds at ~150% CPU each, which was responsible for far more perceived lag
+than the globe ever was.
+
+### Profiling the backend
+
+The Go side can be profiled on demand; it is off by default and binds only to
+localhost:
+
+```
+ADEX_PPROF=6060 ./bin/adex
+go tool pprof -top http://localhost:6060/debug/pprof/profile?seconds=15
+```
 
 ### Reducing CPU further
 

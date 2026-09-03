@@ -156,10 +156,10 @@ column is drawn:
   connection marker sits on a recognisable landmass. The map data
   (~105&nbsp;KB) is downloaded only when this style is selected.
 
-**Countries costs more CPU than Classic**, because it redraws real country
-geometry rather than a dot grid. Its redraw rate is capped to limit the
-impact, but on slower machines the interface can still feel less responsive.
-Switch back to Classic if you notice lag.
+Countries renders in a background thread (a Web Worker drawing to an
+`OffscreenCanvas`), so it costs about the same as Classic and cannot stutter
+the terminal or the charts even when a frame is slow. See
+[resource usage](resource-usage.md) for the measurements.
 
 Theme, layout, keyboard, fonts and audio apply **as you change them**, so you
 can judge the effect before committing. `CANCEL` reverts to the last saved

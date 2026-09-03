@@ -169,11 +169,9 @@
                   loaded only when this style is selected.
                 </p>
                 <p class="settings-hint">
-                  <strong>Countries costs more CPU than Classic.</strong> It
-                  redraws real country geometry rather than a dot grid; the
-                  redraw rate is capped to limit the impact, but on slower
-                  machines the interface can still feel less responsive.
-                  Switch back to Classic if you notice lag.
+                  Countries renders in a background thread, so it costs about
+                  the same as Classic and cannot slow the terminal or the
+                  charts even when a frame is slow.
                 </p>
               </div>
 

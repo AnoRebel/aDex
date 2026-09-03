@@ -3,6 +3,8 @@ package main
 import (
 	"embed"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -27,7 +29,30 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+// startPprofIfRequested exposes Go's profiler on localhost when ADEX_PPROF is
+// set to a port. Off by default and never bound to a public interface: this
+// exists so a CPU or memory question about the backend can be answered with a
+// profile instead of guesswork.
+//
+//	ADEX_PPROF=6060 ./bin/adex
+//	go tool pprof -top http://localhost:6060/debug/pprof/profile?seconds=15
+func startPprofIfRequested() {
+	port := os.Getenv("ADEX_PPROF")
+	if port == "" {
+		return
+	}
+	addr := "localhost:" + port
+	go func() {
+		log.Printf("pprof listening on http://%s/debug/pprof/", addr)
+		if err := http.ListenAndServe(addr, nil); err != nil {
+			log.Printf("pprof server stopped: %v", err)
+		}
+	}()
+}
+
 func main() {
+	startPprofIfRequested()
+
 	// Native crashes (heap corruption inside the webview or an audio backend)
 	// abort the process without a Go panic, so nothing normally reaches the
 	// log. Route glibc's diagnostics and Go's own crash output to a file the
