@@ -11,7 +11,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/stretchr/testify v1.11.1
-	github.com/wailsapp/wails/v3 v3.0.0-beta.15
+	github.com/wailsapp/wails/v3 v3.0.0-beta.16
 	golang.org/x/crypto v0.55.0
 	gopkg.in/yaml.v3 v3.0.1
 )
