@@ -24,6 +24,7 @@ import {
   resolveCmd,
   resolveName,
 } from "~/types/kb-layout";
+import { resolveGlobbed } from "~/utils/globbed";
 
 const STORAGE_KEY = "adex.kb.layout";
 const DEFAULT_LAYOUT_ID = "en-US";
@@ -83,7 +84,7 @@ async function loadLayout(id: string): Promise<KbLayout> {
   // index.html; fetching `/assets/data/...` fails the same way, since these
   // files are not served over HTTP. import.meta.glob is statically
   // analysable, so the layouts are bundled and need no request at all.
-  const loader = layoutModules[`/assets/data/${entry.file}`];
+  const loader = resolveGlobbed(layoutModules, entry.file);
   if (!loader) throw new Error(`keyboard layout not bundled: ${entry.file}`);
   const raw: unknown = (await loader()).default ?? (await loader());
   const layout = preprocessLayout(raw as KbLayout);

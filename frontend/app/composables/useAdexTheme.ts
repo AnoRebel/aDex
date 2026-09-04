@@ -13,6 +13,7 @@ import { ref, computed, readonly, type ComputedRef, type Ref } from "vue";
 import { useStorage } from "@vueuse/core";
 import type { AdexTheme, AdexThemeIndex, LayoutPreset } from "~/types/adex-theme";
 import { parseAdexTheme } from "~/types/adex-theme";
+import { resolveGlobbed } from "~/utils/globbed";
 
 const STORAGE_KEY = "adex.theme.id";
 const DEFAULT_THEME_ID = "tron";
@@ -51,7 +52,9 @@ async function fetchJson<T>(url: string): Promise<T> {
  *
  * These files live under `app/assets/` — a build-time directory that is never
  * served over HTTP (only `frontend/public/` is) — so they must be bundled
- * rather than fetched. Verified key shape: "/assets/data/themes/tron.json". */
+ * rather than fetched. The key shape depends on how `~` resolves, which
+ * differs between the Nuxt build and Vitest, so look them up by suffix via
+ * resolveGlobbed rather than by a fixed prefix. */
 const themeModules = import.meta.glob<{ default: unknown }>(
   "~/assets/data/themes/*.json",
 );
@@ -93,7 +96,7 @@ async function loadTheme(id: string): Promise<AdexTheme> {
   //
   // import.meta.glob is statically analysable, so every theme is bundled and
   // resolved by the bundler with no network request at all.
-  const loader = themeModules[`/assets/data/${entry.file}`];
+  const loader = resolveGlobbed(themeModules, entry.file);
   if (!loader) throw new Error(`theme file not bundled: ${entry.file}`);
   const raw: unknown = (await loader()).default ?? (await loader());
   const theme = parseAdexTheme(raw);
