@@ -49,6 +49,11 @@ export interface UIDisplaySettings {
      * Layout preset override. Empty = follow the active theme's layout.
      */
     "layout": string;
+
+    /**
+     * Globe rendering style: "classic" (stylised dot grid) or "geo" (country outlines).
+     */
+    "globeStyle": string;
 }
 
 /**

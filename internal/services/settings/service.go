@@ -48,9 +48,11 @@ func (s *Service) GetSettings() *models.AppSettings {
 	s.settings.Lock()
 	defer s.settings.Unlock()
 
-	// Return a copy to prevent external modification
-	copy := *s.settings
-	return &copy
+	// Return a copy to prevent external modification. CopyValue leaves the
+	// embedded mutex behind — copying it would hand the caller a lock that is
+	// currently held.
+	copied := s.settings.CopyValue()
+	return &copied
 }
 
 // UpdateSettings updates the application settings
@@ -274,7 +276,7 @@ func (s *Service) saveSettings() error {
 
 // mergeSettings merges two settings objects, with new settings taking precedence
 func (s *Service) mergeSettings(existing, imported *models.AppSettings) *models.AppSettings {
-	merged := *existing // Start with existing as base
+	merged := existing.CopyValue() // Start with existing as base (without its lock)
 
 	// Only merge imported fields that are not default/empty
 

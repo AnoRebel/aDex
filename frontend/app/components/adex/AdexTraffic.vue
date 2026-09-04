@@ -18,8 +18,13 @@
         <span class="chart-direction">UPLOAD</span>
         <span class="chart-rate">{{ currentUploadRate }} MB/s</span>
       </div>
-      <div class="traffic-chart" ref="uploadChartContainer">
-        <canvas ref="uploadCanvas" class="traffic-canvas" />
+      <div class="traffic-chart">
+        <AdexSparkline
+          :data="uploadHistory"
+          :scale-max="uploadScaleMax"
+          :accent="accentRgb"
+          aria-label="Upload rate over the last 60 seconds"
+        />
         <div class="chart-scale">
           <span>{{ uploadScaleMax.toFixed(1) }}</span>
           <span>{{ (uploadScaleMax / 2).toFixed(1) }}</span>
@@ -34,8 +39,13 @@
         <span class="chart-direction">DOWNLOAD</span>
         <span class="chart-rate">{{ currentDownloadRate }} MB/s</span>
       </div>
-      <div class="traffic-chart" ref="downloadChartContainer">
-        <canvas ref="downloadCanvas" class="traffic-canvas" />
+      <div class="traffic-chart">
+        <AdexSparkline
+          :data="downloadHistory"
+          :scale-max="downloadScaleMax"
+          :accent="accentRgb"
+          aria-label="Download rate over the last 60 seconds"
+        />
         <div class="chart-scale">
           <span>{{ downloadScaleMax.toFixed(1) }}</span>
           <span>{{ (downloadScaleMax / 2).toFixed(1) }}</span>
@@ -53,17 +63,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useStorage, useIntervalFn } from '@vueuse/core'
 import { useNetworkStore } from '~/stores/network'
+import AdexSparkline from '~/components/adex/AdexSparkline.vue'
 
 const networkStore = useNetworkStore()
-
-// Canvas refs
-const uploadCanvas = ref<HTMLCanvasElement | null>(null)
-const downloadCanvas = ref<HTMLCanvasElement | null>(null)
-const uploadChartContainer = ref<HTMLElement | null>(null)
-const downloadChartContainer = ref<HTMLElement | null>(null)
 
 // Chart data - keep 60 data points (60 seconds of data at 1s intervals)
 const MAX_POINTS = 60
@@ -107,133 +112,19 @@ const formatBytes = (bytes: number): string => {
   return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`
 }
 
-// Read CSS accent color
-const getAccentColor = (): { r: string; g: string; b: string } => {
+// Theme accent as an `r, g, b` triple for the sparklines. The chart cannot
+// resolve CSS custom properties itself, so the value is read here and passed
+// down; re-read on theme changes so the graphs restyle with the rest of the UI.
+const accentRgb = ref('170, 207, 209')
+
+let themeObserver: MutationObserver | null = null
+
+function readAccent() {
   const style = getComputedStyle(document.documentElement)
-  return {
-    r: style.getPropertyValue('--color_r').trim() || '170',
-    g: style.getPropertyValue('--color_g').trim() || '207',
-    b: style.getPropertyValue('--color_b').trim() || '209'
-  }
-}
-
-// Draw a single line chart on a canvas
-const drawChart = (
-  canvas: HTMLCanvasElement | null,
-  container: HTMLElement | null,
-  data: number[],
-  scaleMax: number
-) => {
-  if (!canvas || !container) return
-
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-
-  const rect = container.getBoundingClientRect()
-  const dpr = window.devicePixelRatio || 1
-
-  canvas.width = rect.width * dpr
-  canvas.height = rect.height * dpr
-  canvas.style.width = `${rect.width}px`
-  canvas.style.height = `${rect.height}px`
-  ctx.scale(dpr, dpr)
-
-  const w = rect.width
-  const h = rect.height
-  const { r, g, b } = getAccentColor()
-
-  // Clear
-  ctx.clearRect(0, 0, w, h)
-
-  // Draw horizontal grid lines
-  ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.07)`
-  ctx.lineWidth = 0.5
-  for (let i = 0; i <= 4; i++) {
-    const y = (h / 4) * i
-    ctx.beginPath()
-    ctx.moveTo(0, y)
-    ctx.lineTo(w, y)
-    ctx.stroke()
-  }
-
-  // Draw vertical grid lines
-  for (let i = 0; i <= 6; i++) {
-    const x = (w / 6) * i
-    ctx.beginPath()
-    ctx.moveTo(x, 0)
-    ctx.lineTo(x, h)
-    ctx.stroke()
-  }
-
-  if (data.length < 2) return
-
-  // Calculate the scale leaving some headroom
-  const max = scaleMax > 0 ? scaleMax : 1
-
-  // Draw the fill area
-  const gradient = ctx.createLinearGradient(0, 0, 0, h)
-  gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.3)`)
-  gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0.02)`)
-
-  ctx.fillStyle = gradient
-  ctx.beginPath()
-  ctx.moveTo(0, h)
-
-  const pointSpacing = w / (MAX_POINTS - 1)
-  for (let i = 0; i < data.length; i++) {
-    const x = i * pointSpacing
-    const y = h - (data[i] / max) * h
-    if (i === 0) {
-      ctx.lineTo(x, y)
-    } else {
-      ctx.lineTo(x, y)
-    }
-  }
-
-  ctx.lineTo((data.length - 1) * pointSpacing, h)
-  ctx.closePath()
-  ctx.fill()
-
-  // Draw the line
-  ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.9)`
-  ctx.lineWidth = 1.5
-  ctx.lineJoin = 'round'
-  ctx.lineCap = 'round'
-  ctx.beginPath()
-
-  for (let i = 0; i < data.length; i++) {
-    const x = i * pointSpacing
-    const y = h - (data[i] / max) * h
-    if (i === 0) {
-      ctx.moveTo(x, y)
-    } else {
-      ctx.lineTo(x, y)
-    }
-  }
-
-  ctx.stroke()
-
-  // Draw glow on the last point
-  const lastX = (data.length - 1) * pointSpacing
-  const lastY = h - (data[data.length - 1] / max) * h
-
-  ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 1)`
-  ctx.beginPath()
-  ctx.arc(lastX, lastY, 2, 0, Math.PI * 2)
-  ctx.fill()
-
-  // Glow ring
-  ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.4)`
-  ctx.lineWidth = 1
-  ctx.beginPath()
-  ctx.arc(lastX, lastY, 4, 0, Math.PI * 2)
-  ctx.stroke()
-}
-
-// Update charts
-const redrawCharts = () => {
-  drawChart(uploadCanvas.value, uploadChartContainer.value, uploadHistory.value, uploadScaleMax.value)
-  drawChart(downloadCanvas.value, downloadChartContainer.value, downloadHistory.value, downloadScaleMax.value)
+  const r = style.getPropertyValue('--color_r').trim() || '170'
+  const g = style.getPropertyValue('--color_g').trim() || '207'
+  const b = style.getPropertyValue('--color_b').trim() || '209'
+  accentRgb.value = `${r}, ${g}, ${b}`
 }
 
 // Update scale to adapt to data
@@ -351,15 +242,26 @@ const poll = async () => {
   } catch (err) {
     // Silently continue polling on error
   }
-
-  redrawCharts()
 }
 
+// The sparklines re-render from their props, so there is no explicit redraw
+// call any more — pushing a sample into the history refs is enough.
+
 onMounted(() => {
-  nextTick(() => {
-    // Initial draw — chart canvas needs DOM layout before measuring.
-    redrawCharts()
+  readAccent()
+  // Themes swap the accent custom properties on <html>; watch for that so the
+  // graphs recolour with the rest of the interface instead of keeping the
+  // colour they happened to mount with.
+  themeObserver = new MutationObserver(readAccent)
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['style', 'class', 'data-theme'],
   })
+})
+
+onUnmounted(() => {
+  themeObserver?.disconnect()
+  themeObserver = null
 })
 
 // Network sample cadence — user-configurable via Settings → Network →

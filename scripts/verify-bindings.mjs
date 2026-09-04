@@ -18,8 +18,12 @@ const WAILSJS_ROOT = join(FRONTEND, "lib", "wailsjs");
 const errors = [];
 const warnings = [];
 
-function readExports(file) {
+function readExports(file, seen = new Set()) {
   if (!existsSync(file)) return null;
+  // Guard against an import cycle re-entering the same module forever.
+  if (seen.has(file)) return new Set();
+  seen.add(file);
+
   const src = readFileSync(file, "utf8");
   const names = new Set();
   for (const m of src.matchAll(/export\s+(?:const|function|class|let|var)\s+([A-Za-z_][\w]*)/g)) {
@@ -33,7 +37,42 @@ function readExports(file) {
       names.add(renamed ? renamed[2] : seg);
     }
   }
+
+  // Follow `export * from './other'`.
+  //
+  // Without this the checker reported every re-exported binding as missing:
+  // `lib/wailsjs/coordinator.ts` is a thin shim that wildcard-re-exports the
+  // generated bindings, so ~27 imports that resolve perfectly well at runtime
+  // were failing verification.
+  for (const m of src.matchAll(/export\s*\*\s*from\s*['"]([^'"]+)['"]/g)) {
+    const target = resolveRelative(file, m[1]);
+    if (!target) continue;
+    const nested = readExports(target, seen);
+    if (nested) for (const n of nested) names.add(n);
+  }
+
   return names;
+}
+
+/**
+ * Resolve a relative module specifier against the importing file.
+ *
+ * The generated bindings import each other with explicit `.js` extensions
+ * while shipping as `.ts`, so try the source extensions too rather than
+ * trusting the specifier verbatim.
+ */
+function resolveRelative(fromFile, specifier) {
+  if (!specifier.startsWith(".")) return null;
+  const base = join(dirname(fromFile), specifier);
+  const candidates = [
+    base,
+    base.replace(/\.js$/, ".ts"),
+    `${base}.ts`,
+    `${base}.js`,
+    join(base, "index.ts"),
+    join(base, "index.js"),
+  ];
+  return candidates.find((c) => existsSync(c)) ?? null;
 }
 
 function resolveImport(specifier) {

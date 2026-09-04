@@ -6,12 +6,22 @@
 
     <!-- Chart group 1: cores 1 .. N/2 -->
     <div class="cpu-chart-container">
-      <canvas ref="chartTopRef" />
+      <AdexMultiSparkline
+        :series="topSeries"
+        :accent="accentRgb"
+        :window-size="HISTORY_LENGTH"
+        aria-label="CPU usage, first half of cores"
+      />
     </div>
 
     <!-- Chart group 2: cores N/2+1 .. N -->
     <div class="cpu-chart-container">
-      <canvas ref="chartBottomRef" />
+      <AdexMultiSparkline
+        :series="bottomSeries"
+        :accent="accentRgb"
+        :window-size="HISTORY_LENGTH"
+        aria-label="CPU usage, second half of cores"
+      />
     </div>
 
     <!-- Stats row -->
@@ -33,16 +43,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
 import { useSystemStore } from '~/stores/system'
+import AdexMultiSparkline from '~/components/adex/AdexMultiSparkline.vue'
 import { GetTemperatures } from '~/lib/wailsjs/coordinator'
 
 const systemStore = useSystemStore()
-
-// Canvas refs
-const chartTopRef = ref<HTMLCanvasElement | null>(null)
-const chartBottomRef = ref<HTMLCanvasElement | null>(null)
 
 // Chart history - each core stores its own rolling buffer of values
 const HISTORY_LENGTH = 60
@@ -138,102 +145,37 @@ const taskCount = computed(() => {
 
 const halfIndex = computed(() => Math.ceil(coreCount.value / 2))
 
-// ---- Chart drawing ----
+// ---- Chart data ----
 
-function getAccentColor(): { r: number; g: number; b: number } {
-  if (typeof document === 'undefined') return { r: 170, g: 207, b: 209 }
+// Theme accent as an `r, g, b` triple. The charts cannot resolve CSS custom
+// properties themselves, so it is read here and passed down, and re-read when
+// the theme swaps those properties on <html>.
+const accentRgb = ref('170, 207, 209')
+
+function readAccent() {
+  if (typeof document === 'undefined') return
   const root = getComputedStyle(document.documentElement)
-  const r = parseInt(root.getPropertyValue('--color_r').trim()) || 170
-  const g = parseInt(root.getPropertyValue('--color_g').trim()) || 207
-  const b = parseInt(root.getPropertyValue('--color_b').trim()) || 209
-  return { r, g, b }
+  const r = root.getPropertyValue('--color_r').trim() || '170'
+  const g = root.getPropertyValue('--color_g').trim() || '207'
+  const b = root.getPropertyValue('--color_b').trim() || '209'
+  accentRgb.value = `${r}, ${g}, ${b}`
 }
 
-function drawChart(canvas: HTMLCanvasElement, coreIndices: number[]) {
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
+let themeObserver: MutationObserver | null = null
 
-  const dpr = window.devicePixelRatio || 1
-  const rect = canvas.getBoundingClientRect()
+onMounted(() => {
+  readAccent()
+  themeObserver = new MutationObserver(readAccent)
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['style', 'class', 'data-theme'],
+  })
+})
 
-  // Size the canvas to its CSS pixel size times device pixel ratio
-  const w = rect.width
-  const h = rect.height
-  if (w === 0 || h === 0) return
-
-  canvas.width = w * dpr
-  canvas.height = h * dpr
-  ctx.scale(dpr, dpr)
-
-  // Clear
-  ctx.clearRect(0, 0, w, h)
-
-  const { r, g, b } = getAccentColor()
-
-  // Draw grid lines (faint horizontal lines at 25%, 50%, 75%)
-  ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, 0.07)`
-  ctx.lineWidth = 0.5
-  for (let pct = 0.25; pct < 1; pct += 0.25) {
-    const y = h * (1 - pct)
-    ctx.beginPath()
-    ctx.moveTo(0, y)
-    ctx.lineTo(w, y)
-    ctx.stroke()
-  }
-
-  // Draw each core as a separate line
-  const numCores = coreIndices.length
-  if (numCores === 0) return
-
-  for (let ci = 0; ci < numCores; ci++) {
-    const coreIdx = coreIndices[ci]
-    const history = coreHistories.value[coreIdx]
-    if (!history || history.length < 2) continue
-
-    const alpha = 0.3 + (0.7 * (ci / Math.max(numCores - 1, 1)))
-    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(2)})`
-    ctx.lineWidth = 1
-
-    ctx.beginPath()
-    const step = w / (HISTORY_LENGTH - 1)
-
-    // Offset to right-align the data if we have fewer than HISTORY_LENGTH points
-    const offset = (HISTORY_LENGTH - history.length) * step
-
-    for (let i = 0; i < history.length; i++) {
-      const x = offset + i * step
-      const y = h - (history[i] / 100) * h
-      if (i === 0) {
-        ctx.moveTo(x, y)
-      } else {
-        // Simple line-to (smoothie-style would use bezier, but this is clean enough)
-        ctx.lineTo(x, y)
-      }
-    }
-    ctx.stroke()
-
-    // Faint fill under the line
-    ctx.lineTo(offset + (history.length - 1) * step, h)
-    ctx.lineTo(offset, h)
-    ctx.closePath()
-    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${(alpha * 0.08).toFixed(3)})`
-    ctx.fill()
-  }
-}
-
-function renderCharts() {
-  if (chartTopRef.value) {
-    const indices = Array.from({ length: halfIndex.value }, (_, i) => i)
-    drawChart(chartTopRef.value, indices)
-  }
-  if (chartBottomRef.value) {
-    const indices = Array.from(
-      { length: coreCount.value - halfIndex.value },
-      (_, i) => halfIndex.value + i
-    )
-    drawChart(chartBottomRef.value, indices)
-  }
-}
+// The cores are split across two stacked charts so a high core count stays
+// legible; each chart gets its own half of the buffers.
+const topSeries = computed(() => coreHistories.value.slice(0, halfIndex.value))
+const bottomSeries = computed(() => coreHistories.value.slice(halfIndex.value))
 
 // ---- Data sampling ----
 
@@ -254,8 +196,6 @@ function sampleLoad() {
       coreHistories.value[i].shift()
     }
   }
-
-  renderCharts()
 }
 
 async function sampleTemperature() {
@@ -315,5 +255,7 @@ onBeforeUnmount(() => {
     cancelAnimationFrame(animFrameId)
     animFrameId = null
   }
+  themeObserver?.disconnect()
+  themeObserver = null
 })
 </script>
