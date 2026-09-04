@@ -93,7 +93,7 @@ describe('Terminal Integration Tests', () => {
     uiStore = useUIStore(pinia)
 
     // Clear any existing state
-    terminalStore.clearAll()
+    terminalStore.reset()
     uiStore.clearNotifications()
   })
 

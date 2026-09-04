@@ -238,7 +238,6 @@ test.describe('Terminal E2E Tests', () => {
 
       // Test search functionality if available
       await expect(terminal).toBeVisible()
-  })
 })
 
 test.describe('Performance Tests', () => {

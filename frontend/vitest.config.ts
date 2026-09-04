@@ -26,7 +26,11 @@ export default defineConfig({
       'node_modules/',
       '.nuxt/',
       'dist/',
-      '.output/'
+      '.output/',
+      // Playwright specs — they import @playwright/test and drive a real
+      // browser, so Vitest can only fail to collect them. There is no
+      // Playwright config in the repo yet; when one lands it runs these.
+      'tests/e2e/**'
     ]
   },
   resolve: {
