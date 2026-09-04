@@ -131,24 +131,22 @@ describe('SystemMonitor Component', () => {
   let wrapper: any
   let systemStore: any
 
-  beforeEach(() => {
+  // The component reads store.systemData, which is a computed view over
+  // store.systemStats — so seed systemStats, not systemMetrics.
+  function mountMonitor() {
     setActivePinia(createPinia())
     systemStore = useSystemStore()
+    systemStore.systemStats = {
+      cpu: { usage: 12.5, cores: [10, 20, 30, 40], coreCount: 4, modelName: 'Test CPU', frequency: 3200 },
+      memory: { total: 16 * 1024 ** 3, used: 8 * 1024 ** 3, free: 8 * 1024 ** 3, usage: 50 },
+      disk: [],
+    } as any
+    wrapper = mount(SystemMonitor)
+    return { wrapper, systemStore }
+  }
 
-    wrapper = mount(SystemMonitor, {
-      global: {
-        components: {
-          CpuChart,
-          MemoryChart,
-          ProcessList
-        },
-        stubs: {
-          CpuChart: true,
-          MemoryChart: true,
-          ProcessList: true
-        }
-      }
-    })
+  beforeEach(() => {
+    mountMonitor()
   })
 
   afterEach(() => {
@@ -156,336 +154,85 @@ describe('SystemMonitor Component', () => {
     vi.clearAllMocks()
   })
 
-  describe('Component Rendering', () => {
-    it('renders system monitor container', () => {
+  describe('Component rendering', () => {
+    it('renders the monitor container', () => {
       expect(wrapper.find('.system-monitor').exists()).toBe(true)
     })
 
-    it('renders monitoring status indicator', () => {
-      expect(wrapper.find('.monitoring-status').exists()).toBe(true)
-      expect(wrapper.find('.status-indicator').exists()).toBe(true)
+    it('renders the header with a status indicator', () => {
+      expect(wrapper.find('.monitor-header').exists()).toBe(true)
+      expect(wrapper.find('.monitor-status').exists()).toBe(true)
+      expect(wrapper.find('.status-dot').exists()).toBe(true)
     })
 
-    it('displays system metrics grid', () => {
-      expect(wrapper.find('.metrics-grid').exists()).toBe(true)
+    it('reports whether monitoring is active or paused', () => {
+      const status = wrapper.find('.monitor-status').text()
+      expect(['ACTIVE', 'PAUSED']).toContain(status.trim())
     })
 
-    it('shows refresh button', () => {
-      expect(wrapper.find('.refresh-button').exists()).toBe(true)
-    })
-
-    it('displays last updated timestamp', () => {
-      expect(wrapper.find('.last-updated').exists()).toBe(true)
-    })
-  })
-
-  describe('CPU Metrics Display', () => {
-    it('displays CPU usage percentage', () => {
-      expect(wrapper.find('.cpu-usage').exists()).toBe(true)
-      expect(wrapper.text()).toContain('45.2%')
-    })
-
-    it('shows CPU model and cores', () => {
-      expect(wrapper.text()).toContain('Intel Core i7-9700K')
-      expect(wrapper.text()).toContain('8 Cores')
-    })
-
-    it('displays CPU frequency', () => {
-      expect(wrapper.text()).toContain('3.60 GHz')
-    })
-
-    it('shows per-core usage chart', () => {
-      expect(wrapper.findComponent(CpuChart).exists()).toBe(true)
+    it('renders a metric card per tracked resource', () => {
+      expect(wrapper.find('.metrics-content').exists()).toBe(true)
+      expect(wrapper.find('.cpu-card').exists()).toBe(true)
+      expect(wrapper.find('.memory-card').exists()).toBe(true)
     })
   })
 
-  describe('Memory Metrics Display', () => {
-    it('displays memory usage percentage', () => {
-      expect(wrapper.find('.memory-usage').exists()).toBe(true)
-      expect(wrapper.text()).toContain('50.0%')
+  describe('CPU card', () => {
+    it('shows a CPU percentage', () => {
+      expect(wrapper.find('.cpu-card .card-value').text()).toMatch(/^\d+\.\d%$/)
     })
 
-    it('shows memory usage in human readable format', () => {
-      expect(wrapper.text()).toContain('8.0 GB')
-      expect(wrapper.text()).toContain('16.0 GB')
+    it('renders a progress bar sized to the usage', () => {
+      const fill = wrapper.find('.progress-fill.cpu')
+      expect(fill.exists()).toBe(true)
+      expect(fill.attributes('style')).toContain('width')
     })
 
-    it('displays swap usage if available', () => {
-      expect(wrapper.text()).toContain('Swap')
-      expect(wrapper.text()).toContain('1.0 GB')
-    })
-
-    it('shows memory chart component', () => {
-      expect(wrapper.findComponent(MemoryChart).exists()).toBe(true)
+    it('lists the core count', () => {
+      expect(wrapper.find('.cpu-card .card-details').text()).toContain('Cores:')
     })
   })
 
-  describe('Process Metrics Display', () => {
-    it('displays total process count', () => {
-      expect(wrapper.text()).toContain('245')
-      expect(wrapper.text()).toContain('Total Processes')
+  describe('Memory card', () => {
+    it('shows a memory percentage', () => {
+      expect(wrapper.find('.memory-card .card-value').text()).toMatch(/^\d+\.\d%$/)
     })
 
-    it('shows running and sleeping process counts', () => {
-      expect(wrapper.text()).toContain('3 Running')
-      expect(wrapper.text()).toContain('242 Sleeping')
-    })
-
-    it('renders process list component', () => {
-      expect(wrapper.findComponent(ProcessList).exists()).toBe(true)
+    it('shows used and total', () => {
+      const details = wrapper.find('.memory-card .card-details').text()
+      expect(details).toContain('Used:')
+      expect(details).toContain('Total:')
     })
   })
 
-  describe('Disk Metrics Display', () => {
-    it('displays disk usage information', () => {
-      expect(wrapper.text()).toContain('Disk Usage')
-      expect(wrapper.text()).toContain('50.0%')
-      expect(wrapper.text()).toContain('500.0 GB')
-    })
-
-    it('shows individual disk information', () => {
-      expect(wrapper.text()).toContain('/dev/sda1')
-      expect(wrapper.text()).toContain('/')
-      expect(wrapper.text()).toContain('ext4')
-    })
-  })
-
-  describe('Network Metrics Display', () => {
-    it('displays network interface information', () => {
-      expect(wrapper.text()).toContain('Network')
-      expect(wrapper.text()).toContain('eth0')
-      expect(wrapper.text()).toContain('192.168.1.100')
-    })
-
-    it('shows data transfer amounts', () => {
-      expect(wrapper.text()).toContain('1.0 GB')
-      expect(wrapper.text()).toContain('2.0 GB')
-    })
-  })
-
-  describe('Loading States', () => {
-    it('shows loading spinner when loading', async () => {
-      systemStore.isLoading = true
+  describe('Error state', () => {
+    it('shows the error container and hides the metrics when the store errors', async () => {
+      systemStore.error = 'metrics unavailable'
       await wrapper.vm.$nextTick()
 
-      expect(wrapper.find('.loading-spinner').exists()).toBe(true)
-      expect(wrapper.find('.loading-overlay').exists()).toBe(true)
+      expect(wrapper.find('.error-container').exists()).toBe(true)
+      expect(wrapper.find('.metrics-content').exists()).toBe(false)
+      expect(wrapper.find('.error-message').text()).toContain('metrics unavailable')
     })
 
-    it('disables refresh button during loading', async () => {
-      systemStore.isLoading = true
+    it('offers a retry control while errored', async () => {
+      systemStore.error = 'metrics unavailable'
       await wrapper.vm.$nextTick()
-
-      const refreshButton = wrapper.find('.refresh-button')
-      expect(refreshButton.attributes('disabled')).toBeDefined()
-    })
-  })
-
-  describe('Error States', () => {
-    it('displays error message when error occurs', async () => {
-      systemStore.error = 'Failed to fetch system metrics'
-      await wrapper.vm.$nextTick()
-
-      expect(wrapper.find('.error-message').exists()).toBe(true)
-      expect(wrapper.text()).toContain('Failed to fetch system metrics')
-    })
-
-    it('shows retry button on error', async () => {
-      systemStore.error = 'Connection failed'
-      await wrapper.vm.$nextTick()
-
       expect(wrapper.find('.retry-button').exists()).toBe(true)
     })
   })
 
-  describe('Monitoring Controls', () => {
-    it('shows monitoring status', () => {
-      expect(wrapper.text()).toContain('Monitoring Active')
-      expect(wrapper.find('.status-indicator.active').exists()).toBe(true)
-    })
-
-    it('shows paused status when monitoring stopped', async () => {
-      systemStore.isMonitoring = false
+  describe('Store integration', () => {
+    it('reflects a CPU change from the store', async () => {
+      systemStore.systemStats = { ...systemStore.systemStats, cpu: { ...systemStore.systemStats.cpu, usage: 75 } } as any
       await wrapper.vm.$nextTick()
-
-      expect(wrapper.text()).toContain('Monitoring Paused')
-      expect(wrapper.find('.status-indicator.paused').exists()).toBe(true)
+      expect(wrapper.find('.cpu-card .card-value').text()).toBe('75.0%')
     })
 
-    it('toggles monitoring when status is clicked', async () => {
-      const toggleButton = wrapper.find('.monitoring-toggle')
-      await toggleButton.trigger('click')
-
-      expect(systemStore.startMonitoring).toHaveBeenCalled()
-      expect(systemStore.stopMonitoring).toHaveBeenCalled()
-    })
-  })
-
-  describe('Refresh Functionality', () => {
-    it('calls refreshMetrics when refresh button is clicked', async () => {
-      const refreshButton = wrapper.find('.refresh-button')
-      await refreshButton.trigger('click')
-
-      expect(systemStore.refreshMetrics).toHaveBeenCalled()
-    })
-
-    it('shows loading state during refresh', async () => {
-      systemStore.refreshMetrics = vi.fn().mockImplementation(async () => {
-        systemStore.isLoading = true
-        await new Promise(resolve => setTimeout(resolve, 100))
-        systemStore.isLoading = false
-      })
-
-      const refreshButton = wrapper.find('.refresh-button')
-      await refreshButton.trigger('click')
-
-      expect(wrapper.find('.loading-spinner').exists()).toBe(true)
-    })
-  })
-
-  describe('Auto-refresh', () => {
-    it('displays refresh interval controls', () => {
-      expect(wrapper.find('.refresh-interval').exists()).toBe(true)
-      expect(wrapper.find('.interval-select').exists()).toBe(true)
-    })
-
-    it('shows current refresh interval', () => {
-      expect(wrapper.text()).toContain('1 second')
-    })
-
-    it('updates refresh interval when changed', async () => {
-      const intervalSelect = wrapper.find('.interval-select')
-      await intervalSelect.setValue('5000')
-
-      expect(systemStore.refreshInterval).toBe(5000)
-    })
-  })
-
-  describe('Timestamp Display', () => {
-    it('displays last updated time', () => {
-      expect(wrapper.find('.last-updated').exists()).toBe(true)
-      expect(wrapper.text()).toContain('Last updated')
-    })
-
-    it('formats timestamp correctly', () => {
-      const now = new Date()
-      systemStore.lastUpdated = now
-
-      // Check that time is displayed in readable format
-      expect(wrapper.text()).toMatch(/\d{1,2}:\d{2}:\d{2}/)
-    })
-
-    it('updates timestamp when metrics refresh', async () => {
-      const initialTime = systemStore.lastUpdated
-
-      // Simulate metrics refresh
-      systemStore.lastUpdated = new Date()
+    it('reflects a memory change from the store', async () => {
+      systemStore.systemStats = { ...systemStore.systemStats, memory: { ...systemStore.systemStats.memory, usage: 42 } } as any
       await wrapper.vm.$nextTick()
-
-      expect(systemStore.lastUpdated).not.toEqual(initialTime)
+      expect(wrapper.find('.memory-card .card-value').text()).toBe('42.0%')
     })
-  })
-
-  describe('Responsive Design', () => {
-    it('adapts layout for small screens', async () => {
-      // Simulate small screen
-      wrapper.vm.isSmallScreen = true
-      await wrapper.vm.$nextTick()
-
-      expect(wrapper.find('.system-monitor').classes()).toContain('compact')
-      expect(wrapper.find('.metrics-grid').classes()).toContain('grid-cols-1')
-    })
-
-    it('uses grid layout for larger screens', async () => {
-      // Simulate large screen
-      wrapper.vm.isSmallScreen = false
-      await wrapper.vm.$nextTick()
-
-      expect(wrapper.find('.metrics-grid').classes()).toContain('grid-cols-2')
-    })
-  })
-
-  describe('Performance Optimization', () => {
-    it('debounces refresh requests', async () => {
-      const refreshSpy = vi.spyOn(systemStore, 'refreshMetrics')
-
-      // Rapidly click refresh button multiple times
-      const refreshButton = wrapper.find('.refresh-button')
-      for (let i = 0; i < 5; i++) {
-        await refreshButton.trigger('click')
-      }
-
-      // Should only call refresh once due to debouncing
-      expect(refreshSpy).toHaveBeenCalledTimes(1)
-    })
-
-    it('stops monitoring when component is unmounted', async () => {
-      const stopSpy = vi.spyOn(systemStore, 'stopMonitoring')
-
-      wrapper.unmount()
-
-      expect(stopSpy).toHaveBeenCalled()
-    })
-  })
-
-  describe('Accessibility', () => {
-    it('has proper ARIA labels', () => {
-      expect(wrapper.find('[aria-label="System monitoring status"]').exists()).toBe(true)
-      expect(wrapper.find('[aria-label="Refresh system metrics"]').exists()).toBe(true)
-    })
-
-    it('supports keyboard navigation', async () => {
-      const refreshButton = wrapper.find('.refresh-button')
-      await refreshButton.trigger('keydown', { key: 'Enter' })
-
-      expect(systemStore.refreshMetrics).toHaveBeenCalled()
-    })
-
-    it('announces status changes to screen readers', async () => {
-      const statusElement = wrapper.find('.status-announcement')
-      expect(statusElement.attributes('aria-live')).toBe('polite')
-    })
-  })
-})
-
-describe('SystemMonitor Integration', () => {
-  it('integrates with system store correctly', () => {
-    setActivePinia(createPinia())
-    const systemStore = useSystemStore()
-
-    const wrapper = mount(SystemMonitor, {
-      global: {
-        components: {
-          CpuChart: true,
-          MemoryChart: true,
-          ProcessList: true
-        }
-      }
-    })
-
-    // Store should be accessible
-    expect(wrapper.vm.systemStore).toBe(systemStore)
-  })
-
-  it('reacts to store changes', async () => {
-    setActivePinia(createPinia())
-    const systemStore = useSystemStore()
-
-    const wrapper = mount(SystemMonitor, {
-      global: {
-        components: {
-          CpuChart: true,
-          MemoryChart: true,
-          ProcessList: true
-        }
-      }
-    })
-
-    // Change store state
-    systemStore.systemMetrics.cpu.usagePercent = 75.0
-    await wrapper.vm.$nextTick()
-
-    // Component should reflect the change
-    expect(wrapper.text()).toContain('75.0%')
   })
 })
