@@ -151,8 +151,21 @@ beforeAll(() => {
     value: sessionStorageMock
   })
 
-  // Mock fetch
-  global.fetch = vi.fn()
+  // Mock fetch.
+  //
+  // This must resolve a Response-like object rather than `undefined`.
+  // @wailsio/runtime calls `fetch(url).then(...)` at MODULE level (see
+  // loadOptionalScript, which probes /wails/custom.js), so a bare vi.fn()
+  // threw "Cannot read properties of undefined (reading 'then')" before any
+  // test body ran — taking out every spec that imports the runtime, directly
+  // or through a store.
+  global.fetch = vi.fn(async () => ({
+    ok: false,
+    status: 404,
+    headers: { get: () => null },
+    json: async () => ({}),
+    text: async () => '',
+  })) as unknown as typeof fetch
 
   // Mock WebSocket
   global.WebSocket = vi.fn().mockImplementation(() => ({

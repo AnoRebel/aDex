@@ -126,9 +126,17 @@ describe("useAdexTheme — V2 engine", () => {
     expect(elapsed).toBeLessThan(200);
   });
 
-  it("rejects unknown theme ids", async () => {
+  it("falls back to the default theme for an unknown id", async () => {
+    // setTheme deliberately does NOT reject here. Persisted ids outlive the
+    // catalogue — settings files, localStorage and older builds can all name
+    // a theme that no longer exists — and rethrowing left the interface
+    // completely unstyled, with no colours and no data-layout attribute.
     const engine = useAdexTheme();
     await engine.initialize();
-    await expect(engine.setTheme("does-not-exist")).rejects.toThrow(/unknown theme/);
+
+    const theme = await engine.setTheme("does-not-exist");
+
+    expect(theme.id).toBe("tron");
+    expect(engine.activeId.value).toBe("tron");
   });
 });
