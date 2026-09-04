@@ -2,26 +2,54 @@ import { beforeAll, vi } from 'vitest'
 
 // Mock browser APIs
 beforeAll(() => {
-  // Mock ResizeObserver
-  global.ResizeObserver = vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn()
-  }))
+  // Observer mocks.
+  //
+  // These must be real constructors. `vi.fn().mockImplementation(() => ({}))`
+  // returns a plain object and throws "is not a constructor" the moment
+  // anything calls it with `new` — which VueUse's useResizeObserver does,
+  // taking out every spec for a component that observes its own size.
+  // Reports a fixed non-zero size to its callback. VueUse's useElementSize
+  // (and therefore useVirtualList) derives its viewport from the observer
+  // entry, not from the DOM — with no callback the viewport stays 0px and a
+  // virtualised list renders no rows at all.
+  class MockResizeObserver {
+    private cb: ResizeObserverCallback
+    constructor(cb: ResizeObserverCallback) { this.cb = cb }
+    observe = vi.fn((target: Element) => {
+      const box = { inlineSize: 800, blockSize: 400 }
+      this.cb(
+        [{
+          target,
+          contentRect: { width: 800, height: 400, top: 0, left: 0, bottom: 400, right: 800, x: 0, y: 0 },
+          borderBoxSize: [box],
+          contentBoxSize: [box],
+          devicePixelContentBoxSize: [box],
+        }] as unknown as ResizeObserverEntry[],
+        this as unknown as ResizeObserver,
+      )
+    })
+    unobserve = vi.fn()
+    disconnect = vi.fn()
+  }
+  global.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver
 
-  // MutationObserver
-  global.MutationObserver = vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    disconnect: vi.fn(),
-    takeRecords: vi.fn(() => [])
-  }))
+  class MockMutationObserver {
+    observe = vi.fn()
+    disconnect = vi.fn()
+    takeRecords = vi.fn(() => [])
+  }
+  global.MutationObserver = MockMutationObserver as unknown as typeof MutationObserver
 
-  // IntersectionObserver
-  global.IntersectionObserver = vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn()
-  }))
+  class MockIntersectionObserver {
+    observe = vi.fn()
+    unobserve = vi.fn()
+    disconnect = vi.fn()
+    takeRecords = vi.fn(() => [])
+    root = null
+    rootMargin = ''
+    thresholds: number[] = []
+  }
+  global.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver
 
   // matchMedia
   Object.defineProperty(window, 'matchMedia', {
