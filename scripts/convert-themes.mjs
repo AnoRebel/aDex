@@ -22,6 +22,27 @@ import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 
 import { resolve, join, basename } from "node:path";
 
 const ROOT = resolve(new URL("..", import.meta.url).pathname);
+
+/**
+ * Terminal selection colour, always translucent.
+ *
+ * A few upstream themes (cyborg, cyborg-focus, matrix) give `selection` an
+ * opaque hex value. xterm paints the selection OVER the glyphs, so an opaque
+ * colour hides the selected text entirely — you cannot read what you have
+ * just selected. Every other theme uses rgba at 0.3, so convert hex to the
+ * same alpha rather than passing it through.
+ */
+function normaliseSelection(selection, colors) {
+  const fallback = `rgba(${colors.r}, ${colors.g}, ${colors.b}, 0.3)`;
+  if (!selection) return fallback;
+
+  const hex = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(selection.trim());
+  if (!hex) return selection; // already rgba()/rgb(), leave it alone
+
+  const [r, g, b] = hex.slice(1).map((h) => parseInt(h, 16));
+  return `rgba(${r}, ${g}, ${b}, 0.3)`;
+}
+
 const SOURCE_DIR = resolve(ROOT, "..", "edex-ui", "src", "assets", "themes");
 const OUT_DIR = join(ROOT, "frontend", "app", "assets", "data", "themes");
 const INDEX_FILE = join(ROOT, "frontend", "app", "assets", "data", "themes-index.json");
@@ -106,7 +127,7 @@ for (const file of sourceFiles) {
       background: src.terminal?.background ?? src.colors.light_black ?? "#05080d",
       cursor: src.terminal?.cursor ?? `rgb(${src.colors.r}, ${src.colors.g}, ${src.colors.b})`,
       cursorAccent: src.terminal?.cursorAccent ?? src.terminal?.cursor ?? `rgb(${src.colors.r}, ${src.colors.g}, ${src.colors.b})`,
-      selection: src.terminal?.selection ?? `rgba(${src.colors.r}, ${src.colors.g}, ${src.colors.b}, 0.3)`,
+      selection: normaliseSelection(src.terminal?.selection, src.colors),
     },
     globe: {
       base: src.globe?.base ?? src.colors.black ?? "#000000",

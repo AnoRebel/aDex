@@ -21,7 +21,7 @@
     "background": "#0a3333",
     "cursor": "#5cffff",
     "cursorAccent": "#85ff5c",
-    "selection": "#ffff5c"
+    "selection": "rgba(255, 255, 92, 0.3)"
   },
   "globe": {
     "base": "#5c5cff",
