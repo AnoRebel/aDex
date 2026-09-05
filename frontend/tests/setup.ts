@@ -1,5 +1,31 @@
 import { beforeAll, vi } from 'vitest'
 
+// Stub the Wails runtime for every spec.
+//
+// There is no Wails host under Vitest, so any runtime call rejects — and
+// because stores subscribe to events at init (ui.ts -> useWails/useEvents),
+// that surfaced as an unhandled rejection that failed the whole run even
+// with every test passing.
+vi.mock('@wailsio/runtime', () => ({
+  Events: {
+    On: vi.fn(() => () => {}),
+    Once: vi.fn(() => () => {}),
+    Off: vi.fn(),
+    Emit: vi.fn(async () => undefined),
+  },
+  Window: {
+    Maximise: vi.fn(async () => undefined),
+    UnMaximise: vi.fn(async () => undefined),
+    IsMaximised: vi.fn(async () => false),
+    Center: vi.fn(async () => undefined),
+    Fullscreen: vi.fn(async () => undefined),
+    UnFullscreen: vi.fn(async () => undefined),
+    IsFullscreen: vi.fn(async () => false),
+    SetFrameless: vi.fn(async () => undefined),
+  },
+  Application: { Quit: vi.fn(async () => undefined) },
+}))
+
 // Mock browser APIs
 beforeAll(() => {
   // Observer mocks.

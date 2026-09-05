@@ -2,9 +2,9 @@
 
 - OS:           linux 6.19.13-zen1-1-zen
 - Theme:        n/a
-- Wails:        v2.12.0
+- Wails:        v3.0.0-beta.16
 - Date:         2026-05-05
-- App SHA:      (uncommitted, branch main)
+- App SHA:      e02dbba (branch migrate-wails-v3)
 - Verifier:     automated — frontend/tests/composables/use-adex-audio.spec.ts
 
 ## What this proves
@@ -15,8 +15,10 @@ Validates the V2 audio cue system end-to-end:
   registered in `frontend/app/assets/audio/soundpacks.json` under the
   `edex` pack
 - All 13 WAVs physically copied into `frontend/app/assets/audio/edex/`
-- Howler-backed primary playback works (mocked in test; hits real Howler
-  in production)
+- Playback is performed by the GO BACKEND, not Howler. The webview refuses
+  to start audio before a user gesture, which silently dropped every
+  boot-splash cue; Go plays through the OS audio stack where no such policy
+  applies. Howler remains only as a webview fallback.
 - Web-Audio synthesizer fallback kicks in on Howler load failure or when
   the user opts into the `synth` pack
 - Legacy event names (`button_click`, `notification`, `system_alert`, ...)
@@ -51,3 +53,15 @@ recording the dev console (Howler logs each play call when DEBUG is set):
 ```bash
 DEBUG=howler:* bun run dev | tee docs/evidence/audio-cue-system/play-log.txt
 ```
+
+
+## Update — 2026-09-05
+
+Re-verified on Wails v3.0.0-beta.16. See `verification.log` in this directory
+for the generated artifact: 23 cue WAVs embedded in the Go binary, the Go
+audio service tests, and the frontend cue tests.
+
+The cue vocabulary has grown beyond the original 13: aDex adds `keypress`,
+`destructive`, `gunshot` and `click`, and `button_click` now resolves to the
+new click tone rather than `keyboard` (which is reserved for the mechanical
+typewriter click).
