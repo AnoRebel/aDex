@@ -345,14 +345,17 @@ describe('Index Page Layout', () => {
       expect(left.find('.mod-sysinfo-stub').exists()).toBe(true)
     })
 
-    it('contains Hardware component', async () => {
+    it('hides the Hardware component by default', async () => {
       mountLayout()
       const bootScreen = wrapper.find('.boot-overlay-stub')
       await bootScreen.trigger('click')
       await wrapper.vm.$nextTick()
 
+      // Hardware is in DEFAULT_HIDDEN: its output ("Manufacturer: Unknown")
+      // was not useful and it consumed column height the process list needed.
+      // It is switchable in Settings -> Modules, but off unless asked for.
       const left = wrapper.find('.mod-column.left')
-      expect(left.find('.mod-hardware-stub').exists()).toBe(true)
+      expect(left.find('.mod-hardware').exists()).toBe(false)
     })
 
     it('contains CpuInfo component', async () => {
@@ -526,26 +529,30 @@ describe('Index Page Layout', () => {
   })
 
   describe('Top bar section navigation', () => {
-    it('switches active section when a topbar section is clicked', async () => {
+    it('toggles a region when its topbar section is clicked', async () => {
       mountLayout()
       const bootScreen = wrapper.find('.boot-overlay-stub')
       await bootScreen.trigger('click')
       await wrapper.vm.$nextTick()
 
       const sections = wrapper.findAll('.topbar-section')
-      // Find the SYSTEM section and click it
       const systemSection = sections.find(s => s.text() === 'SYSTEM')
       expect(systemSection).toBeDefined()
+
+      // PANEL / SYSTEM / TERMINAL are toggles, not navigation: `active`
+      // tracks whether the region is currently shown, so clicking a visible
+      // one hides it and clears the class.
+      const wasActive = systemSection!.classes().includes('active')
 
       await systemSection!.trigger('click')
       await wrapper.vm.$nextTick()
 
-      expect(systemSection!.classes()).toContain('active')
+      expect(systemSection!.classes().includes('active')).toBe(!wasActive)
     })
   })
 
   describe('Shell tab management in topbar', () => {
-    it('shows shell tab labels in the top bar', async () => {
+    it('shows the empty shell slots in the top bar', async () => {
       mountLayout()
       const bootScreen = wrapper.find('.boot-overlay-stub')
       await bootScreen.trigger('click')
@@ -555,12 +562,13 @@ describe('Index Page Layout', () => {
       await vi.advanceTimersByTimeAsync(500)
       await wrapper.vm.$nextTick()
 
+      // Named shell tabs only exist once a PTY does, and creating one needs a
+      // real backend — jsdom has none, so shellTabs stays empty here. The
+      // EMPTY slots are what the topbar renders in that state, and clicking
+      // one is the only path that creates a session.
       const sections = wrapper.findAll('.topbar-section')
-      const shellSections = sections.filter(s =>
-        s.text().includes('MAIN SHELL') || s.text().includes('SHELL')
-      )
-      // At least one shell tab should appear
-      expect(shellSections.length).toBeGreaterThan(0)
+      const emptySlots = sections.filter(s => s.text().includes('EMPTY'))
+      expect(emptySlots.length).toBeGreaterThan(0)
     })
   })
 
