@@ -11,7 +11,7 @@ version: '3'
 info:
   companyName: "aDex"
   productName: "aDex"
-  productIdentifier: "com.adex.app"
+  productIdentifier: "net.anorebel.adex"
   description: "A modern science fiction desktop environment terminal application"
   copyright: "Copyright © 2026"
   comments: "A modern science fiction desktop environment terminal application"

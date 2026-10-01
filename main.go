@@ -29,6 +29,22 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+// Application and tray icons.
+//
+// appIcon is the 1024x1024 window/desktop icon. The tray glyphs are separate
+// artwork rather than a scaled-down appIcon: at ~22px the panel frame and
+// grid in the full icon turn to mush, so the tray uses just the prompt mark,
+// in two variants because the tray background follows the desktop theme.
+//
+//go:embed build/appicon.png
+var appIcon []byte
+
+//go:embed build/assets/trayicon-light.png
+var trayIconLight []byte
+
+//go:embed build/assets/trayicon-dark.png
+var trayIconDark []byte
+
 // startPprofIfRequested exposes Go's profiler on localhost when ADEX_PPROF is
 // set to a port. Off by default and never bound to a public interface: this
 // exists so a CPU or memory question about the backend can be answered with a
@@ -89,7 +105,21 @@ func main() {
 			Handler: application.AssetFileServerFS(assets),
 		},
 		Mac: application.MacOptions{
-			ApplicationShouldTerminateAfterLastWindowClosed: true,
+			// The tray keeps running when the window is closed, so closing the
+			// last window must not terminate the app.
+			ApplicationShouldTerminateAfterLastWindowClosed: false,
+		},
+		Linux: application.LinuxOptions{
+			// Without an explicit id GTK derives "org.wails." + the name, which
+			// matches neither the .desktop file nor the icon installed as
+			// "adex" — so the window showed a generic icon and would not group
+			// with its launcher. ProgramName follows it because GTK takes the
+			// Wayland surface app_id from the program name.
+			ApplicationID: "net.anorebel.adex",
+			ProgramName:   "adex",
+			// The tray outlives the window: closing the last window hides to
+			// tray rather than quitting.
+			DisableQuitOnLastWindowClosed: true,
 		},
 	})
 
@@ -115,7 +145,7 @@ func main() {
 	// so the workaround is deliberately not carried over — leaving them unset
 	// means "no maximum", which is the intended behaviour on multi-monitor
 	// setups.
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
+	window := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:            "aDex",
 		Width:            1600,
 		Height:           1000,
@@ -154,8 +184,11 @@ func main() {
 		Linux: application.LinuxWindow{
 			WindowIsTranslucent: false,
 			WebviewGpuPolicy:    linuxGpuPolicy(),
+			Icon:                appIcon,
 		},
 	})
+
+	setupSystemTray(app, window)
 
 	// Run blocks until the application exits. Quit is initiated from the
 	// frontend via the runtime's Application.Quit(), which triggers the same

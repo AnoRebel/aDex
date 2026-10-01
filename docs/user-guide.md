@@ -216,6 +216,40 @@ match.
 
 ---
 
+## System tray
+
+aDex puts an icon in the system tray while it runs.
+
+- **Left click** toggles the window between shown and hidden. The window keeps
+  its position and size — hiding is not minimising, and showing does not move
+  the window to the tray.
+- **Right click** opens quick actions:
+
+| Action | What it does |
+|---|---|
+| **Show / Hide** | Same as a left click |
+| **New Terminal** | Shows the window and opens a new terminal tab |
+| **Settings** | Shows the window and opens the settings panel |
+| **Lock Session** | Shows the window and locks it. Only listed when a lock passphrase is set — see [Locking the session](#locking-the-session) |
+| **Quit aDex** | Shuts down, same as the × button |
+
+Closing the window leaves aDex running in the tray. Use **Quit aDex** from the
+tray menu, the **×** button, or **Ctrl+Q** to exit for real.
+
+### If the tray icon looks like a placeholder
+
+Some panels resolve tray icons by *name* from your icon theme rather than
+using the image the application supplies directly — waybar is one. aDex
+supplies the image, and installs icons into the theme when packaged, but if
+you are running an unpackaged build the name may not resolve and the panel
+falls back to a generic placeholder. The tray still works: clicks, the menu
+and the tooltip are unaffected. Installing the package, or copying
+`build/linux/icons/tray-aDex-22.png` to
+`~/.local/share/icons/hicolor/22x22/apps/aDex.png` and reloading the panel,
+gives it a name to find.
+
+---
+
 ## Quitting
 
 Use the **×** button in the top bar or **Ctrl+Q**, then confirm. A shutdown

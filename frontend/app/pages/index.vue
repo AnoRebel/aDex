@@ -362,7 +362,7 @@ import { useNetworkStore } from '~/stores/network'
 import { useAudioStore } from '~/stores/audio'
 import { useThemeStore } from '~/stores/theme'
 import { useAppStore } from '~/stores/app'
-import { WindowRuntime } from '~/lib/wailsjs/runtime'
+import { Events, WindowRuntime } from '~/lib/wailsjs/runtime'
 import { useAdexAudio } from '~/composables/useAdexAudio'
 import { useCustomLayouts } from '~/composables/useCustomLayouts'
 import { useModules, MODULES } from '~/composables/useModules'
@@ -1212,6 +1212,27 @@ onKeyStroke(',', (e) => {
   if (!e.ctrlKey || e.shiftKey || e.altKey || e.metaKey) return
   e.preventDefault()
   showSettings.value = !showSettings.value
+})
+
+// System tray quick actions.
+//
+// The tray menu lives in Go (tray.go) because it has to work with the window
+// hidden, but these three actions all need interface state — the tab list,
+// the settings modal, the lock overlay — so the backend emits and the page
+// performs. Unsubscribes are collected so a hot reload does not stack
+// duplicate handlers.
+const trayUnsubscribers: Array<() => void> = []
+
+onMounted(() => {
+  trayUnsubscribers.push(
+    Events.On('tray:new-terminal', () => { void addTab() }),
+    Events.On('tray:open-settings', () => { showSettings.value = true }),
+    Events.On('tray:lock', () => { void lockScreenRef.value?.lock() }),
+  )
+})
+
+onUnmounted(() => {
+  for (const off of trayUnsubscribers.splice(0)) off()
 })
 
 // Ctrl+Shift+L — lock the session. Uses the same chord shape as the tab

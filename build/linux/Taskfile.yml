@@ -171,11 +171,18 @@ tasks:
     cmds:
       - mkdir -p {{.ROOT_DIR}}/build/linux/appimage
       - wails3 generate .desktop -name "{{.APP_NAME}}" -exec "{{.EXEC}}" -icon "{{.ICON}}" -outputfile "{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop" -categories "{{.CATEGORIES}}"
+      # `wails3 generate .desktop` has no flag for StartupWMClass, but without
+      # it the desktop environment cannot match the running window to this
+      # launcher — the window would show a generic icon and not group. The
+      # value must equal LinuxOptions.ApplicationID in main.go, which is what
+      # GTK reports as the window class.
+      - grep -q '^StartupWMClass=' "{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop" || echo 'StartupWMClass={{.APP_ID}}' >> "{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop"
     vars:
       APP_NAME: '{{.APP_NAME}}'
       EXEC: '{{.APP_NAME}}'
       ICON: '{{.APP_NAME}}'
-      CATEGORIES: 'Development;'
+      APP_ID: 'net.anorebel.adex'
+      CATEGORIES: 'System;TerminalEmulator;Utility;'
       OUTPUTFILE: '{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop'
 
   run:

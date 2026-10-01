@@ -3,26 +3,72 @@
 #
 # The lines below are called `modelines`. See `:help modeline`
 
-name: "refapp"
+name: "adex"
 arch: ${GOARCH}
 platform: "linux"
-version: "0.1.0"
+version: "1.0.0"
 section: "default"
 priority: "extra"
 maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
-description: "A refapp application"
-vendor: "My Company"
-homepage: "https://wails.io"
+description: "A modern science fiction desktop environment terminal application"
+vendor: "Ano Rebel"
+homepage: "https://github.com/AnoRebel/aDex"
 license: "MIT"
 release: "1"
 
 contents:
-  - src: "./bin/refapp"
-    dst: "/usr/local/bin/refapp"
-  - src: "./build/appicon.png"
-    dst: "/usr/share/icons/hicolor/128x128/apps/refapp.png"
-  - src: "./build/linux/refapp.desktop"
-    dst: "/usr/share/applications/refapp.desktop"
+  - src: "./bin/adex"
+    dst: "/usr/local/bin/adex"
+
+  # Application icon at every size the desktop may ask for. A single
+  # 128px file (which is all the template installed, and under the
+  # wrong name) leaves launchers and task switchers upscaling it.
+  - src: "./build/linux/icons/adex-16.png"
+    dst: "/usr/share/icons/hicolor/16x16/apps/adex.png"
+  - src: "./build/linux/icons/adex-22.png"
+    dst: "/usr/share/icons/hicolor/22x22/apps/adex.png"
+  - src: "./build/linux/icons/adex-24.png"
+    dst: "/usr/share/icons/hicolor/24x24/apps/adex.png"
+  - src: "./build/linux/icons/adex-32.png"
+    dst: "/usr/share/icons/hicolor/32x32/apps/adex.png"
+  - src: "./build/linux/icons/adex-48.png"
+    dst: "/usr/share/icons/hicolor/48x48/apps/adex.png"
+  - src: "./build/linux/icons/adex-64.png"
+    dst: "/usr/share/icons/hicolor/64x64/apps/adex.png"
+  - src: "./build/linux/icons/adex-128.png"
+    dst: "/usr/share/icons/hicolor/128x128/apps/adex.png"
+  - src: "./build/linux/icons/adex-256.png"
+    dst: "/usr/share/icons/hicolor/256x256/apps/adex.png"
+  - src: "./build/linux/icons/adex-512.png"
+    dst: "/usr/share/icons/hicolor/512x512/apps/adex.png"
+
+  # Same icon under the GTK application id, which is what the desktop
+  # matches the running window against.
+  - src: "./build/linux/icons/adex-48.png"
+    dst: "/usr/share/icons/hicolor/48x48/apps/net.anorebel.adex.png"
+  - src: "./build/linux/icons/adex-128.png"
+    dst: "/usr/share/icons/hicolor/128x128/apps/net.anorebel.adex.png"
+  - src: "./build/linux/icons/adex-256.png"
+    dst: "/usr/share/icons/hicolor/256x256/apps/net.anorebel.adex.png"
+
+  # Tray glyph, installed under the StatusNotifierItem Id ("aDex").
+  # Wails only publishes IconPixmap for the tray, but some panels
+  # (waybar v0.15 among them) resolve tray icons by NAME from the
+  # icon theme and show a placeholder otherwise. Shipping the file
+  # under that name gives those panels something to find.
+  - src: "./build/linux/icons/tray-aDex-16.png"
+    dst: "/usr/share/icons/hicolor/16x16/apps/aDex.png"
+  - src: "./build/linux/icons/tray-aDex-22.png"
+    dst: "/usr/share/icons/hicolor/22x22/apps/aDex.png"
+  - src: "./build/linux/icons/tray-aDex-24.png"
+    dst: "/usr/share/icons/hicolor/24x24/apps/aDex.png"
+  - src: "./build/linux/icons/tray-aDex-32.png"
+    dst: "/usr/share/icons/hicolor/32x32/apps/aDex.png"
+  - src: "./build/linux/icons/tray-aDex-48.png"
+    dst: "/usr/share/icons/hicolor/48x48/apps/aDex.png"
+
+  - src: "./build/linux/adex.desktop"
+    dst: "/usr/share/applications/adex.desktop"
 
 # Default dependencies for the GTK4 + WebKitGTK 6.0 stack (Ubuntu 24.04+ / Debian 13+)
 depends:

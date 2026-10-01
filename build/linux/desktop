@@ -1,13 +1,14 @@
 [Desktop Entry]
 Version=1.0
-Name=aDex-UI
-Comment=A modern science fiction desktop environment terminal application
-# The Exec line includes %u to pass the URL to the application
-Exec=/usr/local/bin/adex-ui %u
-Terminal=false
 Type=Application
-Icon=adex-ui
-Categories=Utility;
-StartupWMClass=adex-ui
-
- 
+Name=aDex
+Comment=A modern science fiction desktop environment terminal application
+Exec=adex %u
+Icon=adex
+Terminal=false
+Categories=System;TerminalEmulator;Utility;
+Keywords=terminal;shell;console;monitor;
+# Must match LinuxOptions.ApplicationID / ProgramName in main.go, or the
+# window will not group with this launcher and shows a generic icon.
+StartupWMClass=net.anorebel.adex
+StartupNotify=true

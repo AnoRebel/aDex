@@ -97,9 +97,24 @@ vi.mock('~/assets/data/keyboard-layouts.json', () => ({
 // Mock the Wails runtime
 vi.mock('~/lib/wailsjs/runtime', () => ({
   Events: {
-    On: vi.fn(),
+    // On returns an UNSUBSCRIBE function — index.vue collects these for the
+    // tray-action listeners and calls them on unmount, so a bare vi.fn()
+    // (returning undefined) fails with "off is not a function".
+    On: vi.fn(() => () => {}),
+    Once: vi.fn(() => () => {}),
     Off: vi.fn(),
     Emit: vi.fn(),
+  },
+  WindowRuntime: {
+    Maximise: vi.fn(),
+    UnMaximise: vi.fn(),
+    IsMaximised: vi.fn().mockResolvedValue(false),
+    Fullscreen: vi.fn(),
+    UnFullscreen: vi.fn(),
+    IsFullscreen: vi.fn().mockResolvedValue(false),
+    SetFrameless: vi.fn(),
+    Center: vi.fn(),
+    Quit: vi.fn(),
   },
   Log: {
     Info: vi.fn(),
