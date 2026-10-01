@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"aDex-UI/internal/appdir"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -22,12 +23,7 @@ type Service struct {
 
 // NewService creates a new settings service
 func NewService(logger *logger.Logger) (*Service, error) {
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user config directory: %w", err)
-	}
-
-	appConfigDir := filepath.Join(configDir, "aDex-UI")
+	appConfigDir := appdir.Config()
 	if err := os.MkdirAll(appConfigDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create config directory: %w", err)
 	}
@@ -52,9 +48,11 @@ func (s *Service) GetSettings() *models.AppSettings {
 	s.settings.Lock()
 	defer s.settings.Unlock()
 
-	// Return a copy to prevent external modification
-	copy := *s.settings
-	return &copy
+	// Return a copy to prevent external modification. CopyValue leaves the
+	// embedded mutex behind — copying it would hand the caller a lock that is
+	// currently held.
+	copied := s.settings.CopyValue()
+	return &copied
 }
 
 // UpdateSettings updates the application settings
@@ -278,7 +276,7 @@ func (s *Service) saveSettings() error {
 
 // mergeSettings merges two settings objects, with new settings taking precedence
 func (s *Service) mergeSettings(existing, imported *models.AppSettings) *models.AppSettings {
-	merged := *existing // Start with existing as base
+	merged := existing.CopyValue() // Start with existing as base (without its lock)
 
 	// Only merge imported fields that are not default/empty
 

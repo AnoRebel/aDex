@@ -323,7 +323,7 @@ export const useUserStore = defineStore('user', () => {
 package main
 
 import (
-    "github.com/wailsapp/wails/v2/pkg/runtime"
+    "github.com/wailsapp/wails/v3/pkg/application"
 )
 
 func (a *App) GetUser(id string) (*User, error) {
@@ -729,13 +729,124 @@ docs(readme): update installation instructions
 3. **Type errors**: Run TypeScript compiler
 4. **Import issues**: Check file paths and exports
 
+## Wails v3 Workflow
+
+This project targets **Wails v3** (`github.com/wailsapp/wails/v3`). v3 is in
+beta and ships fixes frequently, so the project tracks the latest beta rather
+than pinning to one. Last verified against **v3.0.0-beta.14** (2026-08-26).
+
+```bash
+# Install the CLI (one-time; re-run to pick up newer betas)
+go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+
+# Check the toolchain (Linux needs GTK4 + WebKitGTK 6.0)
+wails3 doctor
+
+# Live-reload dev (Go backend + Nuxt dev server on port 9245)
+wails3 dev
+
+# Production build for the current platform
+wails3 task build
+```
+
+Configuration lives in `build/config.yml` (project metadata and `dev_mode`)
+plus the root `Taskfile.yml`, which dispatches to the per-platform task files
+under `build/`. There is no `wails.json` — that was v2.
+
+`build/config.yml` is the single source of truth for the application version:
+`frontend/nuxt.config.ts` reads `info.version` from it at config-evaluation
+time so the in-app update checker and the binary always agree. A missing or
+malformed config fails the build rather than silently emitting `0.0.0`.
+
+The Nuxt static bundle is emitted to `frontend/dist` (set via
+`nitro.output.publicDir`), which is what `//go:embed all:frontend/dist` in
+`main.go` embeds. That directory is generated and gitignored, so a clean
+checkout must build the frontend before `go build` will succeed.
+
+### Upstream beta churn
+
+Because the project tracks the latest beta, an upstream release can break the
+build between one day and the next. That is expected, not a defect in this
+codebase: re-run `go get github.com/wailsapp/wails/v3@latest`, reinstall the
+CLI so the two versions match, and re-verify. Keep the CLI and the Go module
+on the same beta.
+
+### Binding regeneration
+
+Exported methods on services registered with `application.NewService(...)`
+are exposed to the frontend. After adding or changing one:
+
+```bash
+wails3 generate bindings -ts
+```
+
+This regenerates `frontend/bindings/`, laid out by Go import path — the
+coordinator lands at
+`frontend/bindings/aDex-UI/internal/services/coordinator/`. Generation is by
+static analysis of the Go source, so the output cannot drift from the
+implementation, and it preserves doc comments and real parameter names.
+The directory is build output and is gitignored.
+
+`frontend/app/lib/wailsjs/{coordinator,runtime}.ts` are thin facades that
+re-export the generated bindings. They exist so the ~19 importing components
+and stores keep a stable path, and to carry a few historical aliases
+(`GetSchemes` -> `GetColorSchemes`). Do not hand-write IPC in them.
+
+Gotchas (learned the hard way — see
+`openspec/changes/edex-parity-and-uplift/tasks.md` "Launch crash fix"):
+
+- Wails JSON-marshals every bound method's return value. Returning a
+  live Go struct that holds channels / `sync` primitives /
+  `context.CancelFunc` triggers a launch fatal
+  (`json: unsupported type: func() error`). Add `json:"-"` tags to
+  those fields or return a plain DTO.
+- Unbind internal helpers by lowercasing the leading character
+  (`getServiceInternal`, not `GetService`).
+- Field names need explicit `json:"name"` tags or the frontend reads
+  `undefined` (Go defaults to PascalCase, the TS side expects
+  camelCase).
+
+### Quit / shutdown
+
+`runtime.Quit(ctx)` triggers teardown → `OnBeforeClose` →
+`OnShutdown` → process exit. Call it **exactly once**: on Linux/GTK a
+double call hits `gtk_main_quit: assertion 'main_loops != NULL'`. The
+frontend's `doQuit()` has a single-fire latch for this reason. Do NOT
+run `coordinator.Shutdown()` in `QuitApp` — `OnShutdown` already does
+it on the correct thread; running it in parallel deadlocks `sc.mu`.
+
+## Evidence Capture Protocol
+
+Several spec items require visual evidence captured from a running
+`wails3 dev` (screenshots/recordings). The agent workflow can't run
+the GUI, so these are captured by a human and dropped into
+`docs/evidence/<feature>/`.
+
+Layout: `docs/evidence/<feature-id>/<theme-or-variant>.png`
+(e.g. `docs/evidence/theme-engine/tron.png`).
+
+Reference visual targets (the original eDEX-UI look) are noted in the
+agent memory and the four reference screenshots
+(`screenshot_default/disrupted/blade/horizon.png`). When capturing,
+match the corresponding aDex layout to its reference and flag
+divergences for iteration.
+
+Features needing evidence: `desktop-shell-layout`, `theme-engine`,
+`terminal`, `system-monitor`, `network-monitor`,
+`globe-visualization`, `keyboard-layout-pack`, `settings-modal`,
+`boot-sequence`. See section 8 of the OpenSpec tasks doc for the
+exact capture list per feature.
+
 ## Additional Resources
 
-- [Wails Documentation](https://wails.io/)
-- [Nuxt 3 Documentation](https://nuxt.com/)
+- [Wails v3 Documentation](https://v3.wails.io/)
+- [Nuxt 4 Documentation](https://nuxt.com/)
 - [Vue 3 Documentation](https://vuejs.org/)
 - [Go Documentation](https://golang.org/)
 - [Tailwind CSS](https://tailwindcss.com/)
+- Project docs: [themes.md](./themes.md), [keyboards.md](./keyboards.md),
+  [audio.md](./audio.md), [troubleshooting.md](./troubleshooting.md),
+  [cross-platform-packaging.md](./cross-platform-packaging.md)
 
 ## Getting Help
 
@@ -747,3 +858,47 @@ docs(readme): update installation instructions
 ---
 
 Happy coding! 🚀
+## Go package layout
+
+All Go code lives under `internal/`. There is no `backend/` tree — it was
+merged into `internal/` during the Wails v3 migration.
+
+- `internal/services/` — the service implementations, composed by
+  `internal/services/coordinator`, which is the single Wails v3 service
+  registered in `main.go`.
+- `internal/models/` — shared data types crossing the Go/JS boundary.
+- `internal/utils/`, `internal/logger/`, `internal/events/` — support packages.
+
+Before the migration, five services (audio, filesystem, system, terminal,
+theme) existed in both trees. The `internal/` copies had no importers and,
+despite being 3–10x larger, did not implement the methods the coordinator
+calls — they were an abandoned design rather than a fuller implementation, and
+were deleted. See `docs/evidence/wails-v3-migration/service-consolidation-verdicts.md`.
+
+## Testing the frontend in a browser
+
+The frontend can be opened in a normal browser against `bun run dev`, which is
+useful for UI, theming and layout work. **Backend calls do not work there**,
+and they fail in a way that is easy to misread.
+
+A browser has no Wails IPC peer, so a generated binding call posts to a
+runtime endpoint the dev server does not have. The dev server answers with the
+SPA's `index.html` and a **200 status**. The binding therefore resolves
+*successfully* with an HTML string instead of the expected value — it does not
+throw. Downstream code then fails somewhere unrelated, for example
+`toFixed is not a function` inside a computed.
+
+Practical consequences:
+
+- Verify anything backend-dependent against the packaged binary, not a browser.
+- Treat a 200 as meaningless on its own; check the content type. `fetchJson`
+  in the theme and keyboard composables does exactly this, because the same
+  trap silently broke theme loading.
+- Assets under `frontend/app/assets/` are **not** served over HTTP — only
+  `frontend/public/` is. Load them with `import.meta.glob` so the bundler
+  resolves them, never with a runtime-computed `import()` or a fetch.
+
+`tests/visual/` contains a small CDP harness that attaches to an already
+running Chromium-family browser for screenshot evidence. It reads
+`DevToolsActivePort` fresh on each run, since that file's port and path change
+on every browser restart.

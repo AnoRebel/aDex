@@ -1,7 +1,8 @@
-import { ref, computed, onMounted, onUnmounted, readonly } from 'vue'
+import { ref, computed, onMounted, onUnmounted, readonly, getCurrentInstance } from 'vue'
 
-// Import Wails runtime (local implementation for v2)
+// Wails v3 runtime facade + generated coordinator bindings.
 import { Events, Log } from '~/lib/wailsjs/runtime'
+import * as CoordinatorBindings from '~/lib/wailsjs/coordinator'
 
 // Import coordinator bindings
 import {
@@ -17,7 +18,7 @@ import {
   ReadDirectory
 } from '~/lib/wailsjs/coordinator'
 
-// Type definitions for Wails v2 integration
+// Type definitions for the Wails integration
 export interface WailsEvent {
   name: string
   data?: any
@@ -39,9 +40,11 @@ const events = ref<WailsEvent[]>([])
 
 // Event listeners map
 const eventListeners = new Map<string, Set<(data: any) => void>>()
+// Wails v3 unsubscribe functions, one per subscribed event name.
+const runtimeUnsubscribers = new Map<string, () => void>()
 
 /**
- * useWails composable provides Wails v2 integration functionality
+ * useWails composable provides Wails integration functionality
  */
 export function useWails() {
   const appStatus = computed(() => {
@@ -60,14 +63,14 @@ export function useWails() {
       error.value = null
       isInitialized.value = true
 
-      // Wails v2 runtime is automatically available
-      // No explicit init needed
+      // The Wails v3 runtime is available as soon as the webview loads;
+      // no explicit initialisation step is required.
       
       // Setup event listeners
       setupEventListeners()
       
       isReady.value = true
-      Log.info('Wails v2 initialized successfully')
+      Log.info('Wails runtime initialized successfully')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error during initialization'
       error.value = errorMessage
@@ -97,9 +100,16 @@ export function useWails() {
   const subscribe = (eventName: string, callback: (data: any) => void) => {
     if (!eventListeners.has(eventName)) {
       eventListeners.set(eventName, new Set())
-      
-      // Also subscribe to Wails runtime events
-      Events.On(eventName, callback)
+
+      // One runtime subscription per event name, fanned out to the local
+      // callback set. Wails v3 returns an unsubscribe function, which we
+      // keep so teardown removes exactly this subscription — important for
+      // per-session names like `terminal.output.<id>`, where dropping a
+      // shared listener would silence other panes.
+      const off = Events.On(eventName, (data: any) => {
+        eventListeners.get(eventName)?.forEach(cb => cb(data))
+      })
+      runtimeUnsubscribers.set(eventName, off)
     }
     eventListeners.get(eventName)!.add(callback)
   }
@@ -108,11 +118,13 @@ export function useWails() {
     if (callback) {
       eventListeners.get(eventName)?.delete(callback)
     }
-    // Wails v2 EventsOff takes event names (not callbacks)
+    // Drop the runtime subscription only once no local callbacks remain.
     const listeners = eventListeners.get(eventName)
     if (!callback || !listeners?.size) {
-      Events.Off(eventName)
+      runtimeUnsubscribers.get(eventName)?.()
+      runtimeUnsubscribers.delete(eventName)
       listeners?.clear()
+      eventListeners.delete(eventName)
     }
   }
 
@@ -122,9 +134,8 @@ export function useWails() {
   }
 
   const cleanup = () => {
-    eventListeners.forEach((_listeners, eventName) => {
-      Events.Off(eventName)
-    })
+    runtimeUnsubscribers.forEach(off => off())
+    runtimeUnsubscribers.clear()
     eventListeners.clear()
     events.value = []
     services.value.clear()
@@ -133,23 +144,33 @@ export function useWails() {
     error.value = null
   }
 
-  onUnmounted(() => {
-    cleanup()
-  })
+  // Only register the hook when there IS a component to attach it to.
+  // Stores call useWails() from actions, outside any setup(), where Vue warns
+  // "onUnmounted is called when there is no active component instance" on
+  // every invocation.
+  if (getCurrentInstance()) {
+    onUnmounted(() => {
+      cleanup()
+    })
+  }
 
   // System service methods - calls the Go backend via Wails bindings
   const system = {
     async getSystemInfo() {
       try {
-        const info = await GetSystemInfo()
+        const info: any = await GetSystemInfo()
         if (info) {
+          // Backend now uses explicit camelCase JSON tags (`platform`,
+          // `architecture`, `kernelVersion`, ...). The legacy
+          // PascalCase fallbacks stay so a partially-regenerated
+          // build can't break boot.
           return {
-            hostname: info.Hostname || info.hostname || 'localhost',
-            platform: info.OS || info.os || 'linux',
-            os: info.OS || info.os || 'Linux',
-            arch: info.Architecture || info.architecture || 'x64',
-            uptime: info.Uptime ? Number(info.Uptime) / 1e9 : 0,
-            kernel: info.KernelVersion || info.kernel || ''
+            hostname: info.hostname || info.Hostname || 'localhost',
+            platform: info.platform || info.OS || info.os || 'linux',
+            os: info.platform || info.OS || info.os || 'Linux',
+            arch: info.architecture || info.Architecture || 'x64',
+            uptime: info.uptime ? Number(info.uptime) / 1e9 : (info.Uptime ? Number(info.Uptime) / 1e9 : 0),
+            kernel: info.kernelVersion || info.KernelVersion || info.kernel || '',
           }
         }
         return { hostname: 'localhost', platform: 'linux', os: 'Linux', arch: 'x64', uptime: 0, kernel: '' }
@@ -335,12 +356,16 @@ export function useService(serviceName: string) {
   })
 
   const call = async <T = any>(methodName: string, ...args: any[]): Promise<T> => {
-    // In Wails v2, bound methods are available on window.go.{ServiceName}.{MethodName}
-    const boundMethod = (window as any).go?.[serviceName]?.[methodName]
-    if (!boundMethod) {
-      throw new Error(`Method ${serviceName}.${methodName} not found`)
+    // Wails v3 has no `window.go` IPC global: bound methods are reached
+    // through the generated, typed bindings, which this module re-exports.
+    // Resolving by string here keeps the historical dynamic-call shape, but
+    // prefer importing the binding directly — that gets compile-time checking
+    // on both the method name and its arguments.
+    const bound = (CoordinatorBindings as Record<string, unknown>)[methodName]
+    if (typeof bound !== 'function') {
+      throw new Error(`Method ${serviceName}.${methodName} not found in generated bindings`)
     }
-    return boundMethod(...args)
+    return (bound as (...a: any[]) => Promise<T>)(...args)
   }
 
   return {

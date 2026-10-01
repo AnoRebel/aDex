@@ -43,6 +43,7 @@ const terminalRef = ref<HTMLElement>()
 let terminal: any = null
 let fitAddon: any = null
 let backendTerminalId: string | null = null
+let unsubOutput: (() => void) | undefined
 
 // Wails terminal service
 const { terminal: terminalService } = useWails()
@@ -69,8 +70,8 @@ const initializeTerminal = async () => {
 
   // Dynamic import of xterm
   try {
-    const { Terminal } = await import('xterm')
-    const { FitAddon } = await import('xterm-addon-fit')
+    const { Terminal } = await import('@xterm/xterm')
+    const { FitAddon } = await import('@xterm/addon-fit')
 
     // Create terminal instance
     terminal = new Terminal({
@@ -114,9 +115,10 @@ const initializeTerminal = async () => {
         backendTerminalId = result.id
         console.log('Backend terminal created:', backendTerminalId)
         
-        // Subscribe to terminal output events from backend
-        // Wails v2 EventsOn passes data as separate arguments
-        Events.On('terminal.output', (...args: any[]) => {
+        // Subscribe to terminal output events from backend.
+        // Events.On returns an unsubscribe function (Wails v3); keep it so
+        // teardown removes only this component's listener.
+        unsubOutput = Events.On('terminal.output', (...args: any[]) => {
           const event = args[0]
           if (event && event.terminalId === backendTerminalId) {
             let text = ''
@@ -190,7 +192,7 @@ const initializeTerminal = async () => {
     if (!backendTerminalId) {
       // Only write banner and fake prompt in local/demo mode
       terminal.writeln('\x1b[36m╔════════════════════════════════════════════════════════╗\x1b[0m')
-      terminal.writeln('\x1b[36m║\x1b[0m  \x1b[1;32maDex-UI Terminal\x1b[0m                                      \x1b[36m║\x1b[0m')
+      terminal.writeln('\x1b[36m║\x1b[0m  \x1b[1;32maDex Terminal\x1b[0m                                      \x1b[36m║\x1b[0m')
       terminal.writeln('\x1b[36m║\x1b[0m  \x1b[33mAdvanced Desktop Environment\x1b[0m                          \x1b[36m║\x1b[0m')
       terminal.writeln('\x1b[36m╚════════════════════════════════════════════════════════╝\x1b[0m')
       terminal.writeln('')
@@ -246,7 +248,7 @@ const handleCommand = (cmd: string) => {
       terminal.writeln('  \x1b[33mhostname\x1b[0m - Show system hostname')
       terminal.writeln('  \x1b[33muptime\x1b[0m   - Show system uptime')
       terminal.writeln('  \x1b[33mecho\x1b[0m     - Echo text back')
-      terminal.writeln('  \x1b[33mversion\x1b[0m  - Show aDex-UI version')
+      terminal.writeln('  \x1b[33mversion\x1b[0m  - Show aDex version')
     },
     'clear': () => {
       terminal.clear()
@@ -264,7 +266,7 @@ const handleCommand = (cmd: string) => {
       terminal.writeln('System up for 1 hour, 23 minutes')
     },
     'version': () => {
-      terminal.writeln('aDex-UI v2.0.0')
+      terminal.writeln('aDex v2.0.0')
     }
   }
   
@@ -332,7 +334,8 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   
   // Unsubscribe from terminal output events
-  Events.Off('terminal.output')
+  unsubOutput?.()
+  unsubOutput = undefined
   
   // Close backend terminal if exists
   if (backendTerminalId) {

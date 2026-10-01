@@ -18,35 +18,80 @@
  *   fit()        – refit the terminal to its container
  */
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { useResizeObserver, useTimeoutFn, useDebounceFn, useStorage } from '@vueuse/core'
 import { useTerminalStore } from '~/stores/terminal'
+import { useAdexAudio } from '~/composables/useAdexAudio'
+import { pulseKey } from '~/composables/useKeyboardPulse'
+// Static imports for xterm + addons.
+//
+// NOTE: We previously used dynamic `import('@xterm/xterm')` to defer the
+// chunk, but Wails' webview serves assets via `wails://wails.localhost/...`,
+// and dynamic-import URL resolution against that scheme intermittently
+// fails — the fetch returns text/html (the SPA shell) instead of the JS
+// chunk, the import rejects, and the user sees the "failed to load
+// xterm.js" placeholder. Static imports get inlined into the main chunk
+// at build time, which sidesteps the URL resolver entirely.
+//
+// SSR is already off (`ssr: false` in nuxt.config.ts), so importing xterm
+// at module top-level is safe — the file only loads in the browser.
+import { Terminal as XTerm } from '@xterm/xterm'
+import { FitAddon } from '@xterm/addon-fit'
+import { WebglAddon } from '@xterm/addon-webgl'
+import { Events } from '~/lib/wailsjs/runtime'
+
+const NERD_FONT_FALLBACK = [
+  "'JetBrainsMono Nerd Font'",
+  "'FiraCode Nerd Font'",
+  "'Hack Nerd Font'",
+  "'MesloLGS NF'",
+  "'CaskaydiaCove Nerd Font'",
+  "'Symbols Nerd Font'",
+  "'Fira Code'",
+  'monospace',
+].join(', ')
+
+
+/** Settings → Advanced → WebGL terminal renderer. Off by default: the Mesa
+ *  driver has been observed aborting the whole webview process from this path
+ *  (SIGABRT inside libgallium). */
+const useWebglRenderer = useStorage<boolean>('adex.terminal.webgl', false)
+// NOTE: We deliberately don't import @xterm/addon-canvas here.
+//   1. The package only ships CJS (no `module` field), and Vite's
+//      named-import-from-CJS interop fails for the UMD self-assigning
+//      `module.exports = CanvasAddon` shape it uses, throwing
+//      "Importing binding name 'CanvasAddon' is not found" at runtime.
+//   2. Every modern Wails webview (WebView2 / WebKitGTK / WKWebView)
+//      supports WebGL, so a CanvasAddon fallback never fires in practice.
+//   3. If WebGL ever fails, xterm's built-in DOM renderer auto-activates —
+//      we don't lose anything by skipping the canvas tier.
 
 const props = defineProps<{
   sessionId: string
   active: boolean
 }>()
 
+// Emitted when this session's PTY exits. Parent marks the tab DEAD
+// and surfaces a restart click target. The event is scoped to our
+// sessionId so unmounting one tab doesn't tear down listeners on
+// the others.
+const emit = defineEmits<{
+  (e: 'exited', sessionId: string): void
+}>()
+
 const terminalStore = useTerminalStore()
 const containerRef = ref<HTMLElement | null>(null)
 const xtermRef = ref<HTMLElement | null>(null)
 
-// Dynamic module refs (xterm is not SSR-safe)
-let Terminal: any = null
-let FitAddon: any = null
-let term: any = null
-let fitAddon: any = null
-let resizeObserver: ResizeObserver | null = null
+let term: InstanceType<typeof XTerm> | null = null
+let fitAddon: FitAddon | null = null
 let wailsEventCleanup: (() => void) | null = null
 
 // ---- Init ----
-async function initTerminal() {
-  if (!xtermRef.value) return
-
-  // Dynamically import xterm (client-only)
-  const xtermMod = await import('xterm')
-  Terminal = xtermMod.Terminal
-
-  const fitMod = await import('xterm-addon-fit')
-  FitAddon = fitMod.FitAddon
+function initTerminal() {
+  if (!xtermRef.value) {
+    console.error('[AdexTerminal] xtermRef is null at init — DOM not ready')
+    return
+  }
 
   // Read CSS vars for theme colors
   const style = getComputedStyle(document.documentElement)
@@ -55,9 +100,24 @@ async function initTerminal() {
   const cursor = style.getPropertyValue('--terminal_cursor').trim() || fg
   const selection = style.getPropertyValue('--terminal_selection').trim() || 'rgba(170,207,209,0.3)'
 
-  term = new Terminal({
-    fontFamily: style.getPropertyValue('--terminal_font').trim() || "'Fira Code', monospace",
-    fontSize: 14,
+  // Font stack with Nerd Font support. The browser tries each name in
+  // order — if a glyph (e.g. shell-prompt powerline arrows, dev icons)
+  // is missing from the primary font, it falls through to the next.
+  // Most modern dev setups have at least one of these installed; if
+  // none are, xterm falls back to the OS monospace and Nerd glyphs
+  // render as boxes — but the prompt text itself stays readable.
+  const userFont = style.getPropertyValue('--terminal_font').trim()
+  // Append Nerd Font fallbacks AFTER the user's choice so prompt
+  // glyphs still resolve even when the user picked a non-NF primary.
+  const fontFamily = userFont
+    ? `${userFont}, ${NERD_FONT_FALLBACK}`
+    : NERD_FONT_FALLBACK
+
+  term = new XTerm({
+    fontFamily,
+    // From Settings -> Font. This was hardcoded to 14, so the size control
+    // could never have had any effect.
+    fontSize: savedFontSize(),
     lineHeight: 1.2,
     cursorStyle: 'block' as const,
     cursorBlink: true,
@@ -90,32 +150,100 @@ async function initTerminal() {
   fitAddon = new FitAddon()
   term.loadAddon(fitAddon)
 
-  // Try WebGL renderer for performance
-  try {
-    const webglMod = await import('xterm-addon-webgl')
-    term.loadAddon(new webglMod.WebglAddon())
-  } catch {
-    // WebGL not available, fall back to canvas
+  // WebGL renderer for performance.
+  //
+  // The addon must be disposed if the GPU context is lost, otherwise the
+  // terminal keeps rendering to a dead context and shows a BLANK surface with
+  // no recovery. Context loss is not exotic: resizing the window (and any GPU
+  // driver reset) can trigger it. Disposing the addon makes xterm fall back to
+  // its DOM renderer, which is slower but always draws.
+  //
+  // A try/catch alone is not enough — it only covers failure to LOAD the
+  // addon, not loss of the context afterwards.
+  // WebGL is OPT-IN, and off by default.
+  //
+  // Two captured coredumps show WebKitWebProcess aborting with SIGABRT on a
+  // glibc heap error raised inside libgallium — the Mesa GPU driver — which is
+  // what killed the app mid-session. xterm's WebGL addon is the only WebGL
+  // consumer in the interface (the globe is a 2D canvas), so it is the path
+  // driving that code.
+  //
+  // This is a driver-level fault, not something the application can fix:
+  // libgallium heap crashes on Intel are a known Mesa 26.x pattern (26.2.1
+  // alone shipped fixes for a persistent-buffer refcounting leak affecting
+  // multiple Gallium backends). Observed here on Mesa 26.2.1 with Intel Iris
+  // Xe and WebKitGTK 2.52.6 — which is well past the WebKitGTK 2.50.6 heap-
+  // corruption fix, so that separate upstream bug is not the cause.
+  //
+  // The DOM renderer is slower on very heavy output but is stable and always
+  // draws, which is the better default for a terminal you leave open. Users on
+  // a known-good driver can turn WebGL back on in Settings → Advanced.
+  if (useWebglRenderer.value) {
     try {
-      const canvasMod = await import('xterm-addon-canvas')
-      term.loadAddon(new canvasMod.CanvasAddon())
+      const webgl = new WebglAddon()
+      // Dispose on context loss, otherwise the terminal keeps drawing to a
+      // dead context and renders blank with no recovery.
+      webgl.onContextLoss(() => {
+        // eslint-disable-next-line no-console
+        console.info('[terminal] WebGL context lost — falling back to the DOM renderer')
+        try { webgl.dispose() } catch { /* already gone */ }
+        try { fitAddon?.fit() } catch { /* container not measured yet */ }
+      })
+      term.loadAddon(webgl)
     } catch {
-      // Use default renderer
+      // Fall through to xterm's default DOM renderer.
     }
   }
 
-  // Open and fit
+  // Open and fit. We defer the first fit() via VueUse's useTimeoutFn
+  // (which auto-cleans on unmount) so the container element has measured
+  // layout — calling fit() before xterm sees a non-zero clientWidth
+  // raises in some Wails webview builds.
   term.open(xtermRef.value)
-  await nextTick()
-  try {
-    fitAddon.fit()
-  } catch {
-    // ignore fit errors during init
-  }
+  useTimeoutFn(() => {
+    try {
+      fitAddon?.fit()
+    } catch {
+      // ignore fit errors during init
+    }
+  }, 0)
 
-  // Send user input to backend
+  // Send user input to backend.
+  //
+  // Diagnostic log: if you type and nothing echoes, check DevTools
+  // console for `[term.onData]` lines. Their presence proves xterm
+  // has focus and the keystroke reached it; their ABSENCE means
+  // focus is elsewhere (the AdexKeyboard buttons, the file manager,
+  // or the topbar — anything that isn't a contenteditable / textarea
+  // / xterm helper-textarea).
+  // Typewriter feedback. Fire the `keyboard` cue on every keystroke
+  // (data event from xterm) so the user gets the same tactile audio
+  // feedback as a hardware terminal. The cue itself is rate-limited
+  // internally and falls through to the synth when the WAV isn't
+  // cached yet, so spamming doesn't queue infinite clicks.
+  //
+  // Note: term.onData fires for EACH byte the user typed — including
+  // escape sequences (arrow keys → 3 bytes). We click once per onData
+  // event, not per byte, by gating on data length so paste of a 200B
+  // string emits one cue, not 200.
+  const audio = useAdexAudio()
   term.onData((data: string) => {
-    terminalStore.sendInput(data, props.sessionId)
+    // eslint-disable-next-line no-console
+    console.debug('[term.onData]', JSON.stringify(data), 'session', props.sessionId)
+    if (data.length > 0) {
+      // 'keypress' is the new short mechanical-keyboard click — shorter
+      // and crisper than the legacy 'keyboard' cue (which had a longer
+      // typewriter sample that sounded sluggish per keystroke).
+      try { audio.playCue('keypress') } catch { /* non-fatal */ }
+      // Flash the on-screen keyboard. xterm captures keystrokes at the
+      // textarea level and calls preventDefault, so the keyboard's own
+      // document-level keydown handler never sees terminal input. We
+      // bridge through this shared module instead.
+      try { pulseKey(data) } catch { /* non-fatal */ }
+    }
+    terminalStore.sendInput(data, props.sessionId).catch((err) => {
+      console.warn('[term.onData] sendInput rejected:', err)
+    })
   })
 
   // Notify backend of size changes
@@ -126,19 +254,33 @@ async function initTerminal() {
   // Listen for output from the Wails backend
   setupWailsEvents()
 
-  // Observe container resize
-  if (containerRef.value) {
-    resizeObserver = new ResizeObserver(() => {
-      if (props.active) {
-        try {
-          fitAddon?.fit()
-        } catch {
-          // ignore
-        }
-      }
-    })
-    resizeObserver.observe(containerRef.value)
-  }
+  // Refit on container resize. Two safety nets here:
+  //
+  //   1. **Debounce** — without this, a continuous WM resize fires
+  //      ResizeObserver dozens of times per second, each call asks
+  //      xterm to refit, xterm rewrites the canvas, ResizeObserver
+  //      sees the canvas change, fires again. Visible flicker.
+  //   2. **Size diff guard** — `fitAddon.fit()` can sometimes leave
+  //      the canvas one pixel different even when nothing changed,
+  //      kicking off the same loop. Skip when the container's measured
+  //      size is identical to last fit.
+  let lastFitW = 0
+  let lastFitH = 0
+  const debouncedFit = useDebounceFn(() => {
+    if (!props.active) return
+    const el = containerRef.value
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    if (rect.width === lastFitW && rect.height === lastFitH) return
+    lastFitW = rect.width
+    lastFitH = rect.height
+    try {
+      fitAddon?.fit()
+    } catch {
+      // Ignore; xterm fit can throw before the canvas is laid out.
+    }
+  }, 80)
+  useResizeObserver(containerRef, () => debouncedFit())
 
   // If this terminal is active, focus it
   if (props.active) {
@@ -146,32 +288,102 @@ async function initTerminal() {
   }
 
   // Write welcome message for the first terminal
-  term.writeln(`\x1b[36mWelcome to aDex-UI Terminal\x1b[0m`)
+  term.writeln(`\x1b[36mWelcome to aDex Terminal\x1b[0m`)
   term.writeln(`\x1b[90mSession: ${props.sessionId}\x1b[0m`)
   term.writeln('')
 }
 
 function setupWailsEvents() {
-  // Wails v2 events -- listen for terminal output routed to this session
-  const runtime = (window as any).runtime
-  if (runtime?.EventsOn) {
-    const handler = (data: any) => {
-      // The event may carry { sessionId, data } or just raw data
-      if (typeof data === 'object' && data.sessionId) {
-        if (data.sessionId === props.sessionId && term) {
-          term.write(data.data)
+  // Wails v2 dispatches events with the emitted payload as the FIRST
+  // argument to the listener. The backend `terminal.output` payload is
+  // shaped:
+  //   { terminalId: string, data: number[] }
+  //
+  // (Note `terminalId`, NOT `sessionId` — naming was inconsistent with
+  // the frontend's prop and used to silently no-op every output write.)
+  //
+  // `data` arrives as a plain number array because Wails JSON-marshals
+  // Go's `[]byte` that way; xterm's `term.write` accepts string |
+  // Uint8Array but NOT a plain array, so we must convert before writing.
+  if (typeof window === 'undefined') {
+    console.warn('[AdexTerminal] Wails runtime not available — terminal output will not flow')
+    return
+  }
+
+  // Decode a Wails-marshalled `[]byte` payload back to bytes.
+  //
+  // Go's encoding/json serialises `[]byte` as a STANDARD-base64 string,
+  // not a number array — that's why an earlier version of this handler
+  // (which assumed `[]byte` → `number[]`) ended up writing literal
+  // characters like `NGg=DQ0bW...` straight into xterm. Decode via the
+  // browser's atob, then build a Uint8Array byte-by-byte. Returns null
+  // if the string isn't valid base64 (so callers can fall back to
+  // writing the raw string for legacy paths).
+  const base64ToBytes = (s: string): Uint8Array | null => {
+    try {
+      const bin = atob(s)
+      const out = new Uint8Array(bin.length)
+      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i)
+      return out
+    } catch {
+      return null
+    }
+  }
+
+  const handler = (payload: unknown) => {
+    if (!term) return
+    if (typeof payload === 'string') {
+      term.write(payload)
+      return
+    }
+    if (typeof payload === 'object' && payload !== null) {
+      const obj = payload as { terminalId?: string; sessionId?: string; data?: unknown }
+      // Accept both terminalId (current backend) and sessionId (legacy
+      // shape) so a future rename doesn't break us.
+      const id = obj.terminalId ?? obj.sessionId
+      if (id && id !== props.sessionId) return
+      const raw = obj.data
+      if (typeof raw === 'string') {
+        // Wails marshals Go []byte as base64 — decode first.
+        const decoded = base64ToBytes(raw)
+        if (decoded) {
+          term.write(decoded)
+        } else {
+          term.write(raw)
         }
-      } else if (typeof data === 'string' && term) {
-        term.write(data)
+      } else if (Array.isArray(raw)) {
+        term.write(new Uint8Array(raw))
+      } else if (raw instanceof Uint8Array) {
+        term.write(raw)
       }
     }
-    runtime.EventsOn('terminal.output', handler)
-    runtime.EventsOn(`terminal.output.${props.sessionId}`, handler)
+  }
 
-    wailsEventCleanup = () => {
-      runtime.EventsOff('terminal.output')
-      runtime.EventsOff(`terminal.output.${props.sessionId}`)
+  // Session-scoped output channel ONLY. The backend emits per-session
+  // `terminal.output.<id>` so each pane owns its own stream.
+  //
+  // Wails v3 returns an unsubscribe function from Events.On, so cleanup
+  // is precise: calling it removes THIS listener and nothing else. (In
+  // v2, EventsOff removed every listener registered for an event name,
+  // which is why subscribing to a shared global channel meant one tab
+  // unmounting silently disconnected output for all the others.)
+  const outputEventName = `terminal.output.${props.sessionId}`
+  const offOutput = Events.On(outputEventName, handler)
+
+  // Per-session exit event. Backend emits `terminal.exited.<id>` when
+  // the PTY closes.
+  const exitedEventName = `terminal.exited.${props.sessionId}`
+  const exitedHandler = () => {
+    if (term) {
+      term.write('\r\n\x1b[33m[process exited — click tab to restart]\x1b[0m\r\n')
     }
+    emit('exited', props.sessionId)
+  }
+  const offExited = Events.On(exitedEventName, exitedHandler)
+
+  wailsEventCleanup = () => {
+    offOutput()
+    offExited()
   }
 }
 
@@ -192,7 +404,38 @@ function fit() {
   }
 }
 
-defineExpose({ write, focus, fit })
+/** Terminal font size from the persisted settings, with the previous
+ *  hardcoded value as the fallback. */
+function savedFontSize(): number {
+  try {
+    const raw = localStorage.getItem('adex-settings')
+    const size = raw ? JSON.parse(raw)?.display?.terminalFontSize : undefined
+    return typeof size === 'number' && size > 0 ? size : 14
+  } catch {
+    return 14
+  }
+}
+
+/**
+ * Apply a font change to this live terminal.
+ *
+ * xterm keeps its font in instance options, so updating a CSS custom property
+ * does not reach it — the change has to be pushed in and followed by a refit
+ * so the PTY is told the new rows/cols.
+ */
+function applyFont(family?: string, size?: number) {
+  if (!term) return
+  if (family) {
+    term.options.fontFamily = `${family}, ${NERD_FONT_FALLBACK}`
+  }
+  if (typeof size === 'number' && size > 0) {
+    term.options.fontSize = size
+  }
+  // Cell metrics changed, so re-measure and resize the PTY to match.
+  try { fitAddon?.fit() } catch { /* container not measured yet */ }
+}
+
+defineExpose({ write, focus, fit, applyFont })
 
 // ---- Watchers ----
 watch(
@@ -213,7 +456,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  resizeObserver?.disconnect()
+  // useResizeObserver registered above is cleaned up automatically.
   wailsEventCleanup?.()
   term?.dispose()
   term = null

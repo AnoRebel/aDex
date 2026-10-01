@@ -1,0 +1,29 @@
+/* assets/css/layouts/fulltype.css
+ *
+ * Fulltype preset — keyboard expands to full width, filesystem hidden.
+ * Ports the original `tron-fulltype.json` injectCSS:
+ *
+ *   section#keyboard { width: 100dvw; }
+ *   div.keyboard_key { margin: 0vh 0.8vh; }
+ *   div.keyboard_key#keyboard_spacebar { width: 53.5vh; }
+ *   section#filesystem { display: none; }
+ */
+
+[data-layout="fulltype"] .adex-filesystem {
+  display: none;
+}
+
+[data-layout="fulltype"] .adex-keyboard {
+  /* Flex basis rather than 100dvw: the viewport unit overflows the row. */
+  width: 100%;
+  flex: 1 1 100%;
+}
+
+[data-layout="fulltype"] .adex-keyboard .kb-key {
+  margin: 0 0.8vh;
+}
+
+[data-layout="fulltype"] .adex-keyboard .kb-key.spacebar {
+  width: 53.5vh;
+  min-width: 53.5vh;
+}

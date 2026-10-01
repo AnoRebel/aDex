@@ -55,6 +55,7 @@ import {
 import { useTerminalStore } from '~/stores/terminal'
 import { Events } from '~/lib/wailsjs/runtime'
 import {
+import { nowMs } from '~/utils/now'
   CreateTerminal,
   WriteToTerminal,
   ResizeTerminal,
@@ -124,12 +125,12 @@ let WebglAddon: any = null
 async function loadXtermModules(): Promise<boolean> {
   if (typeof window === 'undefined') return false
   try {
-    const xtermModule = await import('xterm')
+    const xtermModule = await import('@xterm/xterm')
     Terminal = xtermModule.Terminal
-    const fitModule = await import('xterm-addon-fit')
+    const fitModule = await import('@xterm/addon-fit')
     FitAddon = fitModule.FitAddon
     try {
-      const webglModule = await import('xterm-addon-webgl')
+      const webglModule = await import('@xterm/addon-webgl')
       WebglAddon = webglModule.WebglAddon
     } catch {
       // WebGL addon optional
@@ -485,9 +486,9 @@ let pingInterval: ReturnType<typeof setInterval> | null = null
 
 function updatePing() {
   // Simple performance-based approximation
-  const start = performance.now()
+  const start = nowMs()
   requestAnimationFrame(() => {
-    const elapsed = Math.round(performance.now() - start)
+    const elapsed = Math.round(nowMs() - start)
     pingMs.value = elapsed
   })
 }
@@ -542,8 +543,9 @@ defineExpose({
 
 // ---- Wails Event Listeners ----
 
-let unsubOutput: (() => void) | void = undefined
-let unsubClosed: (() => void) | void = undefined
+let unsubOutput: (() => void) | undefined
+let unsubClosed: (() => void) | undefined
+let unsubPing: (() => void) | undefined
 
 function setupWailsEvents() {
   // Listen for terminal output from the Go backend
@@ -557,7 +559,7 @@ function setupWailsEvents() {
   })
 
   // Listen for ping updates if backend provides them
-  Events.On('network.ping', (ms: number) => {
+  unsubPing = Events.On('network.ping', (ms: number) => {
     if (typeof ms === 'number') {
       pingMs.value = ms
     }
@@ -565,9 +567,13 @@ function setupWailsEvents() {
 }
 
 function cleanupWailsEvents() {
-  Events.Off('terminal.output')
-  Events.Off('terminal.closed')
-  Events.Off('network.ping')
+  // Call the unsubscribe functions Events.On returned rather than
+  // removing by event name: each call drops only this component's
+  // listener, leaving any other subscriber to the same event intact.
+  unsubOutput?.()
+  unsubClosed?.()
+  unsubPing?.()
+  unsubOutput = unsubClosed = unsubPing = undefined
 }
 
 // ---- Lifecycle ----

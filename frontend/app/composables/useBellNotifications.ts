@@ -1,7 +1,6 @@
 import { ref, computed, watch } from 'vue'
 import { usePreferredReducedMotion, useTimestamp } from '@vueuse/core'
 import { useTimeoutFn, useIntervalFn } from '@vueuse/shared'
-import { useNotificationStore } from '~/stores/notification'
 import { useUIStore } from '~/stores/ui'
 import type { TerminalSession } from '~/types/terminal'
 
@@ -44,7 +43,6 @@ export interface BellConfig {
 }
 
 export function useBellNotifications(session?: Ref<TerminalSession | undefined>) {
-  const notificationStore = useNotificationStore()
   const uiStore = useUIStore()
 
   // VueUse utilities

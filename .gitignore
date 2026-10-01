@@ -1,11 +1,15 @@
 # Wails v3 specific
 bin/
-wails.json
 app.syso
 wails_app_manifest.json
 .task
 bin
 frontend/dist
+
+# Wails v3 generated bindings. Regenerated from Go source by
+# `wails3 generate bindings` (the build Taskfile does this automatically),
+# so they are build output rather than source.
+frontend/bindings/
 frontend/node_modules
 build/linux/appimage/build
 build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
@@ -144,3 +148,9 @@ temp/
 
 # Steering documents (don't commit)
 steering-docs/
+
+# AI
+.claude
+.opencode
+.mcp.json
+openspec

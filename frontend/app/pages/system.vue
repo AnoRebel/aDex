@@ -567,7 +567,7 @@ onUnmounted(() => {
 
 // SEO
 useHead({
-  title: 'System Monitor - aDex-UI',
+  title: 'System Monitor - aDex',
   meta: [
     { name: 'description', content: 'Real-time system monitoring with CPU, memory, and process tracking' }
   ]

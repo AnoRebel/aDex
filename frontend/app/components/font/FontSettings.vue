@@ -382,7 +382,10 @@ const {
   currentConfiguration,
   updateSettings,
   scanSystemFonts,
-  resetToDefaults
+  // Aliased: the local handler below is also called resetToDefaults (it is
+  // what the template binds to), and the unaliased import shadowed it — so
+  // the handler called itself and recursed instead of resetting anything.
+  resetToDefaults: resetConfigurationToDefaults
 } = useFontConfiguration()
 
 // State
@@ -455,7 +458,7 @@ const cancelChanges = () => {
 
 const resetToDefaults = async () => {
   try {
-    const defaults = await resetToDefaults()
+    const defaults = await resetConfigurationToDefaults()
     localSettings.value = { ...defaults }
     hasChanges.value = true
   } catch (err) {

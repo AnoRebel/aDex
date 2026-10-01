@@ -1,0 +1,97 @@
+[
+  {
+    "id": "da-DK",
+    "displayName": "Danish (Denmark)",
+    "file": "kb_layouts/da-DK.json"
+  },
+  {
+    "id": "de-DE",
+    "displayName": "German (Germany)",
+    "file": "kb_layouts/de-DE.json"
+  },
+  {
+    "id": "en-COLEMAK",
+    "displayName": "English (Colemak)",
+    "file": "kb_layouts/en-COLEMAK.json"
+  },
+  {
+    "id": "en-DVORAK",
+    "displayName": "English (Dvorak)",
+    "file": "kb_layouts/en-DVORAK.json"
+  },
+  {
+    "id": "en-GB",
+    "displayName": "English (UK)",
+    "file": "kb_layouts/en-GB.json"
+  },
+  {
+    "id": "en-NORMAN",
+    "displayName": "English (Norman)",
+    "file": "kb_layouts/en-NORMAN.json"
+  },
+  {
+    "id": "en-US",
+    "displayName": "English (US)",
+    "file": "kb_layouts/en-US.json"
+  },
+  {
+    "id": "en-WORKMAN",
+    "displayName": "English (Workman)",
+    "file": "kb_layouts/en-WORKMAN.json"
+  },
+  {
+    "id": "es-ES",
+    "displayName": "Spanish (Spain)",
+    "file": "kb_layouts/es-ES.json"
+  },
+  {
+    "id": "es-LAT",
+    "displayName": "Spanish (Latin America)",
+    "file": "kb_layouts/es-LAT.json"
+  },
+  {
+    "id": "fr-BEPO",
+    "displayName": "French (Bépo)",
+    "file": "kb_layouts/fr-BEPO.json"
+  },
+  {
+    "id": "fr-FR",
+    "displayName": "French (France)",
+    "file": "kb_layouts/fr-FR.json"
+  },
+  {
+    "id": "hu-HU",
+    "displayName": "Hungarian (Hungary)",
+    "file": "kb_layouts/hu-HU.json"
+  },
+  {
+    "id": "it-IT",
+    "displayName": "Italian (Italy)",
+    "file": "kb_layouts/it-IT.json"
+  },
+  {
+    "id": "nl-BE",
+    "displayName": "Dutch (Belgium)",
+    "file": "kb_layouts/nl-BE.json"
+  },
+  {
+    "id": "pt-BR",
+    "displayName": "Portuguese (Brazil)",
+    "file": "kb_layouts/pt-BR.json"
+  },
+  {
+    "id": "sv-SE",
+    "displayName": "Swedish (Sweden)",
+    "file": "kb_layouts/sv-SE.json"
+  },
+  {
+    "id": "tr-TR-F",
+    "displayName": "Turkish (F)",
+    "file": "kb_layouts/tr-TR-F.json"
+  },
+  {
+    "id": "tr-TR-Q",
+    "displayName": "Turkish (Q)",
+    "file": "kb_layouts/tr-TR-Q.json"
+  }
+]

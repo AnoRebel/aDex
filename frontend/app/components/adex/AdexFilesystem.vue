@@ -15,9 +15,17 @@
     </div>
 
     <!-- File display -->
-    <div class="fs-display" ref="displayRef">
+    <div
+      class="fs-display"
+      ref="displayRef"
+      @contextmenu.self.prevent="onContextMenuBackground($event)"
+    >
       <!-- Grid view -->
-      <div v-if="viewMode === 'grid'" class="fs-grid">
+      <div
+        v-if="viewMode === 'grid'"
+        class="fs-grid"
+        @contextmenu.self.prevent="onContextMenuBackground($event)"
+      >
         <!-- Show disks item -->
         <div
           class="fs-item fs-item-special"
@@ -47,9 +55,10 @@
           :class="{ active: selectedItem === dir.path }"
           @click="handleItemClick(dir)"
           @dblclick="navigateToDir(dir.path)"
+          @contextmenu.prevent="onContextMenu($event, dir, true)"
           :title="dir.name"
         >
-          <div class="fs-item-icon">[D]</div>
+          <FileIcon class="fs-item-icon" :filename="dir.name" :is-directory="true" />
           <div class="fs-item-name">{{ dir.name }}</div>
         </div>
 
@@ -60,9 +69,10 @@
           class="fs-item fs-item-file"
           :class="{ active: selectedItem === file.path }"
           @click="handleItemClick(file)"
+          @contextmenu.prevent="onContextMenu($event, file, false)"
           :title="`${file.name} (${formatSize(file.size)})`"
         >
-          <div class="fs-item-icon">{{ getFileIcon(file) }}</div>
+          <FileIcon class="fs-item-icon" :filename="file.name" />
           <div class="fs-item-name">{{ file.name }}</div>
         </div>
 
@@ -118,8 +128,12 @@
           :class="{ active: selectedItem === dir.path }"
           @click="handleItemClick(dir)"
           @dblclick="navigateToDir(dir.path)"
+          @contextmenu.prevent="onContextMenu($event, dir, true)"
         >
-          <span class="list-name">[D] {{ dir.name }}</span>
+          <span class="list-name">
+            <FileIcon class="list-icon" :filename="dir.name" :is-directory="true" size="1.6vh" />
+            {{ dir.name }}
+          </span>
           <span class="list-type">DIR</span>
           <span class="list-size">{{ dir.itemCount != null ? dir.itemCount + ' items' : '--' }}</span>
           <span class="list-date">{{ formatDate(dir.modified) }}</span>
@@ -132,8 +146,12 @@
           class="fs-list-item fs-list-item-file"
           :class="{ active: selectedItem === file.path }"
           @click="handleItemClick(file)"
+          @contextmenu.prevent="onContextMenu($event, file, false)"
         >
-          <span class="list-name">{{ getFileIcon(file) }} {{ file.name }}</span>
+          <span class="list-name">
+            <FileIcon class="list-icon" :filename="file.name" size="1.6vh" />
+            {{ file.name }}
+          </span>
           <span class="list-type">{{ file.extension || 'FILE' }}</span>
           <span class="list-size">{{ formatSize(file.size) }}</span>
           <span class="list-date">{{ formatDate(file.modified) }}</span>
@@ -197,22 +215,83 @@
       </div>
       <span class="disk-bar-percent">{{ primaryMount.usage.toFixed(0) }}%</span>
     </div>
+
+    <!-- Right-click menu (file/dir target) and supporting modals. -->
+    <AdexContextMenu
+      v-model="cmOpen"
+      :items="cmItems"
+      :x="cmX"
+      :y="cmY"
+      aria-label="File context menu"
+    />
+    <FilePropertiesModal
+      v-model="propsOpen"
+      :path="propsPath"
+    />
+    <InputPrompt
+      v-model="promptOpen"
+      :title="promptCfg.title"
+      :description="promptCfg.description"
+      :placeholder="promptCfg.placeholder"
+      :initial-value="promptCfg.initialValue"
+      :confirm-label="promptCfg.confirmLabel"
+      @confirm="onPromptConfirm"
+    />
+    <ConfirmDialog
+      v-model="confirmOpen"
+      :title="confirmCfg.title"
+      :message="confirmCfg.message"
+      :confirm-label="confirmCfg.confirmLabel"
+      :danger="confirmCfg.danger"
+      @confirm="onConfirmConfirm"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, reactive } from 'vue'
+import { useStorage } from '@vueuse/core'
+import { format as formatDateFn, isValid as isValidDate } from 'date-fns'
 import { useFilesystemStore } from '~/stores/filesystem'
 import { useTerminalStore } from '~/stores/terminal'
 import { useWails } from '~/composables/useWails'
+import {
+  CreateDirectory,
+  CreateFile,
+  DeleteFile,
+  MoveFile,
+  CopyFile,
+} from '~/lib/wailsjs/coordinator'
+import AdexContextMenu, {
+  type ContextMenuItems,
+} from '~/components/ui/AdexContextMenu.vue'
+import FileIcon from '~/components/filesystem/FileIcon.vue'
+import FilePropertiesModal from '~/components/filesystem/FilePropertiesModal.vue'
+import InputPrompt from '~/components/ui/InputPrompt.vue'
+import ConfirmDialog from '~/components/ui/ConfirmDialog.vue'
 
 const fsStore = useFilesystemStore()
 const terminalStore = useTerminalStore()
 const wails = useWails()
 
-// Local state
-const viewMode = ref<'grid' | 'list'>('grid')
-const showDotfiles = ref(false)
+// Local state. Initialize from `adex-settings.advanced` so a user
+// preference set in Settings → Advanced sticks across launches:
+//   - hideDotfiles (inverse of showDotfiles)
+//   - fsListView   (true → list, false → grid)
+// The user can still flip view/dotfiles inline via the header buttons;
+// the inline state intentionally doesn't write back to settings (the
+// header buttons are a transient session override, not a persisted
+// preference — matches eDex behavior).
+const fsAdvancedSettings = useStorage<{
+  advanced?: { hideDotfiles?: boolean; fsListView?: boolean }
+}>('adex-settings', {})
+
+const viewMode = ref<'grid' | 'list'>(
+  fsAdvancedSettings.value?.advanced?.fsListView ? 'list' : 'grid',
+)
+const showDotfiles = ref(
+  !(fsAdvancedSettings.value?.advanced?.hideDotfiles ?? true),
+)
 const selectedItem = ref<string | null>(null)
 const showingDisks = ref(false)
 const diskMounts = ref<Array<{
@@ -385,16 +464,14 @@ const formatSize = (bytes: number): string => {
   return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`
 }
 
-// Utility: format date
+// Utility: format date — date-fns tokens are local-aware and handle
+// padding/leap years/edge cases the hand-rolled getMonth+1 / padStart
+// version got wrong on some locales.
 const formatDate = (date: Date | string): string => {
   if (!date) return '--'
   const d = new Date(date)
-  if (isNaN(d.getTime())) return '--'
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  const hours = String(d.getHours()).padStart(2, '0')
-  const minutes = String(d.getMinutes()).padStart(2, '0')
-  return `${month}/${day} ${hours}:${minutes}`
+  if (!isValidDate(d)) return '--'
+  return formatDateFn(d, 'MM/dd HH:mm')
 }
 
 // Utility: get text icon for file type
@@ -435,6 +512,302 @@ watch(
   },
   { deep: true }
 )
+
+// ---- Context menu state ----
+//
+// Single AdexContextMenu instance is reused for both right-clicks on
+// items and on the empty grid background. The active target (or null
+// for "background") drives which item set is rendered.
+
+interface FsTarget {
+  name: string
+  path: string
+  isDirectory: boolean
+}
+
+const cmOpen = ref(false)
+const cmX = ref(0)
+const cmY = ref(0)
+const cmTarget = ref<FsTarget | null>(null)
+
+// Internal clipboard for copy/cut. Move-on-paste when `cut`, copy-on-paste
+// when `copy`. Cleared after a successful paste (cut) or kept (copy).
+const fsClipboard = ref<{ mode: 'copy' | 'cut'; src: string } | null>(null)
+
+// Properties modal
+const propsOpen = ref(false)
+const propsPath = ref<string | null>(null)
+
+// Generic input prompt (rename / new file / new folder)
+//
+// `PromptHandler` is declared as a top-level type so the reactive object
+// below doesn't need a multi-line `as` cast. Vue's SFC compiler chokes on
+// `(... ) as\n  (...) => ...` even though TypeScript itself parses it,
+// because the SFC pre-parser is more strict about line continuations.
+type PromptHandler = (value: string) => Promise<void> | void
+const promptOpen = ref(false)
+const promptCfg = reactive({
+  title: '',
+  description: '',
+  placeholder: '',
+  initialValue: '',
+  confirmLabel: 'OK',
+  /** Action invoked with the user's confirmed input. */
+  handler: ((_value: string) => undefined) as PromptHandler,
+})
+
+function openPrompt(cfg: Partial<typeof promptCfg> & {
+  handler: (value: string) => Promise<void> | void
+}) {
+  promptCfg.title = cfg.title ?? ''
+  promptCfg.description = cfg.description ?? ''
+  promptCfg.placeholder = cfg.placeholder ?? ''
+  promptCfg.initialValue = cfg.initialValue ?? ''
+  promptCfg.confirmLabel = cfg.confirmLabel ?? 'OK'
+  promptCfg.handler = cfg.handler
+  promptOpen.value = true
+}
+
+async function onPromptConfirm(value: string) {
+  try {
+    await promptCfg.handler(value)
+  } catch (err) {
+    console.error('[fs] prompt action failed:', err)
+  } finally {
+    await fsStore.fetchDirectory(currentPath.value)
+  }
+}
+
+// Confirm dialog (delete)
+type ConfirmHandler = () => Promise<void> | void
+const confirmOpen = ref(false)
+const confirmCfg = reactive({
+  title: '',
+  message: '',
+  confirmLabel: 'OK',
+  danger: false,
+  handler: (() => undefined) as ConfirmHandler,
+})
+
+function openConfirm(cfg: Partial<typeof confirmCfg> & {
+  handler: ConfirmHandler
+}) {
+  confirmCfg.title = cfg.title ?? ''
+  confirmCfg.message = cfg.message ?? ''
+  confirmCfg.confirmLabel = cfg.confirmLabel ?? 'OK'
+  confirmCfg.danger = cfg.danger ?? false
+  confirmCfg.handler = cfg.handler
+  confirmOpen.value = true
+}
+
+async function onConfirmConfirm() {
+  try {
+    await confirmCfg.handler()
+  } catch (err) {
+    console.error('[fs] confirm action failed:', err)
+  } finally {
+    await fsStore.fetchDirectory(currentPath.value)
+  }
+}
+
+// ---- Context menu open ----
+
+function onContextMenu(e: MouseEvent, item: any, isDir: boolean) {
+  cmTarget.value = {
+    name: item.name,
+    path: item.path,
+    isDirectory: isDir,
+  }
+  cmX.value = e.clientX
+  cmY.value = e.clientY
+  cmOpen.value = true
+  selectedItem.value = item.path
+}
+
+function onContextMenuBackground(e: MouseEvent) {
+  cmTarget.value = null
+  cmX.value = e.clientX
+  cmY.value = e.clientY
+  cmOpen.value = true
+}
+
+// ---- Action handlers ----
+
+function joinPath(dir: string, name: string): string {
+  const trimmed = dir.endsWith('/') ? dir.slice(0, -1) : dir
+  return `${trimmed}/${name}`
+}
+
+async function actOpen() {
+  const t = cmTarget.value
+  if (!t) return
+  if (t.isDirectory) {
+    navigateToDir(t.path)
+  } else {
+    // Inject `cd <containing dir>` + open in active terminal — best we
+    // can do without an "open with" dialog yet.
+    const session = terminalStore.activeSession
+    if (session) terminalStore.sendInput(`xdg-open "${t.path}"\n`, session.id)
+  }
+}
+
+function actCopy() {
+  if (cmTarget.value) fsClipboard.value = { mode: 'copy', src: cmTarget.value.path }
+}
+function actCut() {
+  if (cmTarget.value) fsClipboard.value = { mode: 'cut', src: cmTarget.value.path }
+}
+
+async function actPaste() {
+  const cb = fsClipboard.value
+  if (!cb) return
+  const baseName = cb.src.split('/').filter(Boolean).pop() ?? 'pasted'
+  const dst = joinPath(currentPath.value, baseName)
+  try {
+    if (cb.mode === 'copy') {
+      await CopyFile(cb.src, dst)
+    } else {
+      await MoveFile(cb.src, dst)
+      fsClipboard.value = null
+    }
+    await fsStore.fetchDirectory(currentPath.value)
+  } catch (err) {
+    console.error('[fs] paste failed:', err)
+  }
+}
+
+function actRename() {
+  const t = cmTarget.value
+  if (!t) return
+  openPrompt({
+    title: 'RENAME',
+    description: `Rename "${t.name}" inside ${currentPath.value}`,
+    initialValue: t.name,
+    confirmLabel: 'RENAME',
+    handler: async (newName: string) => {
+      if (newName === t.name) return
+      const dst = joinPath(currentPath.value, newName)
+      await MoveFile(t.path, dst)
+    },
+  })
+}
+
+function actDelete() {
+  const t = cmTarget.value
+  if (!t) return
+  openConfirm({
+    title: 'DELETE',
+    message: `Permanently delete "${t.name}"? This cannot be undone.`,
+    confirmLabel: 'DELETE',
+    danger: true,
+    handler: async () => {
+      await DeleteFile(t.path)
+    },
+  })
+}
+
+function actProperties() {
+  const t = cmTarget.value
+  if (!t) return
+  propsPath.value = t.path
+  propsOpen.value = true
+}
+
+function actNewFolder() {
+  openPrompt({
+    title: 'NEW FOLDER',
+    description: `Create a new folder inside ${currentPath.value}`,
+    placeholder: 'untitled',
+    confirmLabel: 'CREATE',
+    handler: async (name: string) => {
+      await CreateDirectory(joinPath(currentPath.value, name))
+    },
+  })
+}
+
+function actNewFile() {
+  openPrompt({
+    title: 'NEW FILE',
+    description: `Create an empty file inside ${currentPath.value}`,
+    placeholder: 'untitled.txt',
+    confirmLabel: 'CREATE',
+    handler: async (name: string) => {
+      await CreateFile(joinPath(currentPath.value, name))
+    },
+  })
+}
+
+async function actRefresh() {
+  await fsStore.fetchDirectory(currentPath.value)
+}
+
+function actToggleHidden() {
+  showDotfiles.value = !showDotfiles.value
+}
+
+// ---- Menu items ----
+
+const cmItems = computed<ContextMenuItems>(() => {
+  const t = cmTarget.value
+  if (!t) {
+    // Background menu (empty area)
+    return [
+      [
+        { label: 'NEW FOLDER',  icon: '[+]', onSelect: actNewFolder },
+        { label: 'NEW FILE',    icon: '[F]', onSelect: actNewFile },
+      ],
+      [
+        {
+          label: fsClipboard.value ? 'PASTE' : 'PASTE',
+          icon: '[v]',
+          disabled: !fsClipboard.value,
+          onSelect: actPaste,
+        },
+      ],
+      [
+        {
+          label: showDotfiles.value ? 'HIDE HIDDEN' : 'SHOW HIDDEN',
+          icon: '[.]',
+          onSelect: actToggleHidden,
+        },
+        { label: 'REFRESH', icon: '[R]', kbds: ['F5'], onSelect: actRefresh },
+      ],
+    ]
+  }
+  // Item-specific menu
+  return [
+    [
+      {
+        label: t.isDirectory ? 'OPEN' : 'OPEN WITH',
+        icon: t.isDirectory ? '[D]' : '[~]',
+        onSelect: actOpen,
+      },
+    ],
+    [
+      { label: 'COPY',  icon: '[c]', onSelect: actCopy },
+      { label: 'CUT',   icon: '[x]', onSelect: actCut },
+      {
+        label: 'PASTE',
+        icon: '[v]',
+        disabled: !fsClipboard.value,
+        onSelect: actPaste,
+      },
+    ],
+    [
+      { label: 'RENAME', icon: '[/]', onSelect: actRename },
+      {
+        label: 'DELETE',
+        icon: '[X]',
+        kbds: ['Del'],
+        danger: true,
+        onSelect: actDelete,
+      },
+    ],
+    [
+      { label: 'PROPERTIES', icon: '[i]', onSelect: actProperties },
+    ],
+  ]
+})
 
 // Load initial directory and disk info on mount
 onMounted(async () => {
@@ -479,6 +852,22 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 0.5vw;
+}
+
+/* Inline icon used by the list view inside list-name. */
+.list-icon {
+  margin-right: 0.4vw;
+  vertical-align: middle;
+}
+
+/* Grid view icon: stack-and-center the SVG above the filename, overriding
+ * the prior text-block layout from main.css. */
+.fs-item .fs-item-icon {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.3vh;
+  height: 3vh;
 }
 
 .fs-header-title {

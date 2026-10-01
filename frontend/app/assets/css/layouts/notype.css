@@ -1,0 +1,25 @@
+/* assets/css/layouts/notype.css
+ *
+ * Notype preset — filesystem expands to full width, keyboard hidden.
+ * Ports the original `tron-notype.json` injectCSS:
+ *
+ *   section#filesystem { left: 0; width: 100dvw; }
+ *   section#filesystem > h3.title, section#filesystem > div { width: 100dvw; }
+ *   section#keyboard { display: none; }
+ *
+ * The token file `_tokens.css` also clamps `--scanline-strength` to 0 for
+ * this preset, suiting OLED-style displays where the goal is pure black on
+ * idle panels.
+ */
+
+[data-layout="notype"] .adex-keyboard {
+  display: none;
+}
+
+[data-layout="notype"] .adex-filesystem {
+  /* 100dvw inside a flex row overflows the container when any sibling has
+     width; a flex basis of 100% fills exactly the space actually available. */
+  width: 100%;
+  flex: 1 1 100%;
+  border-right: none;
+}

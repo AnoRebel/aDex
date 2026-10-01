@@ -44,7 +44,7 @@ describe('AdexBootScreen Component', () => {
       // The CSS has position: fixed; width: 100vw; height: 100vh
     })
 
-    it('shows the title "aDex-UI"', async () => {
+    it('shows the title "aDex"', async () => {
       mountComponent()
       // Title appears after 200ms sleep
       await vi.advanceTimersByTimeAsync(250)
@@ -52,7 +52,7 @@ describe('AdexBootScreen Component', () => {
 
       const title = wrapper.find('.boot-title')
       expect(title.exists()).toBe(true)
-      expect(title.text()).toBe('aDex-UI')
+      expect(title.text()).toBe('aDex')
     })
 
     it('title has data-text attribute for glitch effect', async () => {
@@ -61,7 +61,7 @@ describe('AdexBootScreen Component', () => {
       await wrapper.vm.$nextTick()
 
       const title = wrapper.find('.boot-title')
-      expect(title.attributes('data-text')).toBe('aDex-UI')
+      expect(title.attributes('data-text')).toBe('aDex')
     })
 
     it('shows subtitle "ADVANCED DESKTOP EXPERIENCE"', async () => {
@@ -90,7 +90,10 @@ describe('AdexBootScreen Component', () => {
     it('shows boot messages during the animation', async () => {
       mountComponent()
       // Messages start appearing after ~1200ms (200 + 600 + 400)
-      await vi.advanceTimersByTimeAsync(1500)
+            // The component waits up to 10s for backend boot events before
+      // falling back to its canned sequence (the path jsdom takes, since no
+      // Wails runtime emits them here). Advance past that window first.
+      await vi.advanceTimersByTimeAsync(12000)
       await wrapper.vm.$nextTick()
 
       const messages = wrapper.findAll('.boot-message')
@@ -99,42 +102,54 @@ describe('AdexBootScreen Component', () => {
 
     it('each message has a prefix and text', async () => {
       mountComponent()
-      await vi.advanceTimersByTimeAsync(1500)
+            // The component waits up to 10s for backend boot events before
+      // falling back to its canned sequence (the path jsdom takes, since no
+      // Wails runtime emits them here). Advance past that window first.
+      await vi.advanceTimersByTimeAsync(12000)
       await wrapper.vm.$nextTick()
 
       const messages = wrapper.findAll('.boot-message')
       if (messages.length > 0) {
         const firstMsg = messages[0]
-        expect(firstMsg.find('.boot-message-prefix').exists()).toBe(true)
+        expect(firstMsg.find('.boot-message-icon').exists()).toBe(true)
+        expect(firstMsg.find('.boot-message-tag').exists()).toBe(true)
         expect(firstMsg.find('.boot-message-text').exists()).toBe(true)
       }
     })
 
-    it('messages get [OK] prefix when done', async () => {
+    it('marks completed messages with the success icon', async () => {
       mountComponent()
       // Advance enough for some messages to complete
-      await vi.advanceTimersByTimeAsync(3000)
+      // The component waits up to 10s for backend boot events before
+      // falling back to its canned sequence (the path jsdom takes, since no
+      // Wails runtime emits them here). Advance past that window first.
+      await vi.advanceTimersByTimeAsync(14000)
       await wrapper.vm.$nextTick()
 
       const doneMessages = wrapper.findAll('.boot-message.done')
       expect(doneMessages.length).toBeGreaterThan(0)
 
       if (doneMessages.length > 0) {
-        const prefix = doneMessages[0].find('.boot-message-prefix')
-        expect(prefix.text()).toContain('OK')
+        // Status is an icon now (see BOOT_LEVEL_ICON), not an [OK] string.
+        const icon = doneMessages[0].find('.boot-message-icon')
+        expect(icon.exists()).toBe(true)
+        expect(icon.text().length).toBeGreaterThan(0)
       }
     })
 
-    it('current message has [..] prefix', async () => {
+    it('marks the in-flight message with an icon', async () => {
       mountComponent()
       // The very first message should be "current" right when it appears
-      await vi.advanceTimersByTimeAsync(1300)
+      // The component waits up to 10s for backend boot events before
+      // falling back to its canned sequence (the path jsdom takes, since no
+      // Wails runtime emits them here). Advance past that window first.
+      await vi.advanceTimersByTimeAsync(12000)
       await wrapper.vm.$nextTick()
 
       const currentMessages = wrapper.findAll('.boot-message.current')
       if (currentMessages.length > 0) {
-        const prefix = currentMessages[0].find('.boot-message-prefix')
-        expect(prefix.text()).toContain('..')
+        const icon = currentMessages[0].find('.boot-message-icon')
+        expect(icon.exists()).toBe(true)
       }
     })
 
@@ -144,13 +159,18 @@ describe('AdexBootScreen Component', () => {
       // Messages start after ~1200ms, each takes ~280-400ms + 80ms gap
       // Total message phase is about 1200 + 7*(~300+80) = ~3860ms
       // The overlay hides ~5000ms+ so 4000ms is safe
-      await vi.advanceTimersByTimeAsync(4000)
+            // The component waits up to 10s for backend boot events before
+      // falling back to its canned sequence (the path jsdom takes, since no
+      // Wails runtime emits them here). Advance past that window first.
+      await vi.advanceTimersByTimeAsync(12500)
       await wrapper.vm.$nextTick()
 
+      // These track the real boot sequence in AdexBootScreen; the previous
+      // assertions named messages the sequence no longer contains.
       const text = wrapper.text()
-      expect(text).toContain('Initializing aDex-UI')
-      expect(text).toContain('Loading kernel modules')
-      expect(text).toContain('System ready')
+      expect(text).toContain('Loading settings')
+      expect(text).toContain('Initializing theme engine')
+      expect(text).toContain('Initializing audio cue system')
     })
   })
 
@@ -158,7 +178,10 @@ describe('AdexBootScreen Component', () => {
     it('shows a progress bar during boot', async () => {
       mountComponent()
       // Progress appears with messages
-      await vi.advanceTimersByTimeAsync(1500)
+            // The component waits up to 10s for backend boot events before
+      // falling back to its canned sequence (the path jsdom takes, since no
+      // Wails runtime emits them here). Advance past that window first.
+      await vi.advanceTimersByTimeAsync(12000)
       await wrapper.vm.$nextTick()
 
       expect(wrapper.find('.boot-progress-wrapper').exists()).toBe(true)
@@ -168,7 +191,10 @@ describe('AdexBootScreen Component', () => {
 
     it('progress bar width increases during boot', async () => {
       mountComponent()
-      await vi.advanceTimersByTimeAsync(1500)
+            // The component waits up to 10s for backend boot events before
+      // falling back to its canned sequence (the path jsdom takes, since no
+      // Wails runtime emits them here). Advance past that window first.
+      await vi.advanceTimersByTimeAsync(12000)
       await wrapper.vm.$nextTick()
 
       const fill = wrapper.find('.boot-progress-fill')
@@ -187,8 +213,8 @@ describe('AdexBootScreen Component', () => {
 
     it('progress reaches 100% when boot completes', async () => {
       mountComponent()
-      // Advance well past the full boot sequence
-      await vi.advanceTimersByTimeAsync(10000)
+      // Past the 10s backend wait AND the canned sequence that follows it.
+      await vi.advanceTimersByTimeAsync(20000)
       await wrapper.vm.$nextTick()
 
       const label = wrapper.find('.boot-progress-label')
@@ -202,7 +228,7 @@ describe('AdexBootScreen Component', () => {
     it('emits "complete" after the animation finishes', async () => {
       mountComponent({ minDuration: 100 })
       // Advance well past the entire boot sequence
-      await vi.advanceTimersByTimeAsync(15000)
+      await vi.advanceTimersByTimeAsync(20000)
       await wrapper.vm.$nextTick()
 
       const emitted = wrapper.emitted('complete')
@@ -213,7 +239,10 @@ describe('AdexBootScreen Component', () => {
     it('emits "progress" events during boot', async () => {
       mountComponent()
       // Advance through some of the boot
-      await vi.advanceTimersByTimeAsync(3000)
+            // The component waits up to 10s for backend boot events before
+      // falling back to its canned sequence (the path jsdom takes, since no
+      // Wails runtime emits them here). Advance past that window first.
+      await vi.advanceTimersByTimeAsync(14000)
       await wrapper.vm.$nextTick()
 
       const progressEvents = wrapper.emitted('progress')
@@ -239,7 +268,7 @@ describe('AdexBootScreen Component', () => {
     it('overlay becomes invisible after boot completes', async () => {
       mountComponent({ minDuration: 100 })
       // Advance well past the entire boot sequence + fade time
-      await vi.advanceTimersByTimeAsync(15000)
+      await vi.advanceTimersByTimeAsync(20000)
       await wrapper.vm.$nextTick()
 
       // The overlay should be removed (v-if="visible" becomes false)

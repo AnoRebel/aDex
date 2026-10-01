@@ -1,5 +1,26 @@
 import { defineStore } from 'pinia'
-import { StartMonitoring, StopMonitoring, GetService } from '~~/bindings'
+import {
+  GetNetworkMetrics,
+  GetNetworkConnections,
+  GetNetworkAlerts,
+  GetNetworkStatistics,
+  GetNetworkConfig,
+  UpdateNetworkConfig,
+  GetBandwidthData,
+  ResetNetworkService,
+  IsNetworkMonitoring,
+  StartNetworkMonitoring,
+  StopNetworkMonitoring,
+  ResolveNetworkAlert,
+  ClearNetworkAlerts,
+} from '~/lib/wailsjs/coordinator'
+
+// Pre-V2 this store called `GetService('network')` and then invoked methods
+// on the returned struct. Wails marshals every binding return through JSON,
+// so the "service" arrived on the frontend as a plain DTO with no methods —
+// every subsequent call was a no-op (or worse, a launch crash:
+// `json: unsupported type: func() error`). Migrated to the dedicated
+// coordinator bindings, which return only JSON-safe payloads.
 
 export const useNetworkStore = defineStore('network', {
   state: () => ({
@@ -12,7 +33,7 @@ export const useNetworkStore = defineStore('network', {
     isMonitoring: false,
     lastUpdateTime: null as Date | null,
     loading: false,
-    error: null as string | null
+    error: null as string | null,
   }),
 
   getters: {
@@ -20,30 +41,21 @@ export const useNetworkStore = defineStore('network', {
       if (!state.metrics?.interfaces) return []
       return state.metrics.interfaces.filter((iface: any) => iface.isUp)
     },
-
-    activeConnections: (state) => {
-      return state.connections.filter(conn => conn.state === 'ESTABLISHED')
-    },
-
-    activeAlerts: (state) => {
-      return state.alerts.filter(alert => !alert.resolved)
-    },
-
+    activeConnections: (state) =>
+      state.connections.filter((c) => c.state === 'ESTABLISHED'),
+    activeAlerts: (state) => state.alerts.filter((a) => !a.resolved),
     totalBandwidth: (state) => {
       if (!state.metrics) return 0
       return (state.metrics.totalBytesSent || 0) + (state.metrics.totalBytesRecv || 0)
     },
-
-    criticalAlerts: (state) => {
-      return state.alerts.filter(alert => !alert.resolved && alert.severity === 'error')
-    }
+    criticalAlerts: (state) =>
+      state.alerts.filter((a) => !a.resolved && a.severity === 'error'),
   },
 
   actions: {
     async fetchMetrics() {
       try {
-        const service = await GetService('network')
-        this.metrics = service?.GetMetrics ? await service.GetMetrics() : null
+        this.metrics = await GetNetworkMetrics()
         this.lastUpdateTime = new Date()
       } catch (error) {
         this.error = `Failed to fetch network metrics: ${error}`
@@ -53,8 +65,8 @@ export const useNetworkStore = defineStore('network', {
 
     async fetchConnections() {
       try {
-        const service = await GetService('network')
-        this.connections = service?.GetConnections ? await service.GetConnections() : []
+        const data = await GetNetworkConnections()
+        this.connections = Array.isArray(data) ? data : (data?.connections ?? [])
         this.lastUpdateTime = new Date()
       } catch (error) {
         this.error = `Failed to fetch network connections: ${error}`
@@ -64,30 +76,27 @@ export const useNetworkStore = defineStore('network', {
 
     async fetchAlerts() {
       try {
-        const service = await GetService('network')
-        this.alerts = service?.GetAlerts ? await service.GetAlerts() : []
+        const data = await GetNetworkAlerts()
+        this.alerts = Array.isArray(data) ? data : (data?.alerts ?? [])
         this.lastUpdateTime = new Date()
       } catch {
-        // Non-critical: alerts may not be available on all backends
+        // Non-critical: alerts may not be available on all backends.
         this.lastUpdateTime = new Date()
       }
     },
 
     async fetchStatistics() {
       try {
-        const service = await GetService('network')
-        this.statistics = service?.GetStatistics ? await service.GetStatistics() : null
+        this.statistics = await GetNetworkStatistics()
         this.lastUpdateTime = new Date()
       } catch {
-        // Non-critical: statistics may not be available on all backends
         this.lastUpdateTime = new Date()
       }
     },
 
     async fetchConfig() {
       try {
-        const service = await GetService('network')
-        this.config = service?.GetConfiguration ? await service.GetConfiguration() : null
+        this.config = await GetNetworkConfig()
       } catch (error) {
         this.error = `Failed to fetch network config: ${error}`
         throw error
@@ -96,9 +105,8 @@ export const useNetworkStore = defineStore('network', {
 
     async fetchBandwidthData(interfaceName: string) {
       try {
-        const service = await GetService('network')
-        const data = service?.GetBandwidthData ? await service.GetBandwidthData(interfaceName) : null
-        this.bandwidthHistory = data?.bandwidthHistory || []
+        const data = await GetBandwidthData(interfaceName)
+        this.bandwidthHistory = data?.bandwidthHistory ?? []
         this.lastUpdateTime = new Date()
         return data
       } catch (error) {
@@ -109,7 +117,7 @@ export const useNetworkStore = defineStore('network', {
 
     async startMonitoring() {
       try {
-        await StartMonitoring()
+        await StartNetworkMonitoring()
         this.isMonitoring = true
       } catch (error) {
         this.error = `Failed to start monitoring: ${error}`
@@ -119,7 +127,7 @@ export const useNetworkStore = defineStore('network', {
 
     async stopMonitoring() {
       try {
-        await StopMonitoring()
+        await StopNetworkMonitoring()
         this.isMonitoring = false
       } catch (error) {
         this.error = `Failed to stop monitoring: ${error}`
@@ -129,8 +137,8 @@ export const useNetworkStore = defineStore('network', {
 
     async resolveAlert(alertId: string) {
       try {
-        // Update local alert state
-        const alert = this.alerts.find(a => a.id === alertId)
+        await ResolveNetworkAlert(alertId)
+        const alert = this.alerts.find((a) => a.id === alertId)
         if (alert) {
           alert.resolved = true
           alert.resolvedAt = new Date()
@@ -143,8 +151,8 @@ export const useNetworkStore = defineStore('network', {
 
     async clearAlerts() {
       try {
-        // Remove resolved alerts from local state
-        this.alerts = this.alerts.filter(alert => !alert.resolved)
+        await ClearNetworkAlerts()
+        this.alerts = this.alerts.filter((a) => !a.resolved)
       } catch (error) {
         this.error = `Failed to clear alerts: ${error}`
         throw error
@@ -153,10 +161,7 @@ export const useNetworkStore = defineStore('network', {
 
     async updateConfig(config: any) {
       try {
-        const service = await GetService('network')
-        if (service?.UpdateConfiguration) {
-          await service.UpdateConfiguration(config)
-        }
+        await UpdateNetworkConfig(config)
         this.config = config
       } catch (error) {
         this.error = `Failed to update config: ${error}`
@@ -166,11 +171,7 @@ export const useNetworkStore = defineStore('network', {
 
     async resetService() {
       try {
-        const service = await GetService('network')
-        if (service?.Reset) {
-          await service.Reset()
-        }
-        // Reset local state
+        await ResetNetworkService()
         this.metrics = null
         this.connections = []
         this.alerts = []
@@ -186,14 +187,13 @@ export const useNetworkStore = defineStore('network', {
     async refreshAllData() {
       this.loading = true
       this.error = null
-      
       try {
         await Promise.all([
           this.fetchMetrics(),
           this.fetchConnections(),
           this.fetchAlerts(),
           this.fetchStatistics(),
-          this.fetchConfig()
+          this.fetchConfig(),
         ])
       } catch (error) {
         this.error = `Failed to refresh data: ${error}`
@@ -206,17 +206,14 @@ export const useNetworkStore = defineStore('network', {
       this.error = null
     },
 
-    // Update monitoring status
     async updateMonitoringStatus() {
       try {
-        const service = await GetService('network')
-        this.isMonitoring = service?.IsMonitoring ? await service.IsMonitoring() : false
+        this.isMonitoring = await IsNetworkMonitoring()
       } catch (error) {
         this.error = `Failed to check monitoring status: ${error}`
       }
     },
 
-    // Initialize store: start monitoring and fetch initial data
     async initialize() {
       try {
         this.loading = true
@@ -229,6 +226,6 @@ export const useNetworkStore = defineStore('network', {
       } finally {
         this.loading = false
       }
-    }
-  }
+    },
+  },
 })

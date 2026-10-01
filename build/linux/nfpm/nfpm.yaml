@@ -3,45 +3,91 @@
 #
 # The lines below are called `modelines`. See `:help modeline`
 
-name: "adex-ui"
+name: "adex"
 arch: ${GOARCH}
 platform: "linux"
 version: "1.0.0"
-section: "devel"
-priority: "optional"
-maintainer: "HackEAC <support@hackeac.com>"
-description: "A science fiction desktop running everywhere"
-vendor: "HackEAC"
-homepage: "https://github.com/hackeac/adex-ui"
+section: "default"
+priority: "extra"
+maintainer: ${GIT_COMMITTER_NAME} <${GIT_COMMITTER_EMAIL}>
+description: "A modern science fiction desktop environment terminal application"
+vendor: "Ano Rebel"
+homepage: "https://github.com/AnoRebel/aDex"
 license: "MIT"
 release: "1"
 
 contents:
-  - src: "./bin/aDex-UI"
-    dst: "/usr/local/bin/aDex-UI"
-  - src: "./build/appicon.png"
-    dst: "/usr/share/icons/hicolor/128x128/apps/aDex-UI.png"
-  - src: "./build/linux/aDex-UI.desktop"
-    dst: "/usr/share/applications/aDex-UI.desktop"
+  - src: "./bin/adex"
+    dst: "/usr/local/bin/adex"
 
-# Default dependencies for Debian 12/Ubuntu 22.04+ with WebKit 4.1
+  # Application icon at every size the desktop may ask for. A single
+  # 128px file (which is all the template installed, and under the
+  # wrong name) leaves launchers and task switchers upscaling it.
+  - src: "./build/linux/icons/adex-16.png"
+    dst: "/usr/share/icons/hicolor/16x16/apps/adex.png"
+  - src: "./build/linux/icons/adex-22.png"
+    dst: "/usr/share/icons/hicolor/22x22/apps/adex.png"
+  - src: "./build/linux/icons/adex-24.png"
+    dst: "/usr/share/icons/hicolor/24x24/apps/adex.png"
+  - src: "./build/linux/icons/adex-32.png"
+    dst: "/usr/share/icons/hicolor/32x32/apps/adex.png"
+  - src: "./build/linux/icons/adex-48.png"
+    dst: "/usr/share/icons/hicolor/48x48/apps/adex.png"
+  - src: "./build/linux/icons/adex-64.png"
+    dst: "/usr/share/icons/hicolor/64x64/apps/adex.png"
+  - src: "./build/linux/icons/adex-128.png"
+    dst: "/usr/share/icons/hicolor/128x128/apps/adex.png"
+  - src: "./build/linux/icons/adex-256.png"
+    dst: "/usr/share/icons/hicolor/256x256/apps/adex.png"
+  - src: "./build/linux/icons/adex-512.png"
+    dst: "/usr/share/icons/hicolor/512x512/apps/adex.png"
+
+  # Same icon under the GTK application id, which is what the desktop
+  # matches the running window against.
+  - src: "./build/linux/icons/adex-48.png"
+    dst: "/usr/share/icons/hicolor/48x48/apps/net.anorebel.adex.png"
+  - src: "./build/linux/icons/adex-128.png"
+    dst: "/usr/share/icons/hicolor/128x128/apps/net.anorebel.adex.png"
+  - src: "./build/linux/icons/adex-256.png"
+    dst: "/usr/share/icons/hicolor/256x256/apps/net.anorebel.adex.png"
+
+  # Tray glyph, installed under the StatusNotifierItem Id ("aDex").
+  # Wails only publishes IconPixmap for the tray, but some panels
+  # (waybar v0.15 among them) resolve tray icons by NAME from the
+  # icon theme and show a placeholder otherwise. Shipping the file
+  # under that name gives those panels something to find.
+  - src: "./build/linux/icons/tray-aDex-16.png"
+    dst: "/usr/share/icons/hicolor/16x16/apps/aDex.png"
+  - src: "./build/linux/icons/tray-aDex-22.png"
+    dst: "/usr/share/icons/hicolor/22x22/apps/aDex.png"
+  - src: "./build/linux/icons/tray-aDex-24.png"
+    dst: "/usr/share/icons/hicolor/24x24/apps/aDex.png"
+  - src: "./build/linux/icons/tray-aDex-32.png"
+    dst: "/usr/share/icons/hicolor/32x32/apps/aDex.png"
+  - src: "./build/linux/icons/tray-aDex-48.png"
+    dst: "/usr/share/icons/hicolor/48x48/apps/aDex.png"
+
+  - src: "./build/linux/adex.desktop"
+    dst: "/usr/share/applications/adex.desktop"
+
+# Default dependencies for the GTK4 + WebKitGTK 6.0 stack (Ubuntu 24.04+ / Debian 13+)
 depends:
-  - libgtk-3-0
-  - libwebkit2gtk-4.1-0
+  - libgtk-4-1
+  - libwebkitgtk-6.0-4
 
-# Distribution-specific overrides for different package formats and WebKit versions
+# Distribution-specific overrides for different package formats
 overrides:
-  # RPM packages for RHEL/CentOS/AlmaLinux/Rocky Linux (WebKit 4.0)
+  # RPM packages for Fedora / RHEL / AlmaLinux / Rocky Linux
   rpm:
     depends:
-      - gtk3
-      - webkit2gtk4.1
-  
-  # Arch Linux packages (WebKit 4.1)  
+      - gtk4
+      - webkitgtk6.0
+
+  # Arch Linux packages
   archlinux:
     depends:
-      - gtk3
-      - webkit2gtk-4.1
+      - gtk4
+      - webkitgtk-6.0
 
 # scripts section to ensure desktop database is updated after install
 scripts:
@@ -50,13 +96,26 @@ scripts:
   # preremove: "./build/linux/nfpm/scripts/preremove.sh"
   # postremove: "./build/linux/nfpm/scripts/postremove.sh"
 
+# If you build your app with -tags gtk3 (legacy WebKit2GTK 4.1 stack — supported through v3.0.x, removed in v3.1),
+# replace the depends/overrides above with these:
+#
+# depends:
+#   - libgtk-3-0
+#   - libwebkit2gtk-4.1-0
+# overrides:
+#   rpm:
+#     depends:
+#       - gtk3
+#       - webkit2gtk4.1
+#   archlinux:
+#     depends:
+#       - gtk3
+#       - webkit2gtk-4.1
+#
 # replaces:
 #   - foobar
 # provides:
 #   - bar
-# depends:
-#   - gtk3
-#   - libwebkit2gtk
 # recommends:
 #   - whatever
 # suggests:

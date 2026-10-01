@@ -28,7 +28,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { pulseData, pulseId } from '~/composables/useKeyboardPulse'
 import { useTerminalStore } from '~/stores/terminal'
+import { useAdexKeyboard } from '~/composables/useAdexKeyboard'
 
 // Types matching the keyboard layout JSON structure
 interface KeyData {
@@ -47,6 +49,15 @@ interface KeyboardLayout {
 }
 
 const terminalStore = useTerminalStore()
+// Bridge to the V2 keyboard engine — the Settings → Keyboard tab
+// calls `kbEngine.setLayout(id)` which mutates `kbEngine.activeId`.
+// We watch that ref and mirror it into our local `currentLayoutName`
+// so picking a layout in Settings flips the on-screen keyboard
+// immediately, no restart required. (Before this watch, the on-screen
+// keyboard read from its own localStorage key and ignored the
+// composable entirely — picking Dvorak in Settings saved the choice
+// but the rendered keyboard stayed on whatever was loaded at mount.)
+const kbEngine = useAdexKeyboard()
 
 // State
 const layouts = ref<Record<string, KeyboardLayout>>({})
@@ -468,9 +479,50 @@ onMounted(() => {
   document.addEventListener('keyup', handlePhysicalKeyUp)
 })
 
+// Mirror the V2 engine's active layout into our local renderer. The
+// engine uses kebab-case IDs (en-US, fr-FR, en-DVORAK …) while this
+// component's `layouts` map uses the same IDs as keys after
+// loadLayouts() resolves the bundled JSON. We try the raw ID first
+// and fall back to lowercased matches because some legacy layout
+// files use mixed casing in their keys. Triggers `immediate: true`
+// so a layout already set by the settings modal before the keyboard
+// mounts still wins on first paint.
+watch(
+  () => kbEngine.activeId.value,
+  (id) => {
+    if (!id) return
+    const tryKeys = [id, id.toLowerCase(), id.replace(/-/g, '_')]
+    for (const k of tryKeys) {
+      if (layouts.value[k]) {
+        currentLayoutName.value = k
+        return
+      }
+    }
+    // Unknown id — keep current. Engine is the source of truth so we
+    // don't log noisily; the missing key is usually a transient state
+    // during loadLayouts() racing.
+  },
+  { immediate: true },
+)
+
 onUnmounted(() => {
   document.removeEventListener('keydown', handlePhysicalKeyDown)
   document.removeEventListener('keyup', handlePhysicalKeyUp)
+})
+
+// Bridge: when the terminal captures a keystroke (xterm consumes the
+// keydown event before it bubbles to document), AdexTerminal calls
+// pulseKey() on the shared module. We mirror it into the physical-
+// pressed set briefly so the visual press animation fires.
+watch(pulseId, () => {
+  const key = pulseData.value
+  if (!key) return
+  physicalPressedKeys.value.add(key)
+  // Auto-release after a frame so the highlight feels like a tap.
+  // 90ms matches the CSS transition on .kb-key.pressed → looks right.
+  setTimeout(() => {
+    physicalPressedKeys.value.delete(key)
+  }, 90)
 })
 </script>
 

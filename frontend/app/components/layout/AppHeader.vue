@@ -2,7 +2,7 @@
   <header class="app-header">
     <div class="header-content">
       <div class="logo-section">
-        <h1 class="app-title">aDex-UI</h1>
+        <h1 class="app-title">aDex</h1>
         <span class="version">v1.0.0</span>
       </div>
       

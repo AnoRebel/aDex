@@ -1,0 +1,13 @@
+{
+  "default_scheme": "default-dark",
+  "user_schemes": {},
+  "enabled_schemes": [
+    "default-dark",
+    "default-light",
+    "solarized-dark",
+    "solarized-light"
+  ],
+  "auto_switch": false,
+  "import_path": "data/colorschemes/import",
+  "export_path": "data/colorschemes/export"
+}

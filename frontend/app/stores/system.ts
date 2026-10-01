@@ -433,8 +433,12 @@ export const useSystemStore = defineStore('system', () => {
   const startMonitoring = () => {
     isMonitoring.value = true
     if (autoRefresh.value && refreshInterval.value > 0) {
+      // Actually refresh the data each tick. The previous body was a
+      // placeholder comment, which is why every SystemInfo value (YEAR,
+      // UPTIME, OS, KERNEL, POWER) showed stale boot-time values forever.
       refreshTimer.value = setInterval(() => {
-        // Refresh logic would be implemented here
+        fetchSystemInfo().catch(() => undefined)
+        fetchSystemStats().catch(() => undefined)
       }, refreshInterval.value)
     }
   }

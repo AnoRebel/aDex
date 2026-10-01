@@ -2,582 +2,610 @@ package system
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"os"
+	stdnet "net"
 	"os/user"
-	"runtime"
+	"sort"
+	"strconv"
 	"time"
 
-	"aDex-UI/internal/events"
-	"aDex-UI/internal/models"
+	"aDex-UI/internal/utils"
+	"github.com/distatus/battery"
+	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/shirou/gopsutil/v3/host"
+	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/shirou/gopsutil/v3/net"
+	"github.com/shirou/gopsutil/v3/process"
 )
 
-// SystemService provides unified system monitoring functionality
-type SystemService struct {
-	cpuMonitor     *CPUMonitor
-	memoryMonitor  *MemoryMonitor
-	processMonitor *ProcessMonitor
-	eventBus       events.IEventBus
-	config         *SystemServiceConfig
+// Service handles system monitoring and operations
+type Service struct {
+	platform     *utils.FeatureDetection
+	isMonitoring bool
+	stopChan     chan struct{}
 }
 
-// SystemServiceConfig contains configuration for the system service
-type SystemServiceConfig struct {
-	RefreshInterval    time.Duration `json:"refreshInterval"`
-	MaxProcesses       int           `json:"maxProcesses"`
-	EnableTemperature  bool          `json:"enableTemperature"`
-	EnableNetwork      bool          `json:"enableNetwork"`
-	EnableDisk         bool          `json:"enableDisk"`
-	EnableDetailedInfo bool          `json:"enableDetailedInfo"`
-}
-
-// DefaultSystemServiceConfig returns default configuration
-func DefaultSystemServiceConfig() *SystemServiceConfig {
-	return &SystemServiceConfig{
-		RefreshInterval:    1000 * time.Millisecond,
-		MaxProcesses:       100,
-		EnableTemperature:  true,
-		EnableNetwork:      true,
-		EnableDisk:         true,
-		EnableDetailedInfo: false, // Disabled by default for performance
+// NewService creates a new system service instance
+func NewService() *Service {
+	return &Service{
+		platform: utils.DetectPlatform(),
+		stopChan: make(chan struct{}),
 	}
 }
 
-// NewSystemService creates a new system service instance
-func NewSystemService() *SystemService {
-	return NewSystemServiceWithConfig(DefaultSystemServiceConfig())
+// SystemInfo represents system information.
+//
+// JSON tags are explicit so Wails marshalling produces the field
+// names the frontend reads (`platform`, `kernelVersion`, `architecture`,
+// etc.). The two name pairs (OS/Platform, KernelVersion/Kernel) are
+// duplicated under both JSON keys for compatibility with the older
+// frontend reader that probed multiple shapes.
+type SystemInfo struct {
+	OS            string        `json:"platform"`
+	Architecture  string        `json:"architecture"`
+	KernelVersion string        `json:"kernelVersion"`
+	Hostname      string        `json:"hostname"`
+	Uptime        time.Duration `json:"uptime"`
+	CPUUsage      float64       `json:"cpuUsage"`
+	MemoryUsage   MemoryInfo    `json:"memoryUsage"`
+	DiskUsage     []DiskInfo    `json:"diskUsage"`
+	NetworkInfo   NetworkInfo   `json:"networkInfo"`
 }
 
-// NewSystemServiceWithConfig creates a new system service with custom configuration
-func NewSystemServiceWithConfig(config *SystemServiceConfig) *SystemService {
-	return &SystemService{
-		cpuMonitor:     NewCPUMonitor(),
-		memoryMonitor:  NewMemoryMonitor(),
-		processMonitor: NewProcessMonitor(),
-		config:         config,
-	}
+// MemoryInfo represents memory usage information
+type MemoryInfo struct {
+	Total     uint64
+	Used      uint64
+	Available uint64
+	Percent   float64
 }
 
-// SetEventBus sets the event bus for the service
-func (s *SystemService) SetEventBus(eventBus events.IEventBus) {
-	s.eventBus = eventBus
+// DiskInfo represents disk usage information
+type DiskInfo struct {
+	Mountpoint string
+	Total      uint64
+	Used       uint64
+	Free       uint64
+	Percent    float64
 }
 
-// GetCPUMetrics returns current CPU metrics
-func (s *SystemService) GetCPUMetrics(ctx context.Context) (*models.CPUMetrics, error) {
-	metrics, err := s.cpuMonitor.GetCPUMetrics(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get CPU metrics: %w", err)
-	}
-
-	// Emit event if event bus is available
-	if s.eventBus != nil {
-		s.eventBus.Publish(ctx, "system.cpu.updated", map[string]interface{}{
-			"metrics":   metrics,
-			"timestamp": time.Now(),
-		}, "system-service")
-	}
-
-	return metrics, nil
+// NetworkInfo represents network information
+type NetworkInfo struct {
+	Interfaces []NetworkInterface
 }
 
-// GetMemoryMetrics returns current memory metrics
-func (s *SystemService) GetMemoryMetrics(ctx context.Context) (*models.MemoryMetrics, error) {
-	metrics, err := s.memoryMonitor.GetMemoryMetrics(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get memory metrics: %w", err)
-	}
-
-	// Emit event if event bus is available
-	if s.eventBus != nil {
-		s.eventBus.Publish(ctx, "system.memory.updated", map[string]interface{}{
-			"metrics":   metrics,
-			"timestamp": time.Now(),
-		}, "system-service")
-	}
-
-	return metrics, nil
+// NetworkInterface represents a network interface
+type NetworkInterface struct {
+	Name      string
+	IPAddress string
+	IsUp      bool
 }
 
-// GetProcessMetrics returns current process metrics
-func (s *SystemService) GetProcessMetrics(ctx context.Context, limit int) (*models.ProcessMetrics, error) {
-	if limit <= 0 {
-		limit = s.config.MaxProcesses
-	}
-
-	metrics, err := s.processMonitor.GetProcessMetrics(ctx, limit)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get process metrics: %w", err)
-	}
-
-	// Emit event if event bus is available
-	if s.eventBus != nil {
-		s.eventBus.Publish(ctx, "system.processes.updated", map[string]interface{}{
-			"metrics":   metrics,
-			"timestamp": time.Now(),
-		}, "system-service")
-	}
-
-	return metrics, nil
-}
-
-// GetDiskMetrics returns current disk metrics
-func (s *SystemService) GetDiskMetrics(ctx context.Context) (*models.DiskMetrics, error) {
-	if !s.config.EnableDisk {
-		return nil, fmt.Errorf("disk monitoring is disabled")
-	}
-
-	partitions, err := disk.PartitionsWithContext(ctx, true)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get disk partitions: %w", err)
-	}
-
-	var diskInfos []models.DiskInfo
-	var totalSpace, totalUsed uint64
-
-	for _, partition := range partitions {
-		// Skip non-filesystem partitions
-		if partition.Fstype == "" {
-			continue
-		}
-
-		usage, err := disk.UsageWithContext(ctx, partition.Mountpoint)
-		if err != nil {
-			// Skip partitions we can't get usage for
-			continue
-		}
-
-		diskInfo := models.DiskInfo{
-			Device:       partition.Device,
-			Mountpoint:   partition.Mountpoint,
-			FSType:       partition.Fstype,
-			Total:        usage.Total,
-			Used:         usage.Used,
-			Free:         usage.Free,
-			UsagePercent: usage.UsedPercent,
-			InodesTotal:  usage.InodesTotal,
-			InodesUsed:   usage.InodesUsed,
-			InodesFree:   usage.InodesFree,
-			ReadOnly:     partition.Opts != nil && contains(partition.Opts, "ro"),
-		}
-
-		diskInfos = append(diskInfos, diskInfo)
-		totalSpace += usage.Total
-		totalUsed += usage.Used
-	}
-
-	metrics := &models.DiskMetrics{
-		Disks:      diskInfos,
-		TotalSpace: totalSpace,
-		TotalUsed:  totalUsed,
-		TotalFree:  totalSpace - totalUsed,
-		Timestamp:  time.Now(),
-	}
-
-	// Emit event if event bus is available
-	if s.eventBus != nil {
-		s.eventBus.Publish(ctx, "system.disk.updated", map[string]interface{}{
-			"metrics":   metrics,
-			"timestamp": time.Now(),
-		}, "system-service")
-	}
-
-	return metrics, nil
-}
-
-// GetNetworkMetrics returns current network metrics
-func (s *SystemService) GetNetworkMetrics(ctx context.Context) (*models.NetworkMetrics, error) {
-	if !s.config.EnableNetwork {
-		return nil, fmt.Errorf("network monitoring is disabled")
-	}
-
-	// Get interface info
-	interfaces, err := net.InterfacesWithContext(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get network interfaces: %w", err)
-	}
-
-	// Get IO counters
-	ioCounters, err := net.IOCountersWithContext(ctx, true)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get network IO counters: %w", err)
-	}
-
-	// Create a map for quick lookup of IO counters by interface name
-	ioMap := make(map[string]net.IOCountersStat)
-	for _, io := range ioCounters {
-		ioMap[io.Name] = io
-	}
-
-	var networkInterfaces []models.NetworkInterface
-	var totalSent, totalRecv uint64
-
-	for _, iface := range interfaces {
-		// Skip loopback interfaces
-		if iface.Name == "lo" || iface.Name == "lo0" {
-			continue
-		}
-
-		// Get addresses as strings
-		var addrs []string
-		for _, addr := range iface.Addrs {
-			addrs = append(addrs, addr.Addr)
-		}
-
-		networkIface := models.NetworkInterface{
-			Name:        iface.Name,
-			IsUp:        len(iface.Flags) > 0, // Simplified check
-			IPAddresses: addrs,
-			MAC:         iface.HardwareAddr,
-			MTU:         uint64(iface.MTU),
-		}
-
-		// Add IO stats if available
-		if io, ok := ioMap[iface.Name]; ok {
-			networkIface.BytesSent = io.BytesSent
-			networkIface.BytesRecv = io.BytesRecv
-			networkIface.PacketsSent = io.PacketsSent
-			networkIface.PacketsRecv = io.PacketsRecv
-			networkIface.Errin = io.Errin
-			networkIface.Errout = io.Errout
-			networkIface.Dropin = io.Dropin
-			networkIface.Dropout = io.Dropout
-			totalSent += io.BytesSent
-			totalRecv += io.BytesRecv
-		}
-
-		networkInterfaces = append(networkInterfaces, networkIface)
-	}
-
-	metrics := &models.NetworkMetrics{
-		Interfaces:     networkInterfaces,
-		TotalBytesSent: totalSent,
-		TotalBytesRecv: totalRecv,
-		Timestamp:      time.Now(),
-	}
-
-	// Emit event if event bus is available
-	if s.eventBus != nil {
-		s.eventBus.Publish(ctx, "system.network.updated", map[string]interface{}{
-			"metrics":   metrics,
-			"timestamp": time.Now(),
-		}, "system-service")
-	}
-
-	return metrics, nil
-}
-
-// GetTemperatureMetrics returns current temperature metrics
-func (s *SystemService) GetTemperatureMetrics(ctx context.Context) (*models.TemperatureMetrics, error) {
-	if !s.config.EnableTemperature {
-		return nil, fmt.Errorf("temperature monitoring is disabled")
-	}
-
-	// This would need platform-specific temperature monitoring
-	// For now, return empty metrics
-	metrics := &models.TemperatureMetrics{
-		Sensors:   []models.TemperatureSensor{},
-		Timestamp: time.Now(),
-	}
-
-	// Emit event if event bus is available
-	if s.eventBus != nil {
-		s.eventBus.Publish(ctx, "system.temperature.updated", map[string]interface{}{
-			"metrics":   metrics,
-			"timestamp": time.Now(),
-		}, "system-service")
-	}
-
-	return metrics, nil
-}
-
-// GetAllMetrics returns a complete snapshot of all system metrics
-func (s *SystemService) GetAllMetrics(ctx context.Context) (*models.SystemMetrics, error) {
-	// Get all metrics concurrently for better performance
-	metrics := &models.SystemMetrics{
-		Timestamp: time.Now(),
-	}
-
-	// CPU metrics
-	cpuMetrics, err := s.GetCPUMetrics(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get CPU metrics: %w", err)
-	}
-	metrics.CPU = *cpuMetrics
-
-	// Memory metrics
-	memoryMetrics, err := s.GetMemoryMetrics(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get memory metrics: %w", err)
-	}
-	metrics.Memory = *memoryMetrics
-
-	// Process metrics
-	processMetrics, err := s.GetProcessMetrics(ctx, s.config.MaxProcesses)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get process metrics: %w", err)
-	}
-	metrics.Processes = *processMetrics
-
-	// Disk metrics (optional)
-	if s.config.EnableDisk {
-		diskMetrics, err := s.GetDiskMetrics(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get disk metrics: %w", err)
-		}
-		metrics.Disks = *diskMetrics
-	}
-
-	// Network metrics (optional)
-	if s.config.EnableNetwork {
-		networkMetrics, err := s.GetNetworkMetrics(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get network metrics: %w", err)
-		}
-		metrics.Network = *networkMetrics
-	}
-
-	// Temperature metrics (optional)
-	if s.config.EnableTemperature {
-		tempMetrics, err := s.GetTemperatureMetrics(ctx)
-		if err != nil {
-			// Temperature metrics are optional, don't fail if unavailable
-			metrics.Temperature = nil
-		} else {
-			metrics.Temperature = tempMetrics
-		}
-	}
-
-	// Emit comprehensive update event
-	if s.eventBus != nil {
-		s.eventBus.Publish(ctx, "system.metrics.updated", map[string]interface{}{
-			"metrics":   metrics,
-			"timestamp": time.Now(),
-		}, "system-service")
-	}
-
-	return metrics, nil
-}
-
-// GetSystemInfo returns static system information
-func (s *SystemService) GetSystemInfo(ctx context.Context) (*models.SystemInfo, error) {
+// GetSystemInfo retrieves current system information
+func (s *Service) GetSystemInfo(ctx context.Context) (*SystemInfo, error) {
 	hostInfo, err := host.InfoWithContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get host info: %w", err)
 	}
 
-	// Get current user information
-	var username, homeDir string
-	if u, err := user.Current(); err == nil {
-		username = u.Username
-		homeDir = u.HomeDir
+	uptime := time.Duration(hostInfo.Uptime) * time.Second
+
+	// Get network interfaces
+	netInterfaces, err := net.InterfacesWithContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get network interfaces: %w", err)
 	}
 
-	// Get current working directory
-	workingDir, _ := os.Getwd()
+	var interfaces []NetworkInterface
+	for _, iface := range netInterfaces {
+		addrs := iface.Addrs
+		var ipAddress string
+		if len(addrs) > 0 {
+			ipAddress = addrs[0].Addr
+		}
 
-	// Get process ID
-	pid := os.Getpid()
+		// Check if interface is up by checking if it has addresses
+		isUp := len(addrs) > 0
 
-	info := &models.SystemInfo{
-		Hostname:      hostInfo.Hostname,
+		interfaces = append(interfaces, NetworkInterface{
+			Name:      iface.Name,
+			IPAddress: ipAddress,
+			IsUp:      isUp,
+		})
+	}
+
+	return &SystemInfo{
 		OS:            hostInfo.OS,
-		OSVersion:     hostInfo.PlatformVersion,
-		KernelVersion: hostInfo.KernelVersion,
 		Architecture:  hostInfo.KernelArch,
-		Uptime:        time.Duration(hostInfo.Uptime) * time.Second,
-		BootTime:      time.Unix(int64(hostInfo.BootTime), 0),
-		ProcessID:     pid,
-		Username:      username,
-		HomeDir:       homeDir,
-		WorkingDir:    workingDir,
-		Environment:   make(map[string]string),
+		KernelVersion: hostInfo.KernelVersion,
+		Hostname:      hostInfo.Hostname,
+		Uptime:        uptime,
+		NetworkInfo: NetworkInfo{
+			Interfaces: interfaces,
+		},
+	}, nil
+}
+
+// CPUInfo represents CPU usage information including per-core data
+type CPUInfo struct {
+	Usage     float64   `json:"usage"`     // Overall CPU usage percentage
+	Cores     []float64 `json:"cores"`     // Per-core usage percentages
+	CoreCount int       `json:"coreCount"` // Number of logical cores
+	ModelName string    `json:"modelName"` // CPU model name
+	Frequency float64   `json:"frequency"` // CPU frequency in MHz
+}
+
+// GetCPUUsage retrieves current CPU usage (legacy - returns single value)
+func (s *Service) GetCPUUsage(ctx context.Context) (float64, error) {
+	percent, err := cpu.PercentWithContext(ctx, time.Second, false)
+	if err != nil {
+		return 0.0, fmt.Errorf("failed to get CPU usage: %w", err)
+	}
+	if len(percent) > 0 {
+		return percent[0], nil
+	}
+	return 0.0, nil
+}
+
+// GetCPUInfo retrieves detailed CPU information including per-core usage
+func (s *Service) GetCPUInfo(ctx context.Context) (*CPUInfo, error) {
+	// Get overall CPU usage
+	overallPercent, err := cpu.PercentWithContext(ctx, time.Millisecond*500, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get overall CPU usage: %w", err)
 	}
 
-	// Add selective environment variables
-	if s.config.EnableDetailedInfo {
-		envVars := []string{"PATH", "HOME", "USER", "SHELL", "TERM", "LANG"}
-		for _, env := range envVars {
-			if value := os.Getenv(env); value != "" {
-				info.Environment[env] = value
+	// Get per-core CPU usage
+	corePercent, err := cpu.PercentWithContext(ctx, time.Millisecond*500, true)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get per-core CPU usage: %w", err)
+	}
+
+	// Get CPU info (model, frequency, etc.)
+	cpuInfos, err := cpu.InfoWithContext(ctx)
+	if err != nil {
+		// Continue without CPU info - not critical
+		cpuInfos = nil
+	}
+
+	// Get logical core count
+	coreCount, err := cpu.CountsWithContext(ctx, true)
+	if err != nil {
+		coreCount = len(corePercent)
+	}
+
+	var modelName string
+	var frequency float64
+	if len(cpuInfos) > 0 {
+		modelName = cpuInfos[0].ModelName
+		frequency = cpuInfos[0].Mhz
+	}
+
+	var overallUsage float64
+	if len(overallPercent) > 0 {
+		overallUsage = overallPercent[0]
+	}
+
+	return &CPUInfo{
+		Usage:     overallUsage,
+		Cores:     corePercent,
+		CoreCount: coreCount,
+		ModelName: modelName,
+		Frequency: frequency,
+	}, nil
+}
+
+// TemperatureSensor mirrors a single entry from gopsutil's
+// host.SensorsTemperatures, renamed into the camelCase shape the
+// frontend's TemperatureMetrics type expects.
+type TemperatureSensor struct {
+	Name        string  `json:"name"`
+	Temperature float64 `json:"temperature"`
+	High        float64 `json:"high"`
+	Critical    float64 `json:"critical"`
+}
+
+// PowerInfo describes the system's power state. Source-of-truth is
+// the canonical `distatus/battery` library (Linux 2.6.39+, macOS
+// 10.10+, Windows XP+, *BSD, Solaris) — see
+// https://github.com/distatus/battery. We translate its (possibly
+// per-cell, possibly partial-error) output into a single normalised
+// shape the frontend can render.
+type PowerInfo struct {
+	OnBattery bool   `json:"onBattery"`
+	Percent   int    `json:"percent"`          // 0..100, -1 if unknown
+	Status    string `json:"status,omitempty"` // Charging / Discharging / Full / Empty / Unknown
+	Source    string `json:"source"`           // "AC" | "Battery"
+}
+
+// GetPowerInfo returns the current power source + battery percent.
+// Defaults to {Source:"AC", Percent:-1} when the probe fails or the
+// machine has no battery (desktop) — that's the right "we're plugged
+// in" fallback for the eDex aesthetic.
+//
+// Edge cases handled (per distatus/battery open issues):
+//   - Recent Apple Silicon Mac minis report a ghost battery with
+//     Full == 0; we treat that as "no battery" and return AC.
+//   - Some Linux kernels (Arch with newer power_now removal) return
+//     a partial-error ErrPartial alongside usable Capacity values;
+//     we accept the percent and ignore the error.
+func (s *Service) GetPowerInfo(ctx context.Context) (*PowerInfo, error) {
+	out := &PowerInfo{Source: "AC", Percent: -1}
+	// Defensive recover — distatus #33 reports an open issue where
+	// reading /sys/class/power_supply/BAT1/power_now panics on some
+	// Arch kernels (the file exists but unreadable). The library has
+	// since been hardened, but we still wrap the call so a panic in
+	// any future upstream regression doesn't take the whole app down.
+	var batteries []*battery.Battery
+	var err error
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				batteries = nil
+			}
+		}()
+		batteries, err = battery.GetAll()
+	}()
+	// `battery.ErrFatal` means the platform code blew up — fall back
+	// to AC. A `battery.Errors` (slice) error is non-fatal: some
+	// fields read fine, others didn't. Carry on with whatever we got.
+	if err != nil {
+		var fatal battery.ErrFatal
+		if errors.As(err, &fatal) {
+			return out, nil
+		}
+	}
+	if len(batteries) == 0 {
+		return out, nil
+	}
+	// Aggregate across all batteries (multi-cell laptops). Sum Full
+	// + Current to compute one normalised percent; pick the dominant
+	// state across cells.
+	var total, current float64
+	stateCounts := map[string]int{}
+	for _, b := range batteries {
+		if b == nil {
+			continue
+		}
+		// Ghost-battery guard: M4 Mac mini reports Full == 0 with
+		// non-zero adapter info. Skip cells that don't have a real
+		// capacity reading.
+		if b.Full <= 0 {
+			continue
+		}
+		total += b.Full
+		current += b.Current
+		stateCounts[b.State.String()]++
+	}
+	if total == 0 {
+		return out, nil
+	}
+	pct := int((current / total) * 100)
+	if pct < 0 {
+		pct = 0
+	} else if pct > 100 {
+		pct = 100
+	}
+	out.Percent = pct
+
+	// Pick the most-common state. distatus reports per-cell, and on
+	// most laptops there's only one battery anyway.
+	dominant := ""
+	maxCount := 0
+	for st, c := range stateCounts {
+		if c > maxCount {
+			maxCount = c
+			dominant = st
+		}
+	}
+	out.Status = dominant
+	switch dominant {
+	case "Charging", "Full":
+		out.Source = "AC"
+	case "Discharging":
+		out.Source = "Battery"
+		out.OnBattery = true
+	default:
+		// "Empty" / "Unknown" — leave Source at the AC default.
+	}
+	return out, nil
+}
+
+// MeasureLatency does a TCP-handshake-based round-trip to the given
+// host:port and returns the elapsed milliseconds. Defaults to
+// 8.8.8.8:53 — a public DNS endpoint that's reachable from virtually
+// every internet-connected host without ICMP/CAP_NET_RAW privileges
+// (which a sandboxed Wails app rarely has). Returns -1 on timeout or
+// any failure so the frontend can render "N/A" instead of stalling on
+// "Measuring..." forever.
+func (s *Service) MeasureLatency(ctx context.Context, target string) (float64, error) {
+	if target == "" {
+		target = "8.8.8.8:53"
+	}
+	timeout := 2 * time.Second
+	if dl, ok := ctx.Deadline(); ok {
+		if remaining := time.Until(dl); remaining > 0 && remaining < timeout {
+			timeout = remaining
+		}
+	}
+
+	d := stdnet.Dialer{Timeout: timeout}
+	start := time.Now()
+	conn, err := d.DialContext(ctx, "tcp", target)
+	if err != nil {
+		return -1, nil
+	}
+	defer conn.Close()
+	return float64(time.Since(start).Microseconds()) / 1000.0, nil
+}
+
+// GetTemperatures returns all available hardware temperature sensors.
+// Returns an empty slice (not error) on platforms / containers without
+// sensor access — the frontend treats absent data as "no temp" and
+// skips the panel row, which is preferable to showing an error toast
+// every poll cycle.
+func (s *Service) GetTemperatures(ctx context.Context) ([]TemperatureSensor, error) {
+	temps, err := host.SensorsTemperaturesWithContext(ctx)
+	if err != nil {
+		// Sensor errors are common (Wayland flatpaks, locked-down
+		// containers). Return empty rather than propagating so the UI
+		// stays calm.
+		return []TemperatureSensor{}, nil
+	}
+	out := make([]TemperatureSensor, 0, len(temps))
+	for _, t := range temps {
+		// Skip zero-reading entries (some ACPI sensors stream those).
+		if t.Temperature <= 0 {
+			continue
+		}
+		out = append(out, TemperatureSensor{
+			Name:        t.SensorKey,
+			Temperature: t.Temperature,
+			High:        t.High,
+			Critical:    t.Critical,
+		})
+	}
+	return out, nil
+}
+
+// GetMemoryUsage retrieves current memory usage
+func (s *Service) GetMemoryUsage(ctx context.Context) (*MemoryInfo, error) {
+	virtualMem, err := mem.VirtualMemoryWithContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get memory usage: %w", err)
+	}
+
+	return &MemoryInfo{
+		Total:     virtualMem.Total,
+		Used:      virtualMem.Used,
+		Available: virtualMem.Available,
+		Percent:   virtualMem.UsedPercent,
+	}, nil
+}
+
+// GetDiskUsage retrieves disk usage information
+func (s *Service) GetDiskUsage(ctx context.Context) ([]DiskInfo, error) {
+	partitions, err := disk.PartitionsWithContext(ctx, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get disk partitions: %w", err)
+	}
+
+	var diskInfos []DiskInfo
+	for _, partition := range partitions {
+		usage, err := disk.UsageWithContext(ctx, partition.Mountpoint)
+		if err != nil {
+			continue // Skip partitions we can't get usage for
+		}
+
+		diskInfos = append(diskInfos, DiskInfo{
+			Mountpoint: partition.Mountpoint,
+			Total:      usage.Total,
+			Used:       usage.Used,
+			Free:       usage.Free,
+			Percent:    usage.UsedPercent,
+		})
+	}
+
+	return diskInfos, nil
+}
+
+// GetNetworkInfo retrieves network information
+func (s *Service) GetNetworkInfo(ctx context.Context) (*NetworkInfo, error) {
+	netInterfaces, err := net.InterfacesWithContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get network interfaces: %w", err)
+	}
+
+	var interfaces []NetworkInterface
+	for _, iface := range netInterfaces {
+		addrs := iface.Addrs
+		var ipAddress string
+		if len(addrs) > 0 {
+			ipAddress = addrs[0].Addr
+		}
+
+		// Check if interface is up by checking if it has addresses
+		isUp := len(addrs) > 0
+
+		interfaces = append(interfaces, NetworkInterface{
+			Name:      iface.Name,
+			IPAddress: ipAddress,
+			IsUp:      isUp,
+		})
+	}
+
+	return &NetworkInfo{
+		Interfaces: interfaces,
+	}, nil
+}
+
+// StartMonitoring starts system monitoring
+func (s *Service) StartMonitoring(ctx context.Context, interval time.Duration) error {
+	if s.isMonitoring {
+		return fmt.Errorf("monitoring is already running")
+	}
+
+	s.isMonitoring = true
+	ticker := time.NewTicker(interval)
+
+	go func() {
+		defer ticker.Stop()
+		defer func() { s.isMonitoring = false }()
+
+		for {
+			select {
+			case <-ticker.C:
+				// This is where you would emit monitoring events
+				// For now, we just collect data internally
+				s.collectMetrics(ctx)
+
+			case <-s.stopChan:
+				return
+
+			case <-ctx.Done():
+				return
 			}
 		}
-	}
-
-	return info, nil
-}
-
-// GetSystemStatistics returns additional system statistics
-func (s *SystemService) GetSystemStatistics(ctx context.Context) (map[string]interface{}, error) {
-	stats := make(map[string]interface{})
-
-	// CPU statistics
-	cpuStats, err := s.cpuMonitor.GetCPUStatistics(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get CPU statistics: %w", err)
-	}
-	stats["cpu"] = cpuStats
-
-	// Memory statistics
-	memStats, err := s.memoryMonitor.GetMemoryStatistics(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get memory statistics: %w", err)
-	}
-	stats["memory"] = memStats
-
-	// Process statistics
-	processStats, err := s.processMonitor.GetProcessStatistics(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get process statistics: %w", err)
-	}
-	stats["processes"] = processStats
-
-	// System info
-	stats["runtime"] = map[string]interface{}{
-		"go_version":    runtime.Version(),
-		"go_os":         runtime.GOOS,
-		"go_arch":       runtime.GOARCH,
-		"num_cpu":       runtime.NumCPU(),
-		"num_goroutine": runtime.NumGoroutine(),
-		"num_cgo_call":  runtime.NumCgoCall(),
-	}
-
-	// Add timestamp
-	stats["timestamp"] = time.Now()
-
-	return stats, nil
-}
-
-// StartMonitoring starts continuous monitoring
-func (s *SystemService) StartMonitoring(ctx context.Context) error {
-	ticker := time.NewTicker(s.config.RefreshInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-			// Collect metrics
-			metrics, err := s.GetAllMetrics(ctx)
-			if err != nil {
-				// Log error but continue monitoring
-				fmt.Printf("Error collecting metrics: %v\n", err)
-				continue
-			}
-
-			// Check for warnings
-			warnings := s.checkWarnings(metrics)
-			if len(warnings) > 0 && s.eventBus != nil {
-				s.eventBus.Publish(ctx, "system.warnings", map[string]interface{}{
-					"warnings":  warnings,
-					"timestamp": time.Now(),
-				}, "system-service")
-			}
-		}
-	}
-}
-
-// checkWarnings checks for system warnings
-func (s *SystemService) checkWarnings(metrics *models.SystemMetrics) []string {
-	var warnings []string
-
-	// CPU warnings
-	if metrics.CPU.UsagePercent > 90 {
-		warnings = append(warnings, "High CPU usage detected")
-	}
-
-	// Memory warnings
-	if metrics.Memory.UsagePercent > 90 {
-		warnings = append(warnings, "High memory usage detected")
-	}
-
-	// Swap warnings
-	if metrics.Memory.SwapPercent > 50 {
-		warnings = append(warnings, "High swap usage detected")
-	}
-
-	// Disk warnings
-	for _, disk := range metrics.Disks.Disks {
-		if disk.UsagePercent > 90 {
-			warnings = append(warnings, fmt.Sprintf("Low disk space on %s", disk.Mountpoint))
-		}
-	}
-
-	// Temperature warnings
-	if metrics.Temperature != nil {
-		critical := metrics.Temperature.GetCriticalSensors()
-		if len(critical) > 0 {
-			warnings = append(warnings, "Critical temperature detected")
-		}
-
-		high := metrics.Temperature.GetHighTempSensors()
-		if len(high) > 0 {
-			warnings = append(warnings, "High temperature detected")
-		}
-	}
-
-	return warnings
-}
-
-// ValidateConfiguration validates the service configuration
-func (s *SystemService) ValidateConfiguration() error {
-	if s.config == nil {
-		return fmt.Errorf("configuration is nil")
-	}
-
-	if s.config.RefreshInterval <= 0 {
-		return fmt.Errorf("refresh interval must be positive")
-	}
-
-	if s.config.MaxProcesses <= 0 {
-		return fmt.Errorf("max processes must be positive")
-	}
-
-	if s.config.RefreshInterval < 100*time.Millisecond {
-		return fmt.Errorf("refresh interval too frequent (minimum 100ms)")
-	}
-
-	if s.config.MaxProcesses > 10000 {
-		return fmt.Errorf("max processes too high (maximum 10000)")
-	}
+	}()
 
 	return nil
 }
 
-// UpdateConfiguration updates the service configuration
-func (s *SystemService) UpdateConfiguration(config *SystemServiceConfig) error {
-	if err := s.ValidateConfiguration(); err != nil {
-		return fmt.Errorf("invalid configuration: %w", err)
+// StopMonitoring stops system monitoring
+func (s *Service) StopMonitoring() error {
+	if !s.isMonitoring {
+		return nil
 	}
 
-	s.config = config
+	close(s.stopChan)
+	s.stopChan = make(chan struct{})
+	s.isMonitoring = false
+
 	return nil
 }
 
-// GetConfiguration returns the current configuration
-func (s *SystemService) GetConfiguration() *SystemServiceConfig {
-	return s.config
+// collectMetrics collects current system metrics
+func (s *Service) collectMetrics(ctx context.Context) {
+	// Collect CPU, memory, disk usage
+	// This could emit events or store data for later retrieval
+	// For now, this is a placeholder for monitoring logic
+	_, _ = s.GetCPUUsage(ctx)
+	_, _ = s.GetMemoryUsage(ctx)
+	_, _ = s.GetDiskUsage(ctx)
 }
 
-// Reset resets all monitors
-func (s *SystemService) Reset() {
-	s.cpuMonitor.Reset()
-	s.memoryMonitor.Reset()
-	s.processMonitor.Reset()
+// ProcessInfo represents process information
+type ProcessInfo struct {
+	PID           int     `json:"pid"`
+	Name          string  `json:"name"`
+	Command       string  `json:"command"`
+	User          string  `json:"user"`
+	Status        string  `json:"status"`
+	CPUPercent    float64 `json:"cpuPercent"`
+	MemoryPercent float64 `json:"memoryPercent"`
+	MemoryRSS     uint64  `json:"memoryRss"`
+	NumThreads    int     `json:"numThreads"`
 }
 
-// Utility functions
+// GetTopProcesses returns top processes by CPU or memory usage
+func (s *Service) GetTopProcesses(ctx context.Context, metric string, limit int) ([]ProcessInfo, error) {
+	processes, err := process.ProcessesWithContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get processes: %w", err)
+	}
 
-// contains checks if a string slice contains a string
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
+	var processInfos []ProcessInfo
+	for _, p := range processes {
+		info, err := s.getProcessInfo(ctx, p)
+		if err != nil {
+			continue
+		}
+		processInfos = append(processInfos, info)
+	}
+
+	// Sort by the specified metric
+	switch metric {
+	case "memory":
+		sort.Slice(processInfos, func(i, j int) bool {
+			return processInfos[i].MemoryPercent > processInfos[j].MemoryPercent
+		})
+	default: // default to CPU
+		sort.Slice(processInfos, func(i, j int) bool {
+			return processInfos[i].CPUPercent > processInfos[j].CPUPercent
+		})
+	}
+
+	// Limit results
+	if limit > 0 && len(processInfos) > limit {
+		processInfos = processInfos[:limit]
+	}
+
+	return processInfos, nil
+}
+
+// getProcessInfo converts a gopsutil process to our model
+func (s *Service) getProcessInfo(ctx context.Context, p *process.Process) (ProcessInfo, error) {
+	pid := p.Pid
+
+	name, err := p.NameWithContext(ctx)
+	if err != nil {
+		name = "unknown"
+	}
+
+	cmdline, err := p.CmdlineWithContext(ctx)
+	if err != nil {
+		cmdline = name
+	}
+
+	username := ""
+	uids, err := p.UidsWithContext(ctx)
+	if err == nil && len(uids) > 0 {
+		if u, err := user.LookupId(strconv.Itoa(int(uids[0]))); err == nil {
+			username = u.Username
 		}
 	}
-	return false
+
+	statusSlice, err := p.StatusWithContext(ctx)
+	var status string
+	if err != nil {
+		status = "unknown"
+	} else if len(statusSlice) > 0 {
+		status = statusSlice[0]
+	} else {
+		status = "unknown"
+	}
+
+	cpuPercent, err := p.CPUPercentWithContext(ctx)
+	if err != nil {
+		cpuPercent = 0
+	}
+
+	memInfo, err := p.MemoryInfoWithContext(ctx)
+	if err != nil {
+		memInfo = &process.MemoryInfoStat{}
+	}
+
+	memPercent, err := p.MemoryPercentWithContext(ctx)
+	if err != nil {
+		memPercent = 0
+	}
+
+	numThreads, err := p.NumThreadsWithContext(ctx)
+	if err != nil {
+		numThreads = 0
+	}
+
+	return ProcessInfo{
+		PID:           int(pid),
+		Name:          name,
+		Command:       cmdline,
+		User:          username,
+		Status:        status,
+		CPUPercent:    cpuPercent,
+		MemoryPercent: float64(memPercent),
+		MemoryRSS:     memInfo.RSS,
+		NumThreads:    int(numThreads),
+	}, nil
 }

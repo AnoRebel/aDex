@@ -1,0 +1,73 @@
+/* assets/css/_tokens.css
+ *
+ * Canonical theme tokens. These names are the contract between
+ * `composables/useTheme.ts` (theme engine v2, section 3) and the rest of the
+ * stylesheet. Older `--color_r/g/b` names from main.css are kept for
+ * backward compatibility but should be considered deprecated; use the
+ * `--accent-*` family below for new rules.
+ */
+
+:root {
+  /* Accent (RGB triple, comma-separated, plus the composed solid color). */
+  --accent-rgb: var(--color_r), var(--color_g), var(--color_b);
+  --accent: rgb(var(--accent-rgb));
+  --accent-dim: rgba(var(--accent-rgb), 0.5);
+  --accent-glow: rgba(var(--accent-rgb), 0.15);
+  --accent-faint: rgba(var(--accent-rgb), 0.05);
+  --accent-strong: rgba(var(--accent-rgb), 0.85);
+
+  /* Background palette */
+  --bg-rgb: 5, 8, 13;            /* #05080d (matches Tron light_black) */
+  --bg: rgb(var(--bg-rgb));
+  --bg-deep: var(--color_black, #000);
+  --bg-glass: rgba(var(--bg-rgb), 0.85);
+
+  /* Layered surfaces */
+  --surface-1: rgba(var(--accent-rgb), 0.03);
+  --surface-2: rgba(var(--accent-rgb), 0.06);
+  --surface-3: rgba(var(--accent-rgb), 0.10);
+
+  /* Borders & rulings */
+  --rule: rgba(var(--accent-rgb), 0.5);
+  --rule-strong: rgba(var(--accent-rgb), 0.85);
+  --rule-faint: rgba(var(--accent-rgb), 0.18);
+  --rule-width: 0.092vh;
+
+  /* Glow / shadow envelopes */
+  --glow-soft: 0 0 1.2vh rgba(var(--accent-rgb), 0.18);
+  --glow-mid:  0 0 0.6vh rgba(var(--accent-rgb), 0.32),
+               0 0 1.6vh rgba(var(--accent-rgb), 0.18);
+  --glow-strong: 0 0 0.4vh rgba(var(--accent-rgb), 0.55),
+                 0 0 1vh   rgba(var(--accent-rgb), 0.35),
+                 0 0 2vh   rgba(var(--accent-rgb), 0.20);
+
+  /* Augmented-frame corner cut. Tweakable per-panel via inline --corner-cut. */
+  --corner-cut: 0.8vh;
+  --corner-cut-tab: 1.2vh;
+
+  /* Scanline strength: 0..1. Themes whose layout preset is `notype` or
+   * whose name contains `oled` should clamp this to 0. */
+  --scanline-strength: 0.06;
+  --scanline-period: 3px;
+
+  /* Status hues (independent of theme accent) */
+  --ok: #10b981;
+  --warn: #f59e0b;
+  --err: #ef4444;
+  --info: var(--accent);
+
+  /* Type scale (vh-relative; matches eDEX-UI density) */
+  --t-xs: 0.95vh;
+  --t-sm: 1.05vh;
+  --t-md: 1.18vh;
+  --t-lg: 1.4vh;
+  --t-xl: 1.85vh;
+}
+
+/* Force-disable scanlines and glow on layouts that explicitly opt out
+ * (notype variants, OLED-focused themes). */
+[data-layout="notype"],
+[data-theme*="oled"],
+[data-theme*="-notype"] {
+  --scanline-strength: 0;
+}

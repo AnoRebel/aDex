@@ -4,16 +4,16 @@
   <img src="https://img.shields.io/badge/Go-1.21+-00ADD8?style=for-the-badge&logo=go" alt="Go">
   <img src="https://img.shields.io/badge/Vue.js-3.x+-4FC08D?style=for-the-badge&logo=vue.js&logoColor=white" alt="Vue.js">
   <img src="https://img.shields.io/badge/Nuxt-4.x+-00DC82?style=for-the-badge&logo=nuxt.js&logoColor=white" alt="Nuxt">
-  <img src="https://img.shields.io/badge/Wails-v3.0+-000000?style=for-the-badge&logo=wails&logoColor=white" alt="Wails">
+  <img src="https://img.shields.io/badge/Wails-v2.12-000000?style=for-the-badge&logo=wails&logoColor=white" alt="Wails">
   <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License">
 </p>
 
-A modern terminal emulator with system monitoring, built with Wails v3 and Nuxt v4. This project migrates the classic eDEX-UI experience to a modern, high-performance desktop application.
+A modern terminal emulator with system monitoring, built with Wails v3 and Nuxt 4. This project migrates the classic eDEX-UI experience to a modern, high-performance desktop application.
 
 ## ✨ Features
 
 🖥️ **Terminal Emulator**
-- Multi-tab terminal with xterm.js and WebGL rendering
+- Multi-tab terminal (up to 5) with xterm.js; optional WebGL renderer
 - Full curses application support (htop, vim, tmux, etc.)
 - Real-time current working directory tracking
 - Customizable color schemes and fonts
@@ -22,7 +22,7 @@ A modern terminal emulator with system monitoring, built with Wails v3 and Nuxt 
 📊 **System Monitoring**
 - Real-time CPU, memory, disk, and process monitoring
 - Professional animated charts with Chart.js
-- <3% CPU usage with throttled updates
+- Throttled updates; see [resource usage](docs/resource-usage.md) for measured figures
 - Process sorting and filtering
 - Temperature and sensor monitoring (where available)
 
@@ -32,6 +32,23 @@ A modern terminal emulator with system monitoring, built with Wails v3 and Nuxt 
 - Active connection tracking
 - IP address information
 - GeoIP support (optional, lazy loaded)
+
+🎨 **Theming & Layout**
+- 21 themes, applied instantly and persisted
+- 7 layout presets, plus user-defined layouts in `layouts.json`
+- Every panel individually toggleable and reorderable
+- Movable, resizable settings panel
+
+🔒 **Session Lock**
+- Passphrase-protected lock screen with idle auto-lock (`Ctrl+Shift+L`)
+- Enforced in the backend, not just the UI — file, terminal and process
+  access is refused while locked
+- Terminals keep running while locked
+
+🔊 **Audio**
+- Cues for boot, shutdown, typing, tab changes and destructive actions
+- Played by the Go backend, so the splash is audible from the first frame
+- Per-category mutes, master volume, two soundpacks
 
 📁 **File Browser**
 - Visual file management with icon support
@@ -64,7 +81,7 @@ A modern terminal emulator with system monitoring, built with Wails v3 and Nuxt 
 
 ## Technology Stack
 
-- **Backend**: Go 1.25+ with Wails v3.0.0-alpha.36
+- **Backend**: Go 1.25+ with Wails v3 (beta)
 - **Frontend**: Nuxt v4 + Vue 3 + TypeScript + Pinia
 - **Terminal**: xterm.js v5 with WebGL addon
 - **Monitoring**: gopsutil for cross-platform system metrics
@@ -78,13 +95,36 @@ A modern terminal emulator with system monitoring, built with Wails v3 and Nuxt 
 - Memory usage: <200MB at idle
 - Cross-platform: Windows 10+, macOS 11+, Linux
 
+## Documentation
+
+**Using aDex**
+- **[User guide](docs/user-guide.md)** — interface, terminal tabs, themes and layouts, settings, keyboard, audio and the session lock
+- [Troubleshooting](docs/troubleshooting.md) — common problems and fixes
+- [Resource usage](docs/resource-usage.md) — measured memory and CPU figures
+
+**Extending aDex**
+- [Themes](docs/themes.md) — writing a theme, the colour and layout schema
+- [Custom layouts](docs/user-guide.md#custom-layouts) — arranging panels via `layouts.json`
+- [Keyboard layouts](docs/keyboards.md) — adding an on-screen keyboard layout
+- [Audio cues](docs/audio.md) — the cue vocabulary and soundpacks
+
+**Developing aDex**
+- [Development](docs/development.md) — building, the Wails v3 workflow, project layout
+- [Contributing](CONTRIBUTING.md) — workflow, conventions, what a good change looks like
+- [Cross-platform packaging](docs/cross-platform-packaging.md) — building for other platforms
+
 ## Getting Started
 
 ### Prerequisites
 
 - Go 1.25+ (latest stable)
 - Bun 1.1+ or Node.js 20+ LTS
-- Wails v3.0.0-alpha.36: `go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-alpha.36`
+- Wails v3 CLI: `go install github.com/wailsapp/wails/v3/cmd/wails3@latest`
+
+  Wails v3 is in beta and ships fixes frequently, so this project tracks the
+  latest beta rather than pinning. Verified against **v3.0.0-beta.14**
+  (2026-08-26). Run `wails3 doctor` to check your environment; on Linux it
+  needs GTK4 and WebKitGTK 6.0.
 
 ### Development
 
@@ -93,9 +133,9 @@ A modern terminal emulator with system monitoring, built with Wails v3 and Nuxt 
    cd frontend && bun install
    ```
 
-2. Generate Wails bindings:
+2. Generate Wails bindings (also done automatically by the build tasks):
    ```bash
-   wails3 generate bindings -ts -clean=true
+   wails3 generate bindings -ts
    ```
 
 3. Run in development mode:
@@ -112,8 +152,12 @@ A modern terminal emulator with system monitoring, built with Wails v3 and Nuxt 
 
 Build for current platform:
 ```bash
-wails3 build
+wails3 task build      # or: task build
 ```
+
+The build compiles the Nuxt frontend to `frontend/dist` and embeds it in the
+binary. Because that directory is generated (and gitignored), a clean checkout
+must build the frontend before `go build` will succeed on its own.
 
 Build for all platforms:
 ```bash
@@ -161,18 +205,10 @@ aDex-UI/
 - **Nuxt Config**: `frontend/nuxt.config.ts`
 - **Build Tasks**: `Taskfile.yml` and `build/Taskfile.yml`
 
-## Documentation
-
-- Development guide: `docs/development.md`
-- Troubleshooting: `docs/troubleshooting.md`
-- Theme documentation: `docs/themes/`
-
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch from main
-3. Implement changes with proper testing
-4. Submit a pull request with description
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for the workflow, conventions and
+what to check before opening a pull request.
 
 ## License
 

@@ -174,7 +174,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useNetworkStore } from '~/stores/network'
 import { useToast } from '~/composables/useToast'
-import { ServiceCoordinator } from '~/wailsjs/go/backend/services/coordinator/ServiceCoordinator'
+import * as Coordinator from '~/lib/wailsjs/coordinator'
 
 // Components
 import NetworkBandwidthChart from './NetworkBandwidthChart.vue'
@@ -188,7 +188,7 @@ import NetworkSettingsModal from './NetworkSettingsModal.vue'
 // Store and API
 const networkStore = useNetworkStore()
 const { toast } = useToast()
-const serviceCoordinator = new ServiceCoordinator()
+const serviceCoordinator = Coordinator
 
 // Reactive data
 const loading = ref(false)
@@ -437,7 +437,7 @@ onUnmounted(() => {
   padding: 1rem;
   background: var(--surface-primary);
   border-radius: 8px;
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .dashboard-header {

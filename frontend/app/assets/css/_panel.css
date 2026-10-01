@@ -1,0 +1,118 @@
+/* assets/css/_panel.css
+ *
+ * Augmented-frame panel chrome. Hand-authored CSS replacement for the
+ * augmented-ui library used by the original eDEX-UI. We get identical
+ * angled-corner visuals via clip-path polygons keyed off `--corner-cut`,
+ * with no JS overhead.
+ *
+ * Usage: any element with class `mod-panel` (or `.is-augmented`) gets the
+ * frame. Per-instance overrides via inline `--corner-cut: 1.2vh`.
+ */
+
+.mod-panel,
+.is-augmented {
+  --c: var(--corner-cut);
+  position: relative;
+  background:
+    linear-gradient(var(--surface-1), var(--surface-1)),
+    var(--bg-deep);
+  /* Top-right and bottom-left chamfered to mimic augmented-ui's mixin pattern */
+  clip-path: polygon(
+    0 var(--c),
+    var(--c) 0,
+    calc(100% - var(--c)) 0,
+    100% var(--c),
+    100% calc(100% - var(--c)),
+    calc(100% - var(--c)) 100%,
+    var(--c) 100%,
+    0 calc(100% - var(--c))
+  );
+}
+
+/* Outline border drawn as a sibling pseudo-element so it can clip-path
+ * match the panel without burying behind background. */
+.mod-panel::before,
+.is-augmented::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Slightly inside the clip-path so the border reads crisply at low DPR. */
+  background:
+    linear-gradient(var(--rule), var(--rule)) top    left / 100% var(--rule-width) no-repeat,
+    linear-gradient(var(--rule), var(--rule)) bottom left / 100% var(--rule-width) no-repeat,
+    linear-gradient(var(--rule), var(--rule)) top    left / var(--rule-width) 100% no-repeat,
+    linear-gradient(var(--rule), var(--rule)) top    right/ var(--rule-width) 100% no-repeat;
+  /* Matching clip so the border respects the chamfers. */
+  clip-path: polygon(
+    0 var(--c),
+    var(--c) 0,
+    calc(100% - var(--c)) 0,
+    100% var(--c),
+    100% calc(100% - var(--c)),
+    calc(100% - var(--c)) 100%,
+    var(--c) 100%,
+    0 calc(100% - var(--c))
+  );
+  z-index: 1;
+}
+
+/* The two diagonal accent strokes that close the chamfers, top-right and
+ * bottom-left. Drawn with a tiny rotated rectangle gradient. */
+.mod-panel::after,
+.is-augmented::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  width: calc(var(--c) * 1.41);   /* sqrt(2) for a 45deg diagonal */
+  height: var(--rule-width);
+  background: var(--rule);
+  top: calc(var(--c) - var(--rule-width));
+  right: calc(-1 * var(--c) / 4);
+  transform: rotate(-45deg);
+  transform-origin: top right;
+  z-index: 2;
+}
+
+.mod-panel:hover,
+.is-augmented:hover {
+  /* Subtle accent lift when the user is interacting with the panel. */
+  box-shadow: var(--glow-soft);
+}
+
+/* Section title row: left label + right secondary, ruling underneath. */
+.section-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5vw;
+  height: var(--section_title_height, 2.2vh);
+  font-size: var(--t-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  position: relative;
+  padding-inline: 0.4vw;
+}
+
+.section-title::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: var(--rule-width);
+  background: var(--rule);
+}
+
+.section-title .title-left {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.section-title .title-right {
+  flex: 0 0 auto;
+  font-size: var(--t-xs);
+  opacity: 0.7;
+}

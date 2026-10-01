@@ -4,14 +4,18 @@
 version: '3'
 
 # This information is used to generate the build assets.
+# NOTE: This file is the single source of truth for the application version.
+# `frontend/nuxt.config.ts` reads `info.version` from here at config-evaluation
+# time so the in-app update checker compares against the same string the binary
+# reports. Do not duplicate the version anywhere else.
 info:
-  companyName: "HackEAC" # The name of the company
-  productName: "aDex-UI" # The name of the application
-  productIdentifier: "com.hackeac.adex-ui" # The unique product identifier
-  description: "A science fiction desktop running everywhere" # The application description
-  copyright: "Copyright © 2025 HackEAC" # Copyright text
-  comments: "A science fiction desktop running everywhere" # Comments
-  version: "1.0.0" # The application version
+  companyName: "aDex"
+  productName: "aDex"
+  productIdentifier: "net.anorebel.adex"
+  description: "A modern science fiction desktop environment terminal application"
+  copyright: "Copyright © 2026"
+  comments: "A modern science fiction desktop environment terminal application"
+  version: "1.0.0"
 
 # Dev mode configuration
 dev_mode:
@@ -24,40 +28,26 @@ dev_mode:
       - node_modules
       - frontend
       - bin
+      - openspec
+      - docs
     file:
       - .DS_Store
       - .gitignore
       - .gitkeep
+      - "*_test.go"
     watched_extension:
       - "*.go"
     git_ignore: true
   executes:
-    - cmd: wails3 task common:install:frontend:deps
-      type: once
+    - cmd: wails3 build DEV=true
+      type: blocking
     - cmd: wails3 task common:dev:frontend
       type: background
-    - cmd: go mod tidy
-      type: blocking
-    - cmd: wails3 task build
-      type: blocking
     - cmd: wails3 task run
       type: primary
 
 # File Associations
-# More information at: https://v3.wails.io/noit/done/yet
 fileAssociations:
-#  - ext: wails
-#    name: Wails
-#    description: Wails Application File
-#    iconName: wailsFileIcon
-#    role: Editor
-#  - ext: jpg
-#    name: JPEG
-#    description: Image File
-#    iconName: jpegFileIcon
-#    role: Editor
-#    mimeType: image/jpeg  # (optional)
 
 # Other data
 other:
-  - name: AnoRebel

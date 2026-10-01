@@ -1,0 +1,32 @@
+{
+  "id": "chalkboard",
+  "displayName": "Chalkboard",
+  "layout": "default",
+  "colors": {
+    "r": 239,
+    "g": 240,
+    "b": 235,
+    "black": "#282a36",
+    "light_black": "#222430",
+    "grey": "#222430"
+  },
+  "cssvars": {
+    "font_main": "United Sans Medium",
+    "font_main_light": "United Sans Light"
+  },
+  "terminal": {
+    "fontFamily": "Fira Mono",
+    "cursorStyle": "block",
+    "foreground": "#eff0eb",
+    "background": "#282a36",
+    "cursor": "#97979b",
+    "cursorAccent": "#282a36",
+    "selection": "rgba(239,240,235,0.3)"
+  },
+  "globe": {
+    "base": "#000000",
+    "marker": "#f3f99d",
+    "pin": "#eff0eb",
+    "satellite": "#ff5c57"
+  }
+}

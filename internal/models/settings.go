@@ -48,6 +48,39 @@ type AppSettings struct {
 	Legacy *LegacyInfo `json:"legacy,omitempty"`
 }
 
+// CopyValue returns a copy of the settings without the embedded mutex.
+//
+// `*s` cannot be assigned directly: AppSettings embeds sync.RWMutex, so a
+// plain struct copy duplicates the lock along with its current state — which
+// `go vet` flags, and which would hand callers a mutex that is already held
+// if the copy is taken under lock.
+//
+// The pointer fields are shared with the original by design; this is the same
+// shallow copy the previous `copy := *s.settings` produced, minus the lock.
+// Callers that need to mutate a nested group must replace that group rather
+// than write through it.
+func (s *AppSettings) CopyValue() AppSettings {
+	if s == nil {
+		return AppSettings{}
+	}
+	return AppSettings{
+		Version:         s.Version,
+		UpdatedAt:       s.UpdatedAt,
+		CreatedAt:       s.CreatedAt,
+		General:         s.General,
+		Terminal:        s.Terminal,
+		Display:         s.Display,
+		Audio:           s.Audio,
+		System:          s.System,
+		Filesystem:      s.Filesystem,
+		Theme:           s.Theme,
+		Performance:     s.Performance,
+		Network:         s.Network,
+		UserPreferences: s.UserPreferences,
+		Legacy:          s.Legacy,
+	}
+}
+
 // GeneralSettings contains general application settings
 type GeneralSettings struct {
 	LastCWD            string `json:"lastCWD"`

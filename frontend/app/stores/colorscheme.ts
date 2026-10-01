@@ -11,7 +11,7 @@ import {
   UpdateConfig,
   GetSchemePreview,
   ValidateScheme
-} from '~~/bindings'
+} from '~/lib/wailsjs/coordinator'
 
 export interface ColorScheme {
   id: string

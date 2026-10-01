@@ -209,7 +209,7 @@ This guide helps diagnose and resolve common issues with aDex-UI.
    rd /s "%APPDATA%\aDex-UI"
 
    # Linux
-   rm -rf ~/.config/aDex-UI
+   rm -rf ~/.config/aDex
    ```
 
 3. **Check for conflicting applications**:
@@ -443,7 +443,7 @@ This guide helps diagnose and resolve common issues with aDex-UI.
 
 2. **Reset theme cache**:
    ```bash
-   rm -rf ~/.config/aDex-UI/themes
+   rm -rf ~/.config/aDex/themes
    ```
 
 3. **Check CSS variables**:

@@ -1,6 +1,24 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
+/* Theme tokens, panel chrome, animated grid + scanlines.
+ * These define the contract used by the theme engine (section 3) and by
+ * every Adex* mod component. Order matters: tokens before panel/grid. */
+@import "./_tokens.css";
+@import "./_panel.css";
+@import "./_grid.css";
+
+/* Layout presets — selected via `data-layout` on the .adex-app root.
+ * Default ships matching the original eDEX-UI default layout; the others
+ * port the original injectCSS payloads to typed CSS. */
+@import "./layouts/default.css";
+@import "./layouts/disrupted.css";
+@import "./layouts/typeleft.css";
+@import "./layouts/fulltype.css";
+@import "./layouts/terminal-focus.css";
+@import "./layouts/notype.css";
+@import "./layouts/colorfilter.css";
+
 /* aDex-UI - eDEX-UI Inspired Science Fiction Theme
  * All measurements use viewport-relative units (vh/vw) for proportional scaling.
  * Theme colors use RGB components via CSS variables for dynamic theming.
@@ -55,8 +73,12 @@
 }
 
 html, body {
-  width: 100vw;
-  height: 100vh;
+  /* 100% of the initial containing block tracks a desktop window resize
+     synchronously; dvw/dvh update lazily by design and lag it. */
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
   background: var(--color_black);
   color: var(--color_accent);
@@ -69,13 +91,38 @@ html, body {
   user-select: none;
 }
 
+/* The Nuxt + Nuxt UI mount chain.
+ *
+ * These cannot use a % chain: Nuxt UI's <UApp> renders ConfigProvider and
+ * TooltipProvider from reka-ui as Fragment-style passthroughs in some
+ * configurations, so an ancestor with 0 intrinsic size collapses the chain.
+ *
+ * They also cannot use dvw/dvh. Dynamic viewport units are specified to
+ * update lazily — they exist for mobile browser chrome that appears and
+ * disappears — so during a desktop window resize they keep reporting the OLD
+ * viewport for a beat. That is what left the interface rendering at its
+ * previous size while the window had already changed.
+ *
+ * `position: fixed` with zero insets sizes against the viewport directly and
+ * tracks it synchronously, which satisfies both constraints. */
+#__nuxt,
+#__layout,
+#app,
+#adex-app {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  /* Belt-and-suspenders: even if a parent is shorter, force overflow
+   * hidden so child content doesn't escape, and keep block layout
+   * so flex children behave predictably. */
+  overflow: hidden;
+}
+
 /* Grid Background Pattern (eDEX-UI signature look) */
 .adex-background {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  inset: 0;
   z-index: 0;
   background:
     repeating-linear-gradient(
@@ -100,54 +147,146 @@ html, body {
   background: var(--color_black) !important;
 }
 
-/* Main Application Layout */
+/* Main Application Layout
+ *
+ * No padding-top here on purpose: the topbar lives flush against the
+ * window edge so window controls (cog, maximize, close) reach all the
+ * way to (0, 0) — Fitts's Law. An earlier 1.85vh top-pad created an
+ * empty strip the user saw as a "phantom button" zone because on
+ * Wayland the OS title bar wasn't visible to fill it. */
 .adex-app {
-  position: relative;
-  width: 100vw;
-  height: 100vh;
+  position: fixed;
+  inset: 0;
   z-index: 1;
   display: flex;
   flex-direction: column;
-  padding-top: 1.85vh;
 }
 
-/* Top Navigation Bar */
+/* Top Navigation Bar
+ *
+ * Hard-pixel sizing (not vh) so the topbar always has a definite
+ * height regardless of window size or layout context. Earlier attempts
+ * used `2.8vh` which collapsed to ~8px on tiny windows, making the
+ * label text 1-2px tall and effectively invisible — that's the
+ * "buttons exist but invisible" symptom from DevTools.
+ *
+ * Also: explicit foreground/background instead of inheriting, plus
+ * `position: relative` + `z-index: 5` so the scanline overlay (which
+ * lives at z-index: 9999 with mix-blend-mode: overlay) doesn't bleed
+ * the labels into the topbar background. */
 .adex-topbar {
   display: flex;
-  width: 100vw;
-  height: 2.5vh;
-  font-size: 1.2vh;
+  align-items: stretch;
+  width: 100%;
+  height: 32px;
+  min-height: 32px;
+  font-size: 13px;
   text-transform: uppercase;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.1em;
+  background: rgba(0, 0, 0, 0.4);
+  color: rgb(var(--color_r), var(--color_g), var(--color_b));
   border-bottom: var(--border_width) solid var(--border_color);
   flex-shrink: 0;
+  overflow: hidden;
+  position: relative;
+  z-index: 5;
 }
 
 .adex-topbar .topbar-section {
   display: flex;
   align-items: center;
-  padding: 0 1vw;
+  /* Larger min-width AND padding so labels never get clipped. The
+   * earlier 4ch was tight when the font is 12px, and `padding: 0 0.8vw`
+   * disappears on narrow windows. Use a px floor for both. */
+  padding: 0 max(0.8vw, 10px);
+  min-width: max(6ch, 70px);
   cursor: pointer;
+  /* Solid accent foreground (was 0.7-alpha which faded into the
+   * accent-tinted topbar background on dark themes — that's why the
+   * label TEXT looked missing while section borders still rendered). */
+  color: rgb(var(--color_r), var(--color_g), var(--color_b));
   border-right: var(--border_width) solid var(--border_color);
   transition: background-color 0.2s, color 0.2s;
   white-space: nowrap;
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Window controls must always be visible — never shrink, never wrap. */
+.adex-topbar .topbar-window-controls {
+  flex-shrink: 0;
+  margin-left: auto; /* push to the right edge regardless of tab content */
 }
 
 .adex-topbar .topbar-section:last-child {
   border-right: none;
 }
 
+/* Hover lifts the section to full accent foreground — ensures the
+ * label stays legible even when bg gets the 10% accent tint. */
 .adex-topbar .topbar-section:hover {
-  background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.1);
+  background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.12);
+  color: rgb(var(--color_r), var(--color_g), var(--color_b));
 }
 
 .adex-topbar .topbar-section.active {
-  background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.15);
-  color: var(--color_accent);
+  /* Active needs strong contrast — the previous combo of accent-tinted
+   * bg + accent-colored text was nearly invisible because the rgb
+   * values matched. Use the page's --color_black as foreground over a
+   * solid accent background so the active label POPS. */
+  background: rgb(var(--color_r), var(--color_g), var(--color_b));
+  color: var(--color_black, #05080d);
+  font-weight: 600;
+}
+
+/* Empty/placeholder slots — dimmed by default but light up on hover so
+ * keyboard and mouse users both see they're a real "new shell" button.
+ * Without this they had cursor: pointer (inherited) but no visible
+ * affordance, which the user reported as a phantom button. */
+.adex-topbar .topbar-section-empty {
+  opacity: 0.35;
+  transition: opacity 0.15s ease, background 0.2s ease, color 0.2s ease;
+}
+.adex-topbar .topbar-section-empty:hover,
+.adex-topbar .topbar-section-empty:focus-visible {
+  opacity: 1;
+  /* Same hover rule as regular sections — full accent foreground on a
+   * tinted background. Was previously `color: var(--color_accent)`
+   * which collided with the active rule's bg color. */
+  color: rgb(var(--color_r), var(--color_g), var(--color_b));
+  outline: none;
+}
+
+/* DEAD tabs (PTY exited): muted red so they stand out from active +
+ * empty slots, with a subtle pulse so the user notices the slot is
+ * waiting for a restart click. */
+.adex-topbar .topbar-section-dead {
+  color: #ff6b6b;
+  opacity: 0.7;
+}
+.adex-topbar .topbar-section-dead:hover {
+  opacity: 1;
+  color: #ff8a8a;
+  background: rgba(255, 107, 107, 0.15);
 }
 
 .adex-topbar .topbar-spacer {
   flex: 1;
+}
+
+/* Rename input that appears inline when a tab is double-clicked. Styled
+ * to look like the surrounding label rather than a chrome <input>. */
+.adex-topbar .topbar-rename-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: rgb(var(--color_r), var(--color_g), var(--color_b));
+  width: 12ch;
+  padding: 0;
 }
 
 /* Main Content Area */
@@ -162,10 +301,14 @@ html, body {
   width: var(--column_width);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  /* Column sizing (justify-content, gap, per-panel flex) is owned by the
+     scoped rules in pages/index.vue — those carry a data-v attribute and so
+     win over anything declared here. Do not duplicate them. */
+  justify-content: flex-start;
   padding: 0.5vh 0.5vw;
   flex-shrink: 0;
   overflow: hidden;
+  min-height: 0;
 }
 
 .mod-column.left {
@@ -497,33 +640,50 @@ html, body {
   transition: width 0.5s;
 }
 
-/* Keyboard Section */
+/* Keyboard Section
+ *
+ * eDEX-UI's on-screen keyboard fills the lower-right block edge to edge.
+ * We size rows to grow into the available height (justify-content:
+ * space-around so each row claims an equal vertical share) and keys to
+ * grow into the available width (flex: 1 1 0 with width as a sizing
+ * hint). The fixed `width` declarations are kept as the *baseline ratio*
+ * — wide-1/wide-2/wide-enter/spacebar carry their proportional grow
+ * factor via flex-grow so the row stretches without distorting the
+ * QWERTY proportions. */
 .adex-keyboard {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 0.5vh 0.5vw;
+  justify-content: space-around;
+  padding: 0.6vh 0.6vw;
   overflow: hidden;
+  min-width: 0;
 }
 
 .kb-row {
   display: flex;
   justify-content: center;
-  gap: 0.2vw;
-  margin-bottom: 0.2vh;
+  align-items: stretch;
+  gap: 0.3vw;
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .kb-key {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.7vw;
-  height: 3.52vh;
+  /* Baseline width drives the QWERTY column ratio; flex-basis lets keys
+   * stretch into whatever extra width the bottom panel offers without
+   * destroying the 1u-vs-1.25u-vs-spacebar hierarchy. */
+  flex: 1 1 2.7vw;
+  min-width: 0;
+  height: 100%;
   border: var(--border_width) solid var(--border_color);
   background: transparent;
   color: var(--color_accent);
   font-family: var(--font_main);
-  font-size: 1.2vh;
+  font-size: 1.4vh;
   cursor: pointer;
   transition: all 0.1s;
   position: relative;
@@ -540,12 +700,16 @@ html, body {
   color: var(--color_black);
 }
 
-.kb-key.wide-1 { width: 3.8vw; }
-.kb-key.wide-2 { width: 5vw; }
-.kb-key.wide-3 { width: 7vw; }
-.kb-key.wide-enter { width: 5.5vw; height: 7.2vh; }
-.kb-key.spacebar { width: 30vw; }
-.kb-key.fn-key { font-size: 0.9vh; }
+/* Wide keys keep their proportional grow weight relative to a 1u key
+ * (whose flex-basis is 2.7vw). Without these the row would distribute
+ * extra width equally and a Tab/Shift/Enter would end up the same width
+ * as a letter key. */
+.kb-key.wide-1 { flex: 1.4 1.4 3.8vw; }
+.kb-key.wide-2 { flex: 1.85 1.85 5vw; }
+.kb-key.wide-3 { flex: 2.6 2.6 7vw; }
+.kb-key.wide-enter { flex: 2.04 2.04 5.5vw; }
+.kb-key.spacebar { flex: 11 11 30vw; }
+.kb-key.fn-key { font-size: 1vh; }
 
 /* Clock Module */
 .mod-clock {
@@ -575,6 +739,18 @@ html, body {
 .mod-sysinfo .sysinfo-label {
   opacity: 0.6;
   text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+/* Truncate long values (kernel strings can be 6.16.10-zen1-2-zen,
+ * way wider than the panel) so they don't push the column wider or
+ * wrap onto a second line. */
+.mod-sysinfo .sysinfo-value-truncated {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  text-align: right;
 }
 
 /* Hardware Inspector */
@@ -687,6 +863,15 @@ html, body {
   font-size: 1vh;
 }
 
+/* The rows themselves never need to scroll (capped at 5), but if the
+ * column's flex share is unusually small (compact mode at <720px height)
+ * we let the row group hide whatever can't fit instead of pushing the
+ * panel border off-screen. */
+.mod-toplist .toplist-rows,
+.mod-toplist {
+  min-height: 0;
+}
+
 .mod-toplist .toplist-header {
   display: flex;
   gap: 0.5vw;
@@ -694,6 +879,7 @@ html, body {
   border-bottom: var(--border_width) solid var(--border_color);
   opacity: 0.6;
   text-transform: uppercase;
+  flex-shrink: 0;
 }
 
 .mod-toplist .toplist-row {
@@ -744,12 +930,11 @@ html, body {
   margin-bottom: 0.3vh;
 }
 
-.mod-traffic .traffic-chart {
-  height: 8vh;
-  position: relative;
-  overflow: hidden;
-  margin-bottom: 0.3vh;
-}
+/* Per-chart sizing now lives in the panel-scoped CSS in
+ * components/adex/AdexTraffic.vue — the panel renders TWO chart blocks
+ * (UP + DOWN), so a global `min-height: 6vh` here doubled and pushed
+ * the second one out of the panel. The scoped flex: 1 1 0 / min-height: 4vh
+ * lets both charts share whatever height the column allotted. */
 
 .mod-traffic .traffic-chart canvas {
   width: 100% !important;
@@ -874,4 +1059,195 @@ html, body {
     width: 100%;
     border-right: none;
   }
+}
+
+/* ============================================================
+   Native form controls
+   ============================================================
+   The interface contains ~145 native <input>, <select> and <textarea>
+   elements. Nothing styled them, so they rendered with browser defaults —
+   white backgrounds, system fonts, platform focus rings — against the dark
+   sci-fi shell. That was the reported "fields aren't uniform with the
+   themes" inconsistency.
+
+   These rules derive entirely from the theme custom properties that
+   `applyTheme()` rewrites on every theme change, so controls restyle
+   reactively with the rest of the interface and no per-component wiring is
+   needed. Specificity is deliberately kept to a single element selector
+   scoped under the app shell, so any component-level rule still wins.
+
+   `color-scheme: dark` additionally tells the engine to render the parts we
+   cannot reach — dropdown popups, scrollbars, date pickers — in dark form. */
+
+/* Applies to the whole document so controls in teleported overlays and
+   page-level modals inherit it too, not just those inside the app shell. */
+:root {
+  color-scheme: dark;
+}
+
+input:not([type='checkbox']):not([type='radio']):not([type='range']),
+select,
+textarea {
+  background: var(--color_light_black);
+  color: var(--color_accent);
+  border: var(--border_width, 1px) solid var(--color_accent_dimmed);
+  border-radius: 2px;
+  font-family: var(--font_main);
+  font-size: 0.85rem;
+  padding: 0.35em 0.6em;
+  outline: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+input:not([type='checkbox']):not([type='radio']):not([type='range']):hover,
+select:hover,
+textarea:hover {
+  border-color: var(--color_accent);
+  background: var(--color_grey);
+}
+
+/* Focus: accent border plus a soft accent glow. Keep a visible indicator —
+   `outline: none` above removes the platform ring, so this replaces it
+   rather than dropping it. */
+input:not([type='checkbox']):not([type='radio']):not([type='range']):focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+input:not([type='checkbox']):not([type='radio']):not([type='range']):focus,
+select:focus,
+textarea:focus {
+  border-color: var(--color_accent);
+  box-shadow: 0 0 0 2px var(--color_accent_glow);
+  background: var(--color_black);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color_accent_dimmed);
+  opacity: 0.7;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Dropdown options render in the OS popup layer, which only honours a
+   handful of properties. Set what is respected so the list is not a white
+   slab against a dark interface. */
+select option {
+  background: var(--color_light_black);
+  color: var(--color_accent);
+}
+
+/* Checkboxes and radios: accent-color is the one property that reliably
+   themes the native control across engines, and it keeps the platform's
+   own sizing and hit target. */
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--color_accent);
+  cursor: pointer;
+}
+
+/* Range sliders (volume, font size) — accent-color themes the track fill
+   and thumb. */
+input[type='range'] {
+  accent-color: var(--color_accent);
+  cursor: pointer;
+}
+
+/* Number inputs: hide the spinners, which are unstyleable and clash with
+   the aesthetic. Values remain keyboard-adjustable via arrow keys. */
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* ============================================================
+   Performance mode  (Settings → System → Performance mode)
+   ============================================================
+   Idle CPU is dominated by decorative animation — the globe's render loop
+   above all, then the scanline sweep and grid drift. This mode drops those
+   without changing the layout, for low-power machines or long sessions.
+   The globe additionally suspends its own loop when the window is hidden. */
+
+.adex-app.perf-mode .adex-scanlines,
+.adex-app.perf-mode .adex-background {
+  animation: none !important;
+}
+
+.adex-app.perf-mode .adex-scanlines {
+  /* The overlay itself is a full-screen blended layer; hiding it entirely
+     saves a compositing pass per frame. */
+  display: none;
+}
+
+/* Suppress non-essential transitions and keyframe animation app-wide.
+   Scoped to decorative elements so interactive affordances still respond. */
+.adex-app.perf-mode .mod-column *,
+.adex-app.perf-mode .adex-topbar * {
+  animation-duration: 0s !important;
+  transition-duration: 0s !important;
+}
+
+/* ============================================================
+   Reclaiming space from hidden regions
+   ============================================================
+   `.adex-bottom` has a fixed 32vh height and does not shrink, so a layout
+   that hides everything inside it left the band behind as dead space and the
+   terminal did not grow into it.
+
+   Collapse the band when its contents are hidden, so the freed height goes to
+   the main area instead. `:has()` keeps this driven by what is actually
+   visible rather than duplicating each layout's rules. */
+
+.adex-app .adex-bottom:not(:has(> *:not([style*="display: none"]))) {
+  display: none;
+}
+
+/* terminal-focus hides the whole bottom band by design. */
+[data-layout="terminal-focus"] .adex-bottom {
+  display: none;
+}
+
+/* notype hides the keyboard: the filesystem takes the full band rather than
+   leaving a keyboard-shaped gap. */
+[data-layout="notype"] .adex-bottom > .adex-filesystem {
+  flex: 1 1 100%;
+  width: 100%;
+}
+
+/* fulltype hides the filesystem: the keyboard takes the full band. */
+[data-layout="fulltype"] .adex-bottom > .adex-keyboard {
+  flex: 1 1 100%;
+  width: 100%;
+}
+
+/* Wrapper used where a region toggle needs a real element to receive
+   v-show's inline style — ErrorBoundary renders a bare slot, which has no
+   single root for the directive to act on. Must not affect layout. */
+.region-wrap {
+  /* NOT display:contents — v-show toggles `display:none`, which a contents
+     box would ignore. It must be a real element, but it also must not break
+     the column's flex chain: as a plain block with `flex: 0 1 auto` it could
+     not grow, so the panels inside it could not either and the right column
+     left ~23% of its height unused.
+     Mirror the child's own flex behaviour instead of imposing its own. */
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* A wrapper around a non-growing panel must not grow either, or it steals
+   space from the panels that should. */
+.region-wrap:has(> .mod-netstat) {
+  flex: 0 1 auto;
 }

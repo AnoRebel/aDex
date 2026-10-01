@@ -1,4 +1,7 @@
 import { defineStore } from 'pinia'
+import { WindowRuntime } from '~/lib/wailsjs/runtime'
+import { IsStarted } from '~/lib/wailsjs/coordinator'
+import { nowMs } from '~/utils/now'
 
 interface AppAlert {
   id: string
@@ -214,13 +217,12 @@ export const useAppStore = defineStore('app', {
       try {
         this.setStatus('backend', 'connecting')
 
-        // Check if Wails bindings are available
-        const go = (window as any).go
-        if (go?.main?.ServiceCoordinator) {
-          // Try to call a simple method to verify connection
-          const coordinator = go.main.ServiceCoordinator
-          if (coordinator.IsStarted) {
-            const isStarted = await coordinator.IsStarted()
+        // Probe the backend through the generated bindings. Wails v3 has no
+        // `window.go` IPC global; a failed call throws rather than the
+        // binding being absent.
+        {
+          {
+            const isStarted = await IsStarted()
             if (isStarted) {
               this.setStatus('backend', 'connected')
               return true
@@ -241,13 +243,28 @@ export const useAppStore = defineStore('app', {
     },
 
     startPerformanceMonitoring(): void {
+      // Wails' WebView2 (Windows) and WebKit (macOS) ship a partial
+      // `performance` polyfill — `performance.now` and `performance.memory`
+      // can be undefined depending on the host build. Capture the start
+      // time once via Date.now() and use it as the fallback so we always
+      // return seconds since first measurement, never throw.
+      const startedAt = Date.now()
+      const hasNow = typeof performance !== 'undefined'
+        && typeof performance.now === 'function'
+
       const updatePerformance = () => {
-        if ('memory' in performance) {
+        if (typeof performance !== 'undefined' && 'memory' in performance) {
           const memory = (performance as any).memory
-          this.performance.memoryUsage = memory.usedJSHeapSize / 1024 / 1024 // MB
+          if (memory && typeof memory.usedJSHeapSize === 'number') {
+            this.performance.memoryUsage = memory.usedJSHeapSize / 1024 / 1024 // MB
+          }
         }
 
-        this.performance.uptime = performance.now() / 1000 // seconds
+        if (hasNow) {
+          this.performance.uptime = nowMs() / 1000 // seconds since page load
+        } else {
+          this.performance.uptime = (Date.now() - startedAt) / 1000
+        }
         this.performance.lastUpdate = new Date()
       }
 
@@ -455,20 +472,11 @@ export const useAppStore = defineStore('app', {
 
     async checkForUpdates(): Promise<{ hasUpdate: boolean; version?: string }> {
       try {
-        // Use Wails bindings if available
-        const go = (window as any).go
-        if (go?.main?.ServiceCoordinator?.CheckForUpdates) {
-          const data = await go.main.ServiceCoordinator.CheckForUpdates()
-          if (data?.hasUpdate && data?.version) {
-            this.addAlert({
-              type: 'info',
-              title: 'Update Available',
-              message: `Version ${data.version} is available for download`,
-            })
-          }
-          return { hasUpdate: data?.hasUpdate ?? false, version: data?.version }
-        }
-        // No update checking available in current environment
+        // The Go coordinator exposes no CheckForUpdates method, so this never
+        // had a backend to call: under v2 the `window.go` probe just failed
+        // its guard and fell through to the same result returned here. Real
+        // update checking runs in the frontend against GitHub Releases — see
+        // useUpdateChecker.
         return { hasUpdate: false }
       } catch (error) {
         console.error('Failed to check for updates:', error)
@@ -480,11 +488,11 @@ export const useAppStore = defineStore('app', {
       try {
         await this.cleanup()
 
-        // Use Wails runtime to quit the application
-        if (typeof window !== 'undefined' && window.runtime?.Quit) {
-          window.runtime.Quit()
-        } else {
-          window.close()
+        // Ask the Wails runtime to quit. This begins the same teardown the
+        // Go side runs: ShouldQuit, then each service's ServiceShutdown in
+        // reverse registration order.
+        if (typeof window !== 'undefined') {
+          WindowRuntime.Quit()
         }
       } catch (error) {
         console.error('Error during quit:', error)
@@ -511,9 +519,11 @@ export const useAppStore = defineStore('app', {
       try {
         await this.cleanup()
 
-        // Use Wails runtime to reload the application
-        if (typeof window !== 'undefined' && window.runtime?.WindowReloadApp) {
-          window.runtime.WindowReloadApp()
+        // Wails v3 has no WindowReloadApp; reloading the webview is a plain
+        // browser reload, which re-runs the frontend against the still-running
+        // backend services.
+        if (typeof window !== 'undefined') {
+          window.location.reload()
         }
       } catch (error) {
         console.error('Error during restart:', error)

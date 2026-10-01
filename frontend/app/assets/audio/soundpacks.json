@@ -128,6 +128,46 @@
         "duration": 800,
         "volume": 80,
         "enabled": true
+      },
+      "keypress": {
+        "id": "keypress",
+        "name": "Key Press",
+        "description": "Mechanical-keyboard click fired per terminal keystroke",
+        "category": "keyboard",
+        "filePath": "/audio/adex/mechanical-keyboard.wav",
+        "duration": 50,
+        "volume": 35,
+        "enabled": true
+      },
+      "destructive": {
+        "id": "destructive",
+        "name": "Destructive Action (Open)",
+        "description": "Handgun-click 'chambering' tone when a destructive confirm dialog opens",
+        "category": "destructive",
+        "filePath": "/audio/adex/handgun-click.wav",
+        "duration": 120,
+        "volume": 70,
+        "enabled": true
+      },
+      "gunshot": {
+        "id": "gunshot",
+        "name": "Destructive Action (Confirm)",
+        "description": "Gunshot impact when the user confirms a destructive action (quit, kill, delete)",
+        "category": "destructive",
+        "filePath": "/audio/adex/gunshot.wav",
+        "duration": 250,
+        "volume": 80,
+        "enabled": true
+      },
+      "click": {
+        "id": "click",
+        "name": "Interface Click",
+        "description": "Routine UI click for buttons, menus, toggles",
+        "category": "interface",
+        "filePath": "/audio/adex/click-tone.wav",
+        "duration": 80,
+        "volume": 35,
+        "enabled": true
       }
     }
   },
@@ -323,6 +363,148 @@
         "filePath": "/audio/cyberpunk/neural_link.wav",
         "duration": 700,
         "volume": 50,
+        "enabled": true
+      }
+    }
+  },
+  "adex": {
+    "id": "adex",
+    "name": "aDEX",
+    "displayName": "aDEX (default WAV pack)",
+    "description": "Bundled aDex-UI WAV cues — eDEX-derived (keyboard, panels, theme, stdin/stdout, granted, denied, error, info, alarm, expand, folder, scan) plus aDex extensions (keypress, destructive, gunshot, click)",
+    "version": "1.0.0",
+    "author": "Gabriel Saillard / aDex-UI port",
+    "isBuiltIn": true,
+    "enabled": true,
+    "events": {
+      "alarm": {
+        "id": "alarm",
+        "name": "Alarm",
+        "description": "System threshold breach",
+        "category": "alert",
+        "filePath": "/audio/adex/alarm.wav",
+        "duration": 1200,
+        "volume": 60,
+        "enabled": true
+      },
+      "denied": {
+        "id": "denied",
+        "name": "Denied",
+        "description": "Action rejected",
+        "category": "feedback",
+        "filePath": "/audio/adex/denied.wav",
+        "duration": 200,
+        "volume": 60,
+        "enabled": true
+      },
+      "error": {
+        "id": "error",
+        "name": "Error",
+        "description": "Error notification",
+        "category": "error",
+        "filePath": "/audio/adex/error.wav",
+        "duration": 600,
+        "volume": 60,
+        "enabled": true
+      },
+      "expand": {
+        "id": "expand",
+        "name": "Expand",
+        "description": "Panel/list expand",
+        "category": "interaction",
+        "filePath": "/audio/adex/expand.wav",
+        "duration": 200,
+        "volume": 60,
+        "enabled": true
+      },
+      "folder": {
+        "id": "folder",
+        "name": "Folder",
+        "description": "Folder navigation",
+        "category": "interaction",
+        "filePath": "/audio/adex/folder.wav",
+        "duration": 250,
+        "volume": 60,
+        "enabled": true
+      },
+      "granted": {
+        "id": "granted",
+        "name": "Granted",
+        "description": "Action accepted",
+        "category": "feedback",
+        "filePath": "/audio/adex/granted.wav",
+        "duration": 350,
+        "volume": 60,
+        "enabled": true
+      },
+      "info": {
+        "id": "info",
+        "name": "Info",
+        "description": "Informational notice",
+        "category": "notification",
+        "filePath": "/audio/adex/info.wav",
+        "duration": 500,
+        "volume": 60,
+        "enabled": true
+      },
+      "keyboard": {
+        "id": "keyboard",
+        "name": "Keyboard",
+        "description": "On-screen keystroke",
+        "category": "interaction",
+        "filePath": "/audio/adex/keyboard.wav",
+        "duration": 80,
+        "volume": 60,
+        "enabled": true
+      },
+      "panels": {
+        "id": "panels",
+        "name": "Panels",
+        "description": "Panel / modal / tab switch",
+        "category": "interaction",
+        "filePath": "/audio/adex/panels.wav",
+        "duration": 250,
+        "volume": 60,
+        "enabled": true
+      },
+      "scan": {
+        "id": "scan",
+        "name": "Scan",
+        "description": "Scan or fuzzy-find start",
+        "category": "system",
+        "filePath": "/audio/adex/scan.wav",
+        "duration": 1200,
+        "volume": 60,
+        "enabled": true
+      },
+      "stdin": {
+        "id": "stdin",
+        "name": "Stdin",
+        "description": "Terminal stdin burst (rate-limited 4 Hz)",
+        "category": "terminal",
+        "filePath": "/audio/adex/stdin.wav",
+        "duration": 60,
+        "volume": 60,
+        "enabled": true
+      },
+      "stdout": {
+        "id": "stdout",
+        "name": "Stdout",
+        "description": "Terminal stdout burst (rate-limited 4 Hz)",
+        "category": "terminal",
+        "filePath": "/audio/adex/stdout.wav",
+        "duration": 60,
+        "volume": 60,
+        "enabled": true
+      },
+      "theme": {
+        "id": "theme",
+        "name": "Theme",
+        "description": "Theme applied",
+        "category": "system",
+        "filePath": "/audio/adex/theme.wav",
+        "duration": 500,
+        "volume": 60,
         "enabled": true
       }
     }

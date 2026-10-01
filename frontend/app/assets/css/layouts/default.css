@@ -1,0 +1,14 @@
+/* assets/css/layouts/default.css
+ *
+ * Default eDEX-UI layout: balanced three-column with bottom keyboard.
+ * Active when the shell root has `data-layout="default"` (or is unset).
+ *
+ * Almost all rules in main.css already match this preset, so this file is
+ * intentionally minimal — it's the baseline against which the other
+ * presets diff.
+ */
+
+[data-layout="default"] .adex-main,
+:root:not([data-layout]) .adex-main {
+  /* nothing extra; main.css default applies */
+}

@@ -719,7 +719,7 @@ onMounted(() => {
 
 // SEO
 useHead({
-  title: 'File Manager - aDex-UI',
+  title: 'File Manager - aDex',
   meta: [
     { name: 'description', content: 'Advanced file manager with multiple view modes and file operations' }
   ]

@@ -1,0 +1,28 @@
+/* assets/css/layouts/colorfilter.css
+ *
+ * Colorfilter preset — applies a global hue-rotate to the shell to give
+ * the look of a CRT color filter. Layout itself is identical to default;
+ * only the visual treatment shifts.
+ *
+ * The original `tron-colorfilter.json` had no injectCSS payload — the
+ * effect comes from the theme's color tokens. We add a SVG color-matrix
+ * filter here so other themes can opt into the same effect by setting
+ * their `layout` to `colorfilter`.
+ */
+
+/* `data-layout` is set ON .adex-app, so `[data-layout="..."] .adex-app` is a
+ * descendant selector that matches nothing — this preset did literally nothing
+ * before. Use &-style self-selection instead.
+ *
+ * The effect was also far too subtle to perceive (contrast 1.05 / saturate
+ * 1.1). Make it a real monochrome pass, which is what the name implies: the
+ * interface renders in shades of the accent colour rather than full colour. */
+.adex-app[data-layout="colorfilter"] {
+  filter: grayscale(1) contrast(1.15) brightness(1.05);
+}
+
+/* Keep the terminal readable in colour — monochroming program output makes
+ * syntax highlighting and ls colours useless. */
+.adex-app[data-layout="colorfilter"] .shell-terminal {
+  filter: grayscale(0);
+}

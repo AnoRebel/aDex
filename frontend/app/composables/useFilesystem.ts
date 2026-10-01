@@ -1,7 +1,28 @@
 import { ref, computed, watch } from 'vue'
 import { useWails } from './useWails'
 import type { FileItem, DirectoryItem, FileSystemStats, FileWatcher } from '~/types/filesystem'
-import type { FileInfo, DirectoryEntry } from '../../bindings/aDex-UI/backend/services/filesystem/models'
+// Shapes returned by the coordinator's filesystem calls. Declared here rather
+// than imported from generated bindings: the filesystem service is reached
+// through the coordinator, so its models are not emitted as a standalone
+// binding module. (The previous import pointed at a bindings path that was
+// never generated.)
+interface DirectoryEntry {
+  Name: string
+  Path: string
+  Size: number
+  ModTime: string
+}
+
+interface FileInfo {
+  Name: string
+  Path: string
+  Size: number
+  ModTime: string
+  IsDirectory: boolean
+  Permissions: string
+  Owner: string
+  Group: string
+}
 
 export const useFilesystem = () => {
   const wails = useWails()

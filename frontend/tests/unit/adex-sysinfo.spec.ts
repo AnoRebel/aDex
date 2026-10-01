@@ -4,6 +4,15 @@ import { createPinia, setActivePinia } from 'pinia'
 import AdexSysinfo from '~/app/components/adex/AdexSysinfo.vue'
 import { useSystemStore } from '~/stores/system'
 
+/** Find a sysinfo row by its label, rather than by index — adding a row
+ *  shifts every positional lookup and was why these broke. */
+function rowByLabel(w: any, label: string) {
+  return w.findAll('.sysinfo-row').find(
+    (r: any) => r.find('.sysinfo-label').text() === label,
+  )
+}
+
+
 // Mock the useWails composable used by the system store
 vi.mock('~/composables/useWails', () => ({
   useWails: () => ({
@@ -134,10 +143,12 @@ describe('AdexSysinfo Component', () => {
       expect(labels).toContain('POWER')
     })
 
-    it('has exactly 5 sysinfo rows', () => {
+    // YEAR, DATE, UPTIME, OS, KERNEL, POWER. KERNEL and POWER render
+    // conditionally, so this asserts the full set the mock data produces.
+    it('has exactly 6 sysinfo rows', () => {
       mountComponent()
       const rows = wrapper.findAll('.sysinfo-row')
-      expect(rows.length).toBe(5)
+      expect(rows.length).toBe(6)
     })
   })
 
@@ -154,13 +165,13 @@ describe('AdexSysinfo Component', () => {
     it('has sysinfo-label class on each label', () => {
       mountComponent()
       const labels = wrapper.findAll('.sysinfo-label')
-      expect(labels.length).toBe(5)
+      expect(labels.length).toBe(6)
     })
 
     it('has sysinfo-value class on each value', () => {
       mountComponent()
       const values = wrapper.findAll('.sysinfo-value')
-      expect(values.length).toBe(5)
+      expect(values.length).toBe(6)
     })
   })
 
@@ -182,10 +193,12 @@ describe('AdexSysinfo Component', () => {
 
     it('shows uptime in DD:HH:MM format', () => {
       mountComponent()
-      const uptimeRow = wrapper.findAll('.sysinfo-row')[2]
+      const uptimeRow = rowByLabel(wrapper, 'UPTIME')
       // 90061 seconds = 1 day, 1 hour, 1 minute, 1 second
-      // days=1, hours=1, minutes=1 => "01:01:01"
-      expect(uptimeRow.find('.sysinfo-value').text()).toBe('01:01:01')
+      // The display carries explicit unit labels — plain 01:01:01 was
+      // ambiguous between H:M:S and D:H:M — and only shows the day field
+      // once uptime exceeds a day.
+      expect(uptimeRow.find('.sysinfo-value').text()).toBe('1d 01h 01m 01s')
     })
 
     it('shows OS information from store', () => {
@@ -198,13 +211,13 @@ describe('AdexSysinfo Component', () => {
 
     it('shows POWER as AC Power by default', () => {
       mountComponent()
-      const powerRow = wrapper.findAll('.sysinfo-row')[4]
+      const powerRow = rowByLabel(wrapper, 'POWER')
       expect(powerRow.find('.sysinfo-value').text()).toBe('AC Power')
     })
   })
 
   describe('Uptime with no system info', () => {
-    it('shows 00:00:00 when no systemInfo is available', () => {
+    it("shows '--' when no systemInfo is available", () => {
       const pinia = createPinia()
       setActivePinia(pinia)
       const store = useSystemStore()
@@ -214,8 +227,8 @@ describe('AdexSysinfo Component', () => {
         global: { plugins: [pinia] }
       })
 
-      const uptimeRow = wrapper.findAll('.sysinfo-row')[2]
-      expect(uptimeRow.find('.sysinfo-value').text()).toBe('00:00:00')
+      const uptimeRow = rowByLabel(wrapper, 'UPTIME')
+      expect(uptimeRow.find('.sysinfo-value').text()).toBe('--')
     })
   })
 
@@ -236,12 +249,13 @@ describe('AdexSysinfo Component', () => {
   })
 
   describe('Timers', () => {
-    it('sets up timers on mount', () => {
+    // The component no longer schedules its own uptime tick or midnight
+    // refresh: YEAR / DATE / UPTIME all derive from VueUse's `useNow`, and
+    // only the power source is polled directly. These tests assert the
+    // behaviour (a live-updating clock) rather than which timer API backs it.
+    it('polls the power source on an interval', () => {
       const setIntervalSpy = vi.spyOn(global, 'setInterval')
-      const setTimeoutSpy = vi.spyOn(global, 'setTimeout')
       mountComponent()
-      // The component sets a setTimeout for midnight refresh and a setInterval for uptime
-      expect(setTimeoutSpy).toHaveBeenCalled()
       expect(setIntervalSpy).toHaveBeenCalled()
     })
 
@@ -252,24 +266,25 @@ describe('AdexSysinfo Component', () => {
       expect(clearIntervalSpy).toHaveBeenCalled()
     })
 
-    it('increments local uptime offset every 60 seconds', async () => {
+    it('advances the uptime display as time passes', async () => {
       const { systemStore } = mountComponent()
-      // Set a base uptime
+      // A real boot time an hour ago, so uptime is derived rather than
+      // accumulated from a local offset.
       systemStore.systemInfo = {
         ...systemStore.systemInfo!,
-        uptime: 0, // 0 seconds
+        uptime: 3600,
       }
       await wrapper.vm.$nextTick()
 
-      const uptimeRow = wrapper.findAll('.sysinfo-row')[2]
-      expect(uptimeRow.find('.sysinfo-value').text()).toBe('00:00:00')
+      const uptimeRow = rowByLabel(wrapper, 'UPTIME')
+      const before = uptimeRow.find('.sysinfo-value').text()
+      expect(before).not.toBe('--')
 
-      // Advance by 60 seconds
-      vi.advanceTimersByTime(60000)
+      // useNow ticks every second; advancing the clock must move the display.
+      vi.advanceTimersByTime(60_000)
       await wrapper.vm.$nextTick()
 
-      // Now local offset should add 60 seconds => 0 + 60 = 60 seconds => 00:00:01
-      expect(uptimeRow.find('.sysinfo-value').text()).toBe('00:00:01')
+      expect(uptimeRow.find('.sysinfo-value').text()).not.toBe(before)
     })
   })
 })

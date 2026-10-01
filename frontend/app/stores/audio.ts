@@ -1,5 +1,13 @@
 import { defineStore } from 'pinia'
-import { GetService } from '~~/bindings'
+// V2 audio playback flows through `composables/useAdexAudio.ts` (Howler +
+// synth fallback), not via Wails. The store intentionally does not call
+// any backend audio bindings — `GetService('audio')` would marshal a Go
+// struct that contains channels and an oto.Context, which Wails cannot
+// JSON-encode, and would surface as a launch fatal:
+//   FAT | json: unsupported type: func() error
+//
+// The methods below remain as stubs so existing callers continue to
+// compile; real cue playback happens via `useAdexAudio().playCue(name)`.
 import type {
   AudioEvent,
   AudioSettings,
@@ -130,19 +138,28 @@ export const useAudioStore = defineStore('audio', {
     },
 
     // Event checking helpers
+    //
+    // OLD behavior gated on `enabledEvents.includes(eventId)` which
+    // defaulted to an EMPTY list on first launch — so every cue was a
+    // silent no-op until the user explicitly opted in (which there's
+    // no UI for). The cue vocabulary is small and curated; the global
+    // enabled/muted flags are the right gate, not a per-event
+    // allowlist. If we want opt-out per cue later, do it by listing
+    // DISABLED events instead of required-enabled events.
     isEventEnabled: (state) => {
-      return (eventId: string) => {
-        return state.settings.enabled &&
-               !state.settings.muted &&
-               state.settings.enabledEvents.includes(eventId)
+      return (_eventId: string) => {
+        return state.settings.enabled && !state.settings.muted
       }
     },
-    canPlayEvent: (state) => {
-      return (eventId: string, cooldownMs: number = 100) => {
-        const lastPlayed = state.lastPlayedEvents[eventId] || 0
-        const now = Date.now()
-        return (now - lastPlayed) >= cooldownMs
-      }
+    // Per-event cooldown is enforced at the playback layer
+    // (useAdexAudio's RATE_LIMIT_MS map) where it can be tuned per cue.
+    // The store-level 100ms blanket cooldown was the main reason boot
+    // and shutdown sequences dropped half their cues — five steps
+    // firing in 350ms with the same eventId only emitted 1 audible
+    // tone. Always allow at this layer; rate-limiting that matters
+    // happens downstream.
+    canPlayEvent: () => {
+      return (_eventId: string, _cooldownMs: number = 0) => true
     },
 
     // Playback helpers
@@ -426,66 +443,56 @@ export const useAudioStore = defineStore('audio', {
       this.loadFromStorage()
     },
 
-    // Fetch data from backend using Wails bindings
+    // Stubs — the legacy backend audio bindings (GetAvailableEvents /
+    // GetSoundpacks / GetStats / PlayEvent) were never wired through the
+    // coordinator and calling them via GetService('audio') crashes Wails
+    // (see file header). Until a frontend-side composable replaces them
+    // (section 6.7 wires the V2 audio composable into the Settings tab),
+    // these methods leave state untouched.
     async fetchAvailableEvents(): Promise<void> {
-      try {
-        this.setLoading(true)
-        const service = await GetService('audio')
-        const events = service?.GetAvailableEvents ? await service.GetAvailableEvents() : null
-        if (events) {
-          this.availableEvents = events
-        }
-      } catch (error) {
-        console.error('Failed to fetch audio events:', error)
-        this.setError(`Failed to fetch audio events: ${error instanceof Error ? error.message : 'Unknown error'}`)
-      } finally {
-        this.setLoading(false)
-      }
+      // Events are populated client-side from soundpacks.json by the
+      // V2 audio composable (`useAdexAudio`).
     },
 
     async fetchSoundpacks(): Promise<void> {
-      try {
-        const service = await GetService('audio')
-        const soundpacks = service?.GetSoundpacks ? await service.GetSoundpacks() : null
-        if (soundpacks) {
-          this.soundpacks = soundpacks
-        }
-      } catch (error) {
-        console.error('Failed to fetch soundpacks:', error)
-      }
+      // Soundpacks are loaded by `composables/useAdexAudio.ts`.
     },
 
     async fetchStats(): Promise<void> {
-      try {
-        const service = await GetService('audio')
-        const stats = service?.GetStats ? await service.GetStats() : null
-        if (stats) {
-          this.stats = stats
-        }
-      } catch (error) {
-        console.error('Failed to fetch audio stats:', error)
-      }
+      // Stats are an in-memory client concept now; no backend round-trip.
     },
 
     async playEvent(eventId: string): Promise<void> {
+      // Gate on the master enable/mute flags only. The per-event
+      // allowlist + 100ms cooldown previously enforced here were the
+      // primary cause of dropped cues during the boot / shutdown
+      // sequences — five cues firing in 350ms with overlapping IDs
+      // would only emit 1-2 audible tones. Cue-level rate-limiting,
+      // when needed, lives in useAdexAudio's RATE_LIMIT_MS map.
       if (!this.isEventEnabled(eventId)) return
-      if (!this.canPlayEvent(eventId)) return
 
+      // We DELIBERATELY do not wrap playback in startPlayback/
+      // stopPlayback (which mutate a single global "currentEvent"
+      // ref). Web Audio supports concurrent playback — when cue B
+      // fires while cue A is still ringing, stopPlayback() from cue
+      // B's finally would mark "nothing playing" mid-A. That state
+      // ref was load-bearing for nothing useful, so we just stop
+      // touching it on the fast path. The fields remain for any
+      // long-form playback UI a future settings panel might want.
       try {
         const event = this.eventById(eventId)
         if (!event) return
-
-        this.startPlayback(event)
-        const service = await GetService('audio')
-        if (service?.PlayEvent) {
-          await service.PlayEvent(eventId)
-        }
+        this.lastPlayedEvents[eventId] = Date.now()
         this.incrementPlayCount(eventId)
+        // Route through the V2 cue system — Howler-backed with a synth
+        // fallback. Imported lazily so SSR doesn't try to resolve Howler.
+        const { useAdexAudio } = await import('~/composables/useAdexAudio')
+        useAdexAudio().playCue(eventId)
       } catch (error) {
         console.error('Failed to play audio event:', error)
-        this.playbackError(`Failed to play event: ${error instanceof Error ? error.message : 'Unknown error'}`)
-      } finally {
-        this.stopPlayback()
+        this.playbackError(
+          `Failed to play event: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        )
       }
     },
 

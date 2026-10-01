@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- aDex tray glyph. Drawn for ~22px: heavy strokes, no fine detail. -->
+  <g fill="none" stroke="#1a2428" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M18 18l14 14-14 14"/>
+    <path d="M36 46h12"/>
+  </g>
+</svg>

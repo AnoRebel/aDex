@@ -28,17 +28,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useIntervalFn } from '@vueuse/core'
 import { useSystemStore } from '~/stores/system'
+import { useAdexAudio } from '~/composables/useAdexAudio'
 
 const systemStore = useSystemStore()
+const audio = useAdexAudio()
 
 const TOTAL_CELLS = 440 // 40 columns x 11 rows
 
 // A shuffled index map so cells light up in a visually scattered pattern
 const shuffledIndices = ref<number[]>([])
-
-let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 // ---- Computed memory values ----
 
@@ -77,6 +78,37 @@ const swapPercent = computed(() => {
     return ((metrics.swapUsed ?? 0) / metrics.swapTotal) * 100
   }
   return 0
+})
+
+// Used-memory percentage (0..100). Prefers a backend-provided percent;
+// falls back to used/total. Guards divide-by-zero on cold start when
+// total hasn't been polled yet.
+const memPercent = computed(() => {
+  const metrics = systemStore.memoryMetrics as any
+  if (metrics?.usedPercent != null) return Number(metrics.usedPercent)
+  const total = memTotal.value
+  if (total <= 0) return 0
+  return (memUsed.value / total) * 100
+})
+
+// Threshold alarm with hysteresis. We DON'T fire on every poll while
+// memory stays high — that would machine-gun the `alarm` cue. Instead:
+//   - fire once when memPercent crosses ABOVE 92% (the "armed → tripped"
+//     edge)
+//   - only re-arm after it drops back BELOW 85%
+// The 7-point gap between trip and re-arm prevents flapping when
+// memory hovers right at the threshold.
+const ALARM_TRIP = 92
+const ALARM_REARM = 85
+let alarmArmed = true
+
+watch(memPercent, (pct) => {
+  if (alarmArmed && pct >= ALARM_TRIP) {
+    alarmArmed = false
+    try { audio.playCue('alarm') } catch { /* non-fatal */ }
+  } else if (!alarmArmed && pct < ALARM_REARM) {
+    alarmArmed = true
+  }
 })
 
 // Display helpers
@@ -142,20 +174,11 @@ function fisherYatesShuffle(): number[] {
 onMounted(() => {
   // Generate the shuffle map once on mount (keeps visual distribution stable)
   shuffledIndices.value = fisherYatesShuffle()
-
-  // Re-read store data every 1500ms (the store itself refreshes from backend)
-  // The computed properties are reactive, but we force a re-shuffle periodically
-  // to give the grid a subtle animation effect.
-  refreshTimer = setInterval(() => {
-    // Re-shuffle to animate cell distribution
-    shuffledIndices.value = fisherYatesShuffle()
-  }, 1500)
 })
 
-onBeforeUnmount(() => {
-  if (refreshTimer) {
-    clearInterval(refreshTimer)
-    refreshTimer = null
-  }
-})
+// Periodic re-shuffle to animate the grid. useIntervalFn auto-cleans
+// on component unmount — no manual clearInterval needed.
+useIntervalFn(() => {
+  shuffledIndices.value = fisherYatesShuffle()
+}, 1500)
 </script>

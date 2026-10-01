@@ -1,177 +1,116 @@
-// Type definitions for Wails v2 Runtime
-// Wails v2 injects `window.runtime` with flat functions like:
-//   window.runtime.EventsOn(name, callback)
-//   window.runtime.EventsEmit(name, ...data)
-//   window.runtime.EventsOff(name)
-//   window.runtime.Quit()
-//   window.runtime.WindowMinimise()
-//   window.runtime.LogInfo(message)
-//   etc.
+// Wails v3 runtime facade.
+//
+// Wraps `@wailsio/runtime` so the existing call sites keep working across the
+// v2 -> v3 move. Two differences are bridged here rather than at ~19 call
+// sites:
+//
+//  1. v2 exposed the runtime on `window.runtime.*`. v3 ships a real module.
+//  2. v2's `EventsOff(name)` unsubscribed by event NAME. v3's `Events.On`
+//     instead returns an unsubscribe function and has no by-name removal.
+//     `Off` below is therefore implemented by tracking the unsubscribe
+//     functions this module hands out, keyed by name.
+//
+// Per-session terminal events (`terminal.output.<id>`) rely on this: each
+// pane subscribes and unsubscribes under its own event name, so one pane
+// closing must not disturb another's stream. Prefer calling the function
+// returned by `Events.On` directly in new code — it is precise and needs no
+// bookkeeping.
+
+import { Events as WailsEvents, Window as WailsWindow, Application as WailsApplication } from '@wailsio/runtime'
 
 export interface WailsEvent {
   name: string
   data?: any
 }
 
-// Declare the Wails v2 runtime shape on window
-declare global {
-  interface Window {
-    runtime?: {
-      // Events (flat functions, NOT nested under .Events)
-      EventsOn(eventName: string, callback: (...data: any) => void): () => void
-      EventsOnce(eventName: string, callback: (...data: any) => void): () => void
-      EventsOnMultiple(eventName: string, callback: (...data: any) => void, maxCallbacks: number): () => void
-      EventsEmit(eventName: string, ...data: any): void
-      EventsOff(eventName: string, ...additionalEventNames: string[]): void
-      EventsOffAll(): void
+// name -> set of unsubscribe callbacks handed out for that name.
+const subscriptions = new Map<string, Set<() => void>>()
 
-      // Logging
-      LogDebug(message: string): void
-      LogInfo(message: string): void
-      LogWarning(message: string): void
-      LogError(message: string): void
-      LogPrint(message: string): void
-      LogTrace(message: string): void
-      LogFatal(message: string): void
+function track(eventName: string, off: () => void): () => void {
+  let set = subscriptions.get(eventName)
+  if (!set) {
+    set = new Set()
+    subscriptions.set(eventName, set)
+  }
+  set.add(off)
 
-      // Window management
-      Quit(): void
-      Hide(): void
-      Show(): void
-      WindowMinimise(): void
-      WindowUnminimise(): void
-      WindowMaximise(): void
-      WindowUnmaximise(): void
-      WindowToggleMaximise(): void
-      WindowFullscreen(): void
-      WindowUnfullscreen(): void
-      WindowCenter(): void
-      WindowSetTitle(title: string): void
-      WindowSetSize(width: number, height: number): void
-      WindowGetSize(): { w: number; h: number }
-      WindowSetPosition(x: number, y: number): void
-      WindowGetPosition(): { x: number; y: number }
-      WindowHide(): void
-      WindowShow(): void
-      WindowReload(): void
-      WindowReloadApp(): void
-      WindowSetAlwaysOnTop(b: boolean): void
-      WindowSetBackgroundColour(R: number, G: number, B: number, A: number): void
-      WindowIsFullscreen(): boolean
-      WindowIsMaximised(): boolean
-      WindowIsMinimised(): boolean
-      WindowIsNormal(): boolean
-
-      // Browser
-      BrowserOpenURL(url: string): void
-
-      // Clipboard
-      ClipboardGetText(): string
-      ClipboardSetText(text: string): void
-
-      // Environment
-      Environment(): any
-
-      // Screen
-      ScreenGetAll(): any[]
+  // Wrap so a direct call also drops the bookkeeping entry.
+  return () => {
+    try {
+      off()
+    } finally {
+      set?.delete(off)
+      if (set && set.size === 0) subscriptions.delete(eventName)
     }
   }
 }
 
-// Events API - wraps Wails v2 runtime event functions
 export const Events = {
-  On: (eventName: string, callback: (...data: any) => void): (() => void) | void => {
-    if (typeof window !== 'undefined' && window.runtime?.EventsOn) {
-      return window.runtime.EventsOn(eventName, callback)
-    } else {
-      console.log(`[Events.On] ${eventName} - Wails runtime not available`)
-    }
+  /**
+   * Subscribe to a backend event. Returns an unsubscribe function; calling it
+   * removes only this listener, leaving other subscribers to the same event
+   * untouched.
+   */
+  On: (eventName: string, callback: (...data: any) => void): (() => void) => {
+    const off = WailsEvents.On(eventName, (event: any) => {
+      // v3 delivers a single event object; v2 handlers were written to take
+      // the payload directly, so unwrap `data` and keep the shape they expect.
+      callback(event?.data)
+    })
+    return track(eventName, off)
   },
-  Once: (eventName: string, callback: (...data: any) => void): (() => void) | void => {
-    if (typeof window !== 'undefined' && window.runtime?.EventsOnce) {
-      return window.runtime.EventsOnce(eventName, callback)
-    }
+
+  /** Subscribe for a single delivery, then unsubscribe automatically. */
+  Once: (eventName: string, callback: (...data: any) => void): (() => void) => {
+    const off = WailsEvents.Once(eventName, (event: any) => {
+      callback(event?.data)
+    })
+    return track(eventName, off)
   },
+
+  /**
+   * Remove every listener this module registered for the given event
+   * name(s) — the v2 `EventsOff` contract, reimplemented on top of v3's
+   * unsubscribe functions.
+   */
   Off: (eventName: string, ...additionalEventNames: string[]) => {
-    if (typeof window !== 'undefined' && window.runtime?.EventsOff) {
-      window.runtime.EventsOff(eventName, ...additionalEventNames)
+    for (const name of [eventName, ...additionalEventNames]) {
+      const set = subscriptions.get(name)
+      if (!set) continue
+      // Copy first: each off() mutates the set via the tracked wrapper.
+      for (const off of [...set]) off()
+      subscriptions.delete(name)
     }
   },
+
+  /** Emit an event to the Go backend and any other listening windows. */
   Emit: (eventName: string, ...data: any) => {
-    if (typeof window !== 'undefined' && window.runtime?.EventsEmit) {
-      window.runtime.EventsEmit(eventName, ...data)
-    } else {
-      console.log(`[Events.Emit] ${eventName}:`, data)
-    }
-  }
+    return WailsEvents.Emit(eventName, data.length <= 1 ? data[0] : data)
+  },
 }
 
 export const Log = {
-  Debug: (message: string) => {
-    if (typeof window !== 'undefined' && window.runtime?.LogDebug) {
-      window.runtime.LogDebug(message)
-    } else {
-      console.debug(`[Wails] ${message}`)
-    }
-  },
-  Info: (message: string) => {
-    if (typeof window !== 'undefined' && window.runtime?.LogInfo) {
-      window.runtime.LogInfo(message)
-    } else {
-      console.log(`[Wails] ${message}`)
-    }
-  },
-  Warning: (message: string) => {
-    if (typeof window !== 'undefined' && window.runtime?.LogWarning) {
-      window.runtime.LogWarning(message)
-    } else {
-      console.warn(`[Wails] ${message}`)
-    }
-  },
-  Error: (message: string) => {
-    if (typeof window !== 'undefined' && window.runtime?.LogError) {
-      window.runtime.LogError(message)
-    } else {
-      console.error(`[Wails] ${message}`)
-    }
-  }
+  Debug: (message: string) => console.debug(`[Wails] ${message}`),
+  Info: (message: string) => console.log(`[Wails] ${message}`),
+  Warning: (message: string) => console.warn(`[Wails] ${message}`),
+  Error: (message: string) => console.error(`[Wails] ${message}`),
 }
 
-// Window management helpers
+// Window / application controls used by `pages/index.vue`.
+//
+// Under v2 these went through `window.runtime.WindowMaximise` / the bound
+// `QuitApp` method. v3 exposes them directly: `Window` acts on the calling
+// window, and `Application.Quit` begins the same teardown the Go-side quit
+// triggers — ShouldQuit, then service shutdown in reverse registration order.
 export const WindowRuntime = {
-  Quit: () => {
-    if (typeof window !== 'undefined' && window.runtime?.Quit) {
-      window.runtime.Quit()
-    }
-  },
-  Minimise: () => {
-    if (typeof window !== 'undefined' && window.runtime?.WindowMinimise) {
-      window.runtime.WindowMinimise()
-    }
-  },
-  Maximise: () => {
-    if (typeof window !== 'undefined' && window.runtime?.WindowMaximise) {
-      window.runtime.WindowMaximise()
-    }
-  },
-  ToggleMaximise: () => {
-    if (typeof window !== 'undefined' && window.runtime?.WindowToggleMaximise) {
-      window.runtime.WindowToggleMaximise()
-    }
-  },
-  Fullscreen: () => {
-    if (typeof window !== 'undefined' && window.runtime?.WindowFullscreen) {
-      window.runtime.WindowFullscreen()
-    }
-  },
-  Center: () => {
-    if (typeof window !== 'undefined' && window.runtime?.WindowCenter) {
-      window.runtime.WindowCenter()
-    }
-  },
-  SetTitle: (title: string) => {
-    if (typeof window !== 'undefined' && window.runtime?.WindowSetTitle) {
-      window.runtime.WindowSetTitle(title)
-    }
-  }
+  Maximise: () => WailsWindow.Maximise(),
+  UnMaximise: () => WailsWindow.UnMaximise(),
+  IsMaximised: () => WailsWindow.IsMaximised(),
+  Center: () => WailsWindow.Center(),
+  Fullscreen: () => WailsWindow.Fullscreen(),
+  UnFullscreen: () => WailsWindow.UnFullscreen(),
+  IsFullscreen: () => WailsWindow.IsFullscreen(),
+  /** Toggle window decorations at runtime — no restart needed. */
+  SetFrameless: (frameless: boolean) => WailsWindow.SetFrameless(frameless),
+  Quit: () => WailsApplication.Quit(),
 }

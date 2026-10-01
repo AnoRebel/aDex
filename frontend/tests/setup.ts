@@ -1,27 +1,81 @@
 import { beforeAll, vi } from 'vitest'
 
+// Stub the Wails runtime for every spec.
+//
+// There is no Wails host under Vitest, so any runtime call rejects — and
+// because stores subscribe to events at init (ui.ts -> useWails/useEvents),
+// that surfaced as an unhandled rejection that failed the whole run even
+// with every test passing.
+vi.mock('@wailsio/runtime', () => ({
+  Events: {
+    On: vi.fn(() => () => {}),
+    Once: vi.fn(() => () => {}),
+    Off: vi.fn(),
+    Emit: vi.fn(async () => undefined),
+  },
+  Window: {
+    Maximise: vi.fn(async () => undefined),
+    UnMaximise: vi.fn(async () => undefined),
+    IsMaximised: vi.fn(async () => false),
+    Center: vi.fn(async () => undefined),
+    Fullscreen: vi.fn(async () => undefined),
+    UnFullscreen: vi.fn(async () => undefined),
+    IsFullscreen: vi.fn(async () => false),
+    SetFrameless: vi.fn(async () => undefined),
+  },
+  Application: { Quit: vi.fn(async () => undefined) },
+}))
+
 // Mock browser APIs
 beforeAll(() => {
-  // Mock ResizeObserver
-  global.ResizeObserver = vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn()
-  }))
+  // Observer mocks.
+  //
+  // These must be real constructors. `vi.fn().mockImplementation(() => ({}))`
+  // returns a plain object and throws "is not a constructor" the moment
+  // anything calls it with `new` — which VueUse's useResizeObserver does,
+  // taking out every spec for a component that observes its own size.
+  // Reports a fixed non-zero size to its callback. VueUse's useElementSize
+  // (and therefore useVirtualList) derives its viewport from the observer
+  // entry, not from the DOM — with no callback the viewport stays 0px and a
+  // virtualised list renders no rows at all.
+  class MockResizeObserver {
+    private cb: ResizeObserverCallback
+    constructor(cb: ResizeObserverCallback) { this.cb = cb }
+    observe = vi.fn((target: Element) => {
+      const box = { inlineSize: 800, blockSize: 400 }
+      this.cb(
+        [{
+          target,
+          contentRect: { width: 800, height: 400, top: 0, left: 0, bottom: 400, right: 800, x: 0, y: 0 },
+          borderBoxSize: [box],
+          contentBoxSize: [box],
+          devicePixelContentBoxSize: [box],
+        }] as unknown as ResizeObserverEntry[],
+        this as unknown as ResizeObserver,
+      )
+    })
+    unobserve = vi.fn()
+    disconnect = vi.fn()
+  }
+  global.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver
 
-  // MutationObserver
-  global.MutationObserver = vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    disconnect: vi.fn(),
-    takeRecords: vi.fn(() => [])
-  }))
+  class MockMutationObserver {
+    observe = vi.fn()
+    disconnect = vi.fn()
+    takeRecords = vi.fn(() => [])
+  }
+  global.MutationObserver = MockMutationObserver as unknown as typeof MutationObserver
 
-  // IntersectionObserver
-  global.IntersectionObserver = vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn()
-  }))
+  class MockIntersectionObserver {
+    observe = vi.fn()
+    unobserve = vi.fn()
+    disconnect = vi.fn()
+    takeRecords = vi.fn(() => [])
+    root = null
+    rootMargin = ''
+    thresholds: number[] = []
+  }
+  global.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver
 
   // matchMedia
   Object.defineProperty(window, 'matchMedia', {
@@ -151,8 +205,21 @@ beforeAll(() => {
     value: sessionStorageMock
   })
 
-  // Mock fetch
-  global.fetch = vi.fn()
+  // Mock fetch.
+  //
+  // This must resolve a Response-like object rather than `undefined`.
+  // @wailsio/runtime calls `fetch(url).then(...)` at MODULE level (see
+  // loadOptionalScript, which probes /wails/custom.js), so a bare vi.fn()
+  // threw "Cannot read properties of undefined (reading 'then')" before any
+  // test body ran — taking out every spec that imports the runtime, directly
+  // or through a store.
+  global.fetch = vi.fn(async () => ({
+    ok: false,
+    status: 404,
+    headers: { get: () => null },
+    json: async () => ({}),
+    text: async () => '',
+  })) as unknown as typeof fetch
 
   // Mock WebSocket
   global.WebSocket = vi.fn().mockImplementation(() => ({

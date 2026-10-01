@@ -9,8 +9,10 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useThemeStore } from '~/stores/theme'
+import { useSettingsPersistence } from '~/composables/useSettingsPersistence'
 
 const themeStore = useThemeStore()
+const settingsPersistence = useSettingsPersistence()
 
 // Dynamically inject theme CSS custom properties from the theme store.
 // These map to the --color_r / --color_g / --color_b variables consumed by
@@ -63,6 +65,17 @@ function parseColor(color: string): { r: number; g: number; b: number } | null {
 }
 
 onMounted(async () => {
+  // Pull persisted settings off disk into the localStorage cache
+  // BEFORE anything reads it. The theme store (and every settings
+  // panel) reads `adex-settings`; if we hydrated after theme init the
+  // first paint would use the stale cache, then visibly snap to the
+  // persisted theme. Awaiting here keeps boot a single coherent state.
+  try {
+    await settingsPersistence.init()
+  } catch (e) {
+    console.warn('Settings persistence init warning:', e)
+  }
+
   try {
     await themeStore.initialize()
   } catch (e) {
@@ -71,7 +84,7 @@ onMounted(async () => {
 })
 
 useHead({
-  title: 'aDex-UI',
+  title: 'aDex',
   meta: [
     { name: 'description', content: 'A modern science fiction desktop environment' },
     { name: 'viewport', content: 'width=device-width, initial-scale=1' },
@@ -84,8 +97,8 @@ useHead({
 /* The root container fills the viewport. All layout is handled by
    pages/index.vue and main.css -- no header, footer, or scrolling here. */
 #adex-app {
-  width: 100vw;
-  height: 100vh;
+  width: 100dvw;
+  height: 100dvh;
   overflow: hidden;
 }
 </style>
