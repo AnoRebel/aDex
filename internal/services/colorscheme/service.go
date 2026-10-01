@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"aDex-UI/internal/events"
-	"aDex-UI/internal/logger"
-	"aDex-UI/internal/models"
+	"aDex/internal/events"
+	"aDex/internal/logger"
+	"aDex/internal/models"
 )
 
 // Service manages terminal color schemes

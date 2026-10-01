@@ -1,6 +1,6 @@
 # Themes
 
-aDex-UI ships **21 built-in themes**, each pairing a color palette with a
+aDex ships **21 built-in themes**, each pairing a color palette with a
 layout preset. Themes are pure data — JSON files under
 `frontend/app/assets/data/themes/` indexed by
 `frontend/app/assets/data/themes-index.json`.

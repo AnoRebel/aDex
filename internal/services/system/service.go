@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"aDex-UI/internal/utils"
+	"aDex/internal/utils"
 	"github.com/distatus/battery"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/disk"

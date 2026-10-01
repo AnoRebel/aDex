@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"aDex-UI/internal/services/coordinator"
+	"aDex/internal/services/coordinator"
 )
 
 // Verifies ServiceShutdown is idempotent and does not deadlock when called

@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"aDex-UI/internal/models"
+	"aDex/internal/models"
 )
 
 // RotatingFileWriter implements a file writer with rotation support

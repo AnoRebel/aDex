@@ -10,9 +10,9 @@ import (
 	"runtime/debug"
 	"time"
 
-	"aDex-UI/internal/appdir"
-	"aDex-UI/internal/services/coordinator"
-	"aDex-UI/internal/services/settings"
+	"aDex/internal/appdir"
+	"aDex/internal/services/coordinator"
+	"aDex/internal/services/settings"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 

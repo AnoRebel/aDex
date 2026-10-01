@@ -1,7 +1,7 @@
 package security
 
 import (
-	"aDex-UI/internal/appdir"
+	"aDex/internal/appdir"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"

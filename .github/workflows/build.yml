@@ -124,7 +124,7 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: aDex-UI-${{ matrix.platform }}-${{ matrix.arch }}
+          name: aDex-${{ matrix.platform }}-${{ matrix.arch }}
           path: |
             bin/*
             !bin/*.log
@@ -226,8 +226,11 @@ jobs:
       - name: Upload cross-compiled binary
         uses: actions/upload-artifact@v7
         with:
-          name: aDex-UI-${{ matrix.target.os }}-${{ matrix.target.arch }}-cross
-          path: bin/aDex-UI${{ matrix.target.os == 'windows' && '.exe' || '' }}
+          name: aDex-${{ matrix.target.os }}-${{ matrix.target.arch }}-cross
+          # The build outputs bin/adex (APP_NAME in Taskfile.yml); the old
+          # path named a binary that is never produced, so this artifact was
+          # always empty.
+          path: bin/adex${{ matrix.target.os == 'windows' && '.exe' || '' }}
           retention-days: 30
 
   # Security scanning

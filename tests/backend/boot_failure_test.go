@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"aDex-UI/internal/services/coordinator"
+	"aDex/internal/services/coordinator"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )

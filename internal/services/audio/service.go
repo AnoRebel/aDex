@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/ebitengine/oto/v3"
-	"aDex-UI/internal/utils"
+	"aDex/internal/utils"
 )
 
 // Service handles audio operations

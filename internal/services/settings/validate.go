@@ -1,7 +1,7 @@
 package settings
 
 import (
-	"aDex-UI/internal/models"
+	"aDex/internal/models"
 )
 
 // Catalogues of what the frontend actually ships. Kept here so an invalid

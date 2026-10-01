@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"aDex-UI/internal/services/terminal"
+	"aDex/internal/services/terminal"
 )
 
 // TestTerminal_JSONMarshalable proves that the values returned to Wails

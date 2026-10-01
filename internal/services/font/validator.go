@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"aDex-UI/internal/models"
+	"aDex/internal/models"
 )
 
 // FontValidator handles validation of font configurations and files

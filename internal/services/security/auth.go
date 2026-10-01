@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"aDex-UI/internal/logger"
+	"aDex/internal/logger"
 	"golang.org/x/crypto/argon2"
 )
 

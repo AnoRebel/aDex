@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"aDex-UI/internal/logger"
+	"aDex/internal/logger"
 )
 
 // Service provides security features including input sanitization and validation

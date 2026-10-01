@@ -3,7 +3,7 @@ package main
 import (
 	"runtime"
 
-	"aDex-UI/internal/services/security"
+	"aDex/internal/services/security"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 

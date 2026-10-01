@@ -3,7 +3,7 @@ package settings
 import (
 	"testing"
 
-	"aDex-UI/internal/models"
+	"aDex/internal/models"
 )
 
 // A persisted theme id the application does not ship must be repaired to the

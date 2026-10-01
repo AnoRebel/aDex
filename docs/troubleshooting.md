@@ -1,6 +1,6 @@
-# aDex-UI Troubleshooting Guide
+# aDex Troubleshooting Guide
 
-This guide helps diagnose and resolve common issues with aDex-UI.
+This guide helps diagnose and resolve common issues with aDex.
 
 ## Table of Contents
 
@@ -168,26 +168,26 @@ This guide helps diagnose and resolve common issues with aDex-UI.
 1. **Check console output**:
    ```bash
    # macOS
-   /Applications/aDex-UI.app/Contents/MacOS/aDex-UI
+   /Applications/aDex.app/Contents/MacOS/aDex
 
    # Windows
-   ./aDex-UI.exe
+   ./aDex.exe
 
    # Linux
-   ./aDex-UI
+   ./aDex
    ```
 
 2. **Check permissions**:
    ```bash
    # macOS
-   sudo chmod +x /Applications/aDex-UI.app/Contents/MacOS/aDex-UI
+   sudo chmod +x /Applications/aDex.app/Contents/MacOS/aDex
 
    # Linux
-   chmod +x ./aDex-UI
+   chmod +x ./aDex
    ```
 
 3. **Check antivirus software** (Windows):
-   - Add aDex-UI to antivirus exclusions
+   - Add aDex to antivirus exclusions
    - Run as administrator if needed
 
 ### Application Crashes on Startup
@@ -203,10 +203,10 @@ This guide helps diagnose and resolve common issues with aDex-UI.
 2. **Reset configuration**:
    ```bash
    # macOS
-   rm -rf ~/Library/Application\ Support/aDex-UI
+   rm -rf ~/Library/Application\ Support/aDex
 
    # Windows
-   rd /s "%APPDATA%\aDex-UI"
+   rd /s "%APPDATA%\aDex"
 
    # Linux
    rm -rf ~/.config/aDex
@@ -318,7 +318,7 @@ This guide helps diagnose and resolve common issues with aDex-UI.
 
 ### High CPU Usage
 
-**Problem**: aDex-UI uses excessive CPU resources
+**Problem**: aDex uses excessive CPU resources
 
 **Solution**:
 1. **Check update intervals**:
@@ -328,10 +328,10 @@ This guide helps diagnose and resolve common issues with aDex-UI.
 2. **Profile CPU usage**:
    ```bash
    # macOS
-   sample aDex-UI 10 -file cpu_profile.txt
+   sample aDex 10 -file cpu_profile.txt
 
    # Linux
-   perf record -p $(pgrep aDex-UI) -- sleep 10
+   perf record -p $(pgrep aDex) -- sleep 10
    perf report
    ```
 
@@ -577,10 +577,10 @@ This guide helps diagnose and resolve common issues with aDex-UI.
 1. **Monitor memory usage**:
    ```bash
    # macOS
-   top -pid $(pgrep aDex-UI)
+   top -pid $(pgrep aDex)
 
    # Linux
-   ps aux | grep aDex-UI
+   ps aux | grep aDex
    ```
 
 2. **Reduce terminal sessions**:
@@ -703,7 +703,7 @@ Enable debug mode for detailed logging:
 ```bash
 # Environment variable
 export ADEX_DEBUG=1
-./aDex-UI
+./aDex
 
 # Or via build flags
 go run -tags debug .
@@ -721,7 +721,7 @@ node --version
 bun --version
 
 # Application info
-./aDex-UI --version
+./aDex --version
 
 # Hardware info
 lscpu

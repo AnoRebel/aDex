@@ -11,21 +11,21 @@ import (
 	"sync"
 	"time"
 
-	"aDex-UI/internal/events"
-	"aDex-UI/internal/logger"
-	"aDex-UI/internal/models"
-	"aDex-UI/internal/services/audio"
-	"aDex-UI/internal/services/colorscheme"
-	"aDex-UI/internal/services/config"
-	"aDex-UI/internal/services/filesystem"
-	"aDex-UI/internal/services/font"
-	"aDex-UI/internal/services/network"
-	"aDex-UI/internal/services/security"
-	"aDex-UI/internal/services/settings"
-	"aDex-UI/internal/services/system"
-	"aDex-UI/internal/services/terminal"
-	"aDex-UI/internal/services/theme"
-	"aDex-UI/internal/utils"
+	"aDex/internal/events"
+	"aDex/internal/logger"
+	"aDex/internal/models"
+	"aDex/internal/services/audio"
+	"aDex/internal/services/colorscheme"
+	"aDex/internal/services/config"
+	"aDex/internal/services/filesystem"
+	"aDex/internal/services/font"
+	"aDex/internal/services/network"
+	"aDex/internal/services/security"
+	"aDex/internal/services/settings"
+	"aDex/internal/services/system"
+	"aDex/internal/services/terminal"
+	"aDex/internal/services/theme"
+	"aDex/internal/utils"
 	"github.com/wailsapp/wails/v3/pkg/services/notifications"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -1575,7 +1575,7 @@ func tryKameroGeo(ctx context.Context) map[string]interface{} {
 	}
 	// kamero rejects requests without a User-Agent with a connection
 	// reset. Stable identifier so they can rate-limit per-app fairly.
-	req.Header.Set("User-Agent", "aDex-UI/1.0 (https://github.com/AnoRebel/Dex-UI)")
+	req.Header.Set("User-Agent", "aDex/1.0 (https://github.com/AnoRebel/Dex-UI)")
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
@@ -1617,7 +1617,7 @@ func tryIpifyAndIplocate(ctx context.Context) map[string]interface{} {
 	if err != nil {
 		return nil
 	}
-	ipReq.Header.Set("User-Agent", "aDex-UI/1.0")
+	ipReq.Header.Set("User-Agent", "aDex/1.0")
 	ipResp, err := http.DefaultClient.Do(ipReq)
 	if err != nil {
 		return nil
@@ -1642,7 +1642,7 @@ func tryIpifyAndIplocate(ctx context.Context) map[string]interface{} {
 	if err != nil {
 		return nil
 	}
-	geoReq.Header.Set("User-Agent", "aDex-UI/1.0")
+	geoReq.Header.Set("User-Agent", "aDex/1.0")
 	geoReq.Header.Set("Accept", "application/json")
 	geoResp, err := http.DefaultClient.Do(geoReq)
 	if err != nil {

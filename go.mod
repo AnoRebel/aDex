@@ -1,4 +1,4 @@
-module aDex-UI
+module aDex
 
 go 1.26.0
 

@@ -2,7 +2,7 @@ import { ref, computed, onMounted, onUnmounted, watch, readonly } from 'vue'
 import { useWails, useEvents } from './useWails'
 import { useUIStore } from '~/stores/ui'
 import type { TerminalSession, TerminalCommand, TerminalOutput } from '~/types/terminal'
-// import * as TerminalService from '../../bindings/aDex-UI/internal/services/coordinator/servicecoordinator'
+// import * as TerminalService from '../../bindings/aDex/internal/services/coordinator/servicecoordinator'
 
 export interface TerminalOptions {
   shell?: string

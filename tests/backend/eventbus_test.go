@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"aDex-UI/internal/events"
+	"aDex/internal/events"
 )
 
 func TestEventBus_PublishDelivers(t *testing.T) {

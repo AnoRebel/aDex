@@ -164,7 +164,7 @@ the terminal or the charts even when a frame is slow. See
 Theme, layout, keyboard, fonts and audio apply **as you change them**, so you
 can judge the effect before committing. `CANCEL` reverts to the last saved
 values; `SAVE` writes them to
-`~/.config/aDex/adex-ui-settings.json` and applies every group.
+`~/.config/aDex/adex-settings.json` and applies every group.
 
 Changing the shell path affects **new** terminals; existing tabs keep the
 shell they started with.
@@ -299,7 +299,7 @@ session to remove the lock.
 
 **The interface looks unstyled.** A stored theme naming something that no
 longer exists is repaired automatically on next start. If it persists, delete
-`~/.config/aDex/adex-ui-settings.json` to return to defaults.
+`~/.config/aDex/adex-settings.json` to return to defaults.
 
 **No sound.** Check Settings → Audio: master enable, volume, and the category
 covering the cue you expect. Sounds are also suppressed when the window is in

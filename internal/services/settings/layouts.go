@@ -1,7 +1,7 @@
 package settings
 
 import (
-	"aDex-UI/internal/appdir"
+	"aDex/internal/appdir"
 	"encoding/json"
 	"fmt"
 	"os"

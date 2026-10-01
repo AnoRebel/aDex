@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"aDex-UI/internal/logger"
-	"aDex-UI/internal/models"
+	"aDex/internal/logger"
+	"aDex/internal/models"
 )
 
 // Migration handles importing settings from legacy eDEX-UI configurations

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"aDex-UI/internal/services/network"
+	"aDex/internal/services/network"
 	"github.com/gorilla/mux"
 )
 

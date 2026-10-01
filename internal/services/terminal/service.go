@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"aDex-UI/internal/utils"
-	"aDex-UI/internal/events"
+	"aDex/internal/utils"
+	"aDex/internal/events"
 	"github.com/creack/pty"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )

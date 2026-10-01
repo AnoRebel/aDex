@@ -1,11 +1,17 @@
-# aDex-UI - Modern Science Fiction Desktop Environment
+# aDex — Modern Science Fiction Desktop Environment
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Go-1.21+-00ADD8?style=for-the-badge&logo=go" alt="Go">
-  <img src="https://img.shields.io/badge/Vue.js-3.x+-4FC08D?style=for-the-badge&logo=vue.js&logoColor=white" alt="Vue.js">
-  <img src="https://img.shields.io/badge/Nuxt-4.x+-00DC82?style=for-the-badge&logo=nuxt.js&logoColor=white" alt="Nuxt">
-  <img src="https://img.shields.io/badge/Wails-v2.12-000000?style=for-the-badge&logo=wails&logoColor=white" alt="Wails">
-  <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License">
+  <a href="https://github.com/AnoRebel/aDex/actions/workflows/build.yml"><img src="https://img.shields.io/github/actions/workflow/status/AnoRebel/aDex/build.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white" alt="Build"></a>
+  <a href="https://github.com/AnoRebel/aDex/releases/latest"><img src="https://img.shields.io/github/v/release/AnoRebel/aDex?style=for-the-badge&logo=github" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/AnoRebel/aDex?style=for-the-badge" alt="License"></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Go-1.26+-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go">
+  <img src="https://img.shields.io/badge/Wails-v3_beta-D32A2D?style=for-the-badge&logo=wails&logoColor=white" alt="Wails">
+  <img src="https://img.shields.io/badge/Nuxt-4.x-00DC82?style=for-the-badge&logo=nuxt&logoColor=white" alt="Nuxt">
+  <img src="https://img.shields.io/badge/Vue-3.x-4FC08D?style=for-the-badge&logo=vue.js&logoColor=white" alt="Vue">
+  <img src="https://img.shields.io/badge/TypeScript-6.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
 </p>
 
 A modern terminal emulator with system monitoring, built with Wails v3 and Nuxt 4. This project migrates the classic eDEX-UI experience to a modern, high-performance desktop application.
@@ -21,7 +27,7 @@ A modern terminal emulator with system monitoring, built with Wails v3 and Nuxt 
 
 📊 **System Monitoring**
 - Real-time CPU, memory, disk, and process monitoring
-- Professional animated charts with Chart.js
+- Live charts built on TanStack Charts
 - Throttled updates; see [resource usage](docs/resource-usage.md) for measured figures
 - Process sorting and filtering
 - Temperature and sensor monitoring (where available)
@@ -159,18 +165,21 @@ The build compiles the Nuxt frontend to `frontend/dist` and embeds it in the
 binary. Because that directory is generated (and gitignored), a clean checkout
 must build the frontend before `go build` will succeed on its own.
 
-Build for all platforms:
+Package for the current platform:
 ```bash
-task build:all
+task package
 ```
+
+Releases for Linux, macOS and Windows (amd64 and arm64) are built by CI from
+a `v*` tag — see [`.github/workflows/build.yml`](.github/workflows/build.yml).
 
 ## Project Structure
 
 ```
-aDex-UI/
+aDex/
 ├── main.go              # Wails application entry point
-├── Taskfile.yml          # Root build configuration
-├── app.go               # Go application context
+├── tray.go              # System tray icon, menu and quick actions
+├── Taskfile.yml         # Root build configuration
 ├── internal/
 │   ├── services/        # Go backend services
 │   │   ├── terminal/   # Terminal PTY management
@@ -212,4 +221,4 @@ what to check before opening a pull request.
 
 ## License
 
-Copyright © 2025 HackEAC
+Copyright © 2026 Ano Rebel

@@ -3,7 +3,7 @@ package colorscheme
 import (
 	"time"
 
-	"aDex-UI/internal/models"
+	"aDex/internal/models"
 )
 
 // createDefaultDarkScheme creates the default dark color scheme

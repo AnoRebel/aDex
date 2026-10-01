@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"aDex-UI/internal/events"
-	"aDex-UI/internal/models"
-	"aDex-UI/internal/services/geoip"
+	"aDex/internal/events"
+	"aDex/internal/models"
+	"aDex/internal/services/geoip"
 	networkLib "github.com/shirou/gopsutil/v3/net"
 )
 

@@ -1,6 +1,6 @@
 # Cross-Platform Application Packaging Implementation
 
-This document describes the comprehensive cross-platform packaging implementation for aDex-UI, enabling native application packages for Windows, macOS, and Linux.
+This document describes the comprehensive cross-platform packaging implementation for aDex, enabling native application packages for Windows, macOS, and Linux.
 
 ## Overview
 
@@ -9,7 +9,7 @@ The implementation provides complete packaging support using go-task (Task) with
 ## Platform Support
 
 ### Windows
-- **Executable**: `aDex-UI.exe` with GUI subsystem
+- **Executable**: `aDex.exe` with GUI subsystem
 - **NSIS Installer**: Traditional Windows installer
 - **MSIX Package**: Modern Windows Store package
 - **Portable ZIP**: Standalone portable version
@@ -127,7 +127,7 @@ The `.github/workflows/build.yml` provides:
 - **Source Icon**: `build/appicon.png` (512x512 PNG)
 - **Windows Icon**: `build/windows/icon.ico` (auto-generated)
 - **macOS Icon**: `build/darwin/icons.icns` (auto-generated)
-- **Desktop Entry**: `build/linux/aDex-UI.desktop`
+- **Desktop Entry**: `build/linux/aDex.desktop`
 
 ### Configuration Files
 - **Build Config**: `build/config.yml` (Wails configuration)
@@ -140,12 +140,12 @@ The `.github/workflows/build.yml` provides:
 
 ### File Naming Convention
 ```
-aDex-UI-{VERSION}-{PLATFORM}-{ARCH}.{FORMAT}
+aDex-{VERSION}-{PLATFORM}-{ARCH}.{FORMAT}
 Examples:
-- aDex-UI-1.0.0-windows-amd64.exe
-- aDex-UI-1.0.0-darwin-universal.dmg
-- aDex-UI-1.0.0-linux-amd64.AppImage
-- aDex-UI-1.0.0-linux-amd64.deb
+- aDex-1.0.0-windows-amd64.exe
+- aDex-1.0.0-darwin-universal.dmg
+- aDex-1.0.0-linux-amd64.AppImage
+- aDex-1.0.0-linux-amd64.deb
 ```
 
 ### Package Contents
@@ -158,41 +158,41 @@ Examples:
 ### Windows
 ```bash
 # NSIS Installer
-aDex-UI-1.0.0-windows-amd64-setup.exe
+aDex-1.0.0-windows-amd64-setup.exe
 
 # MSIX Package (Windows 10/11)
-aDex-UI-1.0.0-windows-amd64.msix
+aDex-1.0.0-windows-amd64.msix
 
 # Portable ZIP
-aDex-UI-1.0.0-windows-amd64-portable.zip
+aDex-1.0.0-windows-amd64-portable.zip
 ```
 
 ### macOS
 ```bash
 # App Bundle
-aDex-UI-1.0.0-darwin-universal.app
+aDex-1.0.0-darwin-universal.app
 
 # DMG Installer
-aDex-UI-1.0.0-darwin-universal.dmg
+aDex-1.0.0-darwin-universal.dmg
 ```
 
 ### Linux
 ```bash
 # AppImage (Universal)
-./aDex-UI-1.0.0-linux-amd64.AppImage
+./aDex-1.0.0-linux-amd64.AppImage
 
 # DEB Package (Debian/Ubuntu)
-sudo dpkg -i aDex-UI_1.0.0_amd64.deb
+sudo dpkg -i aDex_1.0.0_amd64.deb
 
 # RPM Package (Red Hat/Fedora)
-sudo rpm -i aDex-UI-1.0.0-1.x86_64.rpm
+sudo rpm -i aDex-1.0.0-1.x86_64.rpm
 
 # Snap Package (Universal)
-sudo snap install aDex-UI_1.0.0_amd64.snap
+sudo snap install aDex_1.0.0_amd64.snap
 
 # Tarball (Generic)
-tar -xzf aDex-UI-1.0.0-linux-x86_64.tar.gz
-cd aDex-UI-1.0.0
+tar -xzf aDex-1.0.0-linux-x86_64.tar.gz
+cd aDex-1.0.0
 sudo ./install.sh
 ```
 
@@ -268,4 +268,4 @@ go test -v ./tests/backend/build_test.go
 - **More Formats**: Additional package formats
 - **Optimization**: Build size and performance optimization
 
-This implementation provides a robust, comprehensive packaging solution for aDex-UI across all major desktop platforms with automated builds, testing, and deployment workflows.
+This implementation provides a robust, comprehensive packaging solution for aDex across all major desktop platforms with automated builds, testing, and deployment workflows.

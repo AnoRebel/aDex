@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"aDex-UI/internal/events"
+	"aDex/internal/events"
 )
 
 // GeoIPService provides geographical IP information

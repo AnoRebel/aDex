@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"aDex-UI/internal/services/network"
+	"aDex/internal/services/network"
 )
 
 // Section 5.C boundary tests for the network service. Asserts that

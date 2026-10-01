@@ -1,7 +1,7 @@
 package theme
 
 import (
-	"aDex-UI/internal/appdir"
+	"aDex/internal/appdir"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"aDex-UI/internal/utils"
+	"aDex/internal/utils"
 )
 
 // Service handles theme management

@@ -1,6 +1,6 @@
 # Keyboard Layouts
 
-aDex-UI ships **19 on-screen keyboard layouts** under
+aDex ships **19 on-screen keyboard layouts** under
 `frontend/app/assets/data/kb_layouts/`, indexed by
 `frontend/app/assets/data/kb_layouts-index.json`.
 

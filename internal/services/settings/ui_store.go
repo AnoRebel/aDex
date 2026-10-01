@@ -1,7 +1,7 @@
 package settings
 
 import (
-	"aDex-UI/internal/appdir"
+	"aDex/internal/appdir"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"aDex-UI/internal/logger"
-	"aDex-UI/internal/models"
+	"aDex/internal/logger"
+	"aDex/internal/models"
 )
 
 // uiSettingsFileName is the on-disk source of truth for the frontend's

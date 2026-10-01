@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"aDex-UI/internal/utils"
+	"aDex/internal/utils"
 )
 
 // Service handles filesystem operations

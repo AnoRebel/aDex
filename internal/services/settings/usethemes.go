@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"aDex-UI/internal/appdir"
+	"aDex/internal/appdir"
 )
 
 // User-authored themes.

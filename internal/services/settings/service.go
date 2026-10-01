@@ -1,15 +1,15 @@
 package settings
 
 import (
-	"aDex-UI/internal/appdir"
+	"aDex/internal/appdir"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 
-	"aDex-UI/internal/logger"
-	"aDex-UI/internal/models"
+	"aDex/internal/logger"
+	"aDex/internal/models"
 )
 
 // Service manages application settings and configuration

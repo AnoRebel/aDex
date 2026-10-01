@@ -1,7 +1,7 @@
 package config
 
 import (
-	"aDex-UI/internal/appdir"
+	"aDex/internal/appdir"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"aDex-UI/internal/utils"
+	"aDex/internal/utils"
 
 	"gopkg.in/yaml.v3"
 )

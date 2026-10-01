@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"aDex-UI/internal/models"
+	"aDex/internal/models"
 )
 
 // FontScanner handles scanning and importing of system fonts

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"aDex-UI/internal/events"
+	"aDex/internal/events"
 )
 
 // Network-specific event types

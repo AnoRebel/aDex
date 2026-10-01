@@ -3,8 +3,8 @@ package tests
 import (
 	"context"
 
-	"aDex-UI/internal/events"
-	"aDex-UI/internal/models"
+	"aDex/internal/events"
+	"aDex/internal/models"
 
 	"github.com/stretchr/testify/mock"
 )

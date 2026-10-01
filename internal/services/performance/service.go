@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"aDex-UI/internal/logger"
+	"aDex/internal/logger"
 )
 
 // Service provides performance monitoring and optimization features

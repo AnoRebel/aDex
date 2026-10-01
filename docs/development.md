@@ -1,6 +1,6 @@
-# aDex-UI Development Guide
+# aDex Development Guide
 
-This guide covers the development workflow, architecture, and best practices for contributing to aDex-UI.
+This guide covers the development workflow, architecture, and best practices for contributing to aDex.
 
 ## Table of Contents
 
@@ -19,7 +19,7 @@ This guide covers the development workflow, architecture, and best practices for
 ## Project Structure
 
 ```
-aDex-UI/
+aDex/
 ├── app.go                    # Wails application entry point
 ├── main.go                   # Main application file
 ├── go.mod                    # Go module dependencies
@@ -62,7 +62,7 @@ aDex-UI/
 1. **Clone the repository**:
    ```bash
    git clone <repository-url>
-   cd aDex-UI
+   cd aDex
    ```
 
 2. **Install Go dependencies**:
@@ -386,7 +386,7 @@ try {
 export default defineNuxtConfig({
   app: {
     head: {
-      title: 'aDex-UI',
+      title: 'aDex',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' }
@@ -782,7 +782,7 @@ wails3 generate bindings -ts
 
 This regenerates `frontend/bindings/`, laid out by Go import path — the
 coordinator lands at
-`frontend/bindings/aDex-UI/internal/services/coordinator/`. Generation is by
+`frontend/bindings/aDex/internal/services/coordinator/`. Generation is by
 static analysis of the Go source, so the output cannot drift from the
 implementation, and it preserves doc comments and real parameter names.
 The directory is build output and is gitignored.

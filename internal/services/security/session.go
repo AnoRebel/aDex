@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"aDex-UI/internal/logger"
+	"aDex/internal/logger"
 )
 
 // Session represents an authenticated user session

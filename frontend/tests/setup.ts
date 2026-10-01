@@ -24,6 +24,34 @@ vi.mock('@wailsio/runtime', () => ({
     SetFrameless: vi.fn(async () => undefined),
   },
   Application: { Quit: vi.fn(async () => undefined) },
+
+  // The generated bindings import these directly — `Call` and
+  // `CancellablePromise` to invoke bound Go methods, `Create` to rebuild
+  // typed structs from the JSON that comes back. A mock missing any of them
+  // fails the whole file at import with "No <name> export is defined on the
+  // @wailsio/runtime mock".
+  Call: {
+    ByID: vi.fn(async () => undefined),
+    ByName: vi.fn(async () => undefined),
+  },
+  CancellablePromise: class {
+    constructor(executor: any) {
+      return Object.assign(new Promise(executor ?? (() => {})), {
+        cancel: vi.fn(),
+        oncancelled: null,
+      })
+    }
+    static resolve(v: unknown) { return Promise.resolve(v) }
+    static reject(e: unknown) { return Promise.reject(e) }
+  },
+  Create: {
+    Any: <T,>(v: T) => v,
+    ByteSlice: (v: unknown) => v ?? [],
+    Array: () => (v: unknown) => v ?? [],
+    Map: () => (v: unknown) => v ?? {},
+    Nullable: () => (v: unknown) => v,
+    Struct: () => (v: unknown) => v,
+  },
 }))
 
 // Mock browser APIs

@@ -3,8 +3,8 @@ package tests
 import (
 	"testing"
 
-	"aDex-UI/internal/logger"
-	"aDex-UI/internal/services/security"
+	"aDex/internal/logger"
+	"aDex/internal/services/security"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

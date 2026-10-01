@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"aDex-UI/internal/models"
+	"aDex/internal/models"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

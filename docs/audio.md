@@ -1,6 +1,6 @@
 # Audio Cue System
 
-aDex-UI's audio is a small, curated cue vocabulary played through
+aDex's audio is a small, curated cue vocabulary played through
 [Howler.js](https://howlerjs.com/) with a Web-Audio oscillator synth
 fallback. The engine lives in
 `frontend/app/composables/useAdexAudio.ts`.
