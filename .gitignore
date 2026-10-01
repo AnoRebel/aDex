@@ -150,7 +150,10 @@ temp/
 steering-docs/
 
 # AI
-.claude
+# Local AI assistant tooling — config and command templates for the
+# developer's own environment, not part of the project.
+.claude/
+.serena/
 .opencode
 .mcp.json
 openspec
