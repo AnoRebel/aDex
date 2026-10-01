@@ -5,13 +5,13 @@ go 1.26.0
 require (
 	github.com/creack/pty v1.1.24
 	github.com/distatus/battery v0.11.0
-	github.com/ebitengine/oto/v3 v3.5.0
+	github.com/ebitengine/oto/v3 v3.5.1
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/go-audio/wav v1.1.0
 	github.com/gorilla/mux v1.8.1
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/stretchr/testify v1.11.1
-	github.com/wailsapp/wails/v3 v3.0.0-beta.26
+	github.com/wailsapp/wails/v3 v3.0.0-beta.27
 	golang.org/x/crypto v0.57.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -21,7 +21,7 @@ require (
 	github.com/adrg/xdg v0.5.3 // indirect
 	github.com/coder/websocket v1.8.15 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/ebitengine/purego v0.11.0 // indirect
+	github.com/ebitengine/purego v0.11.1 // indirect
 	github.com/go-audio/audio v1.0.0 // indirect
 	github.com/go-audio/riff v1.0.0 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
