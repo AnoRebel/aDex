@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -27,65 +26,65 @@ type FileSystemEntry struct {
 	PermissionsInfo *PermissionsInfo `json:"permissions_info,omitempty"`
 	// Additional metadata
 	ExtendedAttrs map[string]string `json:"extended_attrs,omitempty"`
-	Thumbnail    string            `json:"thumbnail,omitempty,omitempty"`
-	Preview      string            `json:"preview,omitempty,omitempty"`
-	Tags         []string          `json:"tags,omitempty"`
-	CreatedAt    time.Time         `json:"created_at,omitempty"`
-	AccessedAt   time.Time         `json:"accessed_at,omitempty"`
-	ChangedAt    time.Time         `json:"changed_at,omitempty"`
-	ContentType  string            `json:"content_type,omitempty"`
-	Encoding     string            `json:"encoding,omitempty"`
+	Thumbnail     string            `json:"thumbnail,omitempty,omitempty"`
+	Preview       string            `json:"preview,omitempty,omitempty"`
+	Tags          []string          `json:"tags,omitempty"`
+	CreatedAt     time.Time         `json:"created_at,omitempty"`
+	AccessedAt    time.Time         `json:"accessed_at,omitempty"`
+	ChangedAt     time.Time         `json:"changed_at,omitempty"`
+	ContentType   string            `json:"content_type,omitempty"`
+	Encoding      string            `json:"encoding,omitempty"`
 }
 
 // PermissionsInfo provides detailed permission information
 type PermissionsInfo struct {
-	Octal        string `json:"octal"`          // e.g., "755"
-	Symbolic     string `json:"symbolic"`       // e.g., "rwxr-xr-x"
-	User         string `json:"user"`           // e.g., "rwx"
-	Group        string `json:"group"`          // e.g., "r-x"
-	Other        string `json:"other"`          // e.g., "r-x"
-	UserID       int    `json:"user_id"`        // UID
-	GroupID      int    `json:"group_id"`       // GID
-	IsOwner      bool   `json:"is_owner"`       // Current user is owner
-	IsGroup      bool   `json:"is_group"`       // Current user is in group
-	CanRead      bool   `json:"can_read"`       // Current user can read
-	CanWrite     bool   `json:"can_write"`      // Current user can write
-	CanExecute   bool   `json:"can_execute"`   // Current user can execute
-	Permissions  uint32 `json:"permissions"`   // Raw permission bits
+	Octal       string `json:"octal"`       // e.g., "755"
+	Symbolic    string `json:"symbolic"`    // e.g., "rwxr-xr-x"
+	User        string `json:"user"`        // e.g., "rwx"
+	Group       string `json:"group"`       // e.g., "r-x"
+	Other       string `json:"other"`       // e.g., "r-x"
+	UserID      int    `json:"user_id"`     // UID
+	GroupID     int    `json:"group_id"`    // GID
+	IsOwner     bool   `json:"is_owner"`    // Current user is owner
+	IsGroup     bool   `json:"is_group"`    // Current user is in group
+	CanRead     bool   `json:"can_read"`    // Current user can read
+	CanWrite    bool   `json:"can_write"`   // Current user can write
+	CanExecute  bool   `json:"can_execute"` // Current user can execute
+	Permissions uint32 `json:"permissions"` // Raw permission bits
 }
 
 // FileSystemEvent represents a file system change event
 type FileSystemEvent struct {
-	Path      string            `json:"path"`
-	Operation string            `json:"operation"` // "create", "remove", "rename", "write", "chmod", "move"
+	Path      string           `json:"path"`
+	Operation string           `json:"operation"` // "create", "remove", "rename", "write", "chmod", "move"
 	Entry     *FileSystemEntry `json:"entry,omitempty"`
-	Timestamp int64             `json:"timestamp"`
-	SessionID string            `json:"session_id,omitempty"`
-	Error     string            `json:"error,omitempty"`
+	Timestamp int64            `json:"timestamp"`
+	SessionID string           `json:"session_id,omitempty"`
+	Error     string           `json:"error,omitempty"`
 }
 
 // FileSystemStats provides statistics about file system operations
 type FileSystemStats struct {
-	TotalFiles       int               `json:"total_files"`
-	TotalDirectories int               `json:"total_directories"`
-	TotalSize        int64             `json:"total_size"`
-	LargestFile      *FileSystemEntry  `json:"largest_file,omitempty"`
-	MostRecent       *FileSystemEntry  `json:"most_recent,omitempty"`
-	HiddenFiles      int               `json:"hidden_files"`
-	ExecutableFiles  int               `json:"executable_files"`
-	LastScanTime     time.Time         `json:"last_scan_time"`
+	TotalFiles       int              `json:"total_files"`
+	TotalDirectories int              `json:"total_directories"`
+	TotalSize        int64            `json:"total_size"`
+	LargestFile      *FileSystemEntry `json:"largest_file,omitempty"`
+	MostRecent       *FileSystemEntry `json:"most_recent,omitempty"`
+	HiddenFiles      int              `json:"hidden_files"`
+	ExecutableFiles  int              `json:"executable_files"`
+	LastScanTime     time.Time        `json:"last_scan_time"`
 }
 
 // FileSearchOptions defines search parameters for file system searches
 type FileSearchOptions struct {
-	Pattern      string            `json:"pattern"`
-	CaseSensitive bool              `json:"case_sensitive"`
-	IncludeHidden bool              `json:"include_hidden"`
-	MaxResults    int               `json:"max_results"`
-	SearchType    string            `json:"search_type"` // "name", "content", "path"
-	FileTypes     []string          `json:"file_types"`
-	ModifiedDate  *time.Time        `json:"modified_date"`
-	SizeRange     *SizeRange        `json:"size_range,omitempty"`
+	Pattern       string     `json:"pattern"`
+	CaseSensitive bool       `json:"case_sensitive"`
+	IncludeHidden bool       `json:"include_hidden"`
+	MaxResults    int        `json:"max_results"`
+	SearchType    string     `json:"search_type"` // "name", "content", "path"
+	FileTypes     []string   `json:"file_types"`
+	ModifiedDate  *time.Time `json:"modified_date"`
+	SizeRange     *SizeRange `json:"size_range,omitempty"`
 }
 
 // SizeRange defines a range for file size filtering
@@ -96,29 +95,29 @@ type SizeRange struct {
 
 // FileOperationResult represents the result of a file system operation
 type FileOperationResult struct {
-	Success    bool              `json:"success"`
-	Path       string            `json:"path"`
-	Operation  string            `json:"operation"`
-	Error      string            `json:"error,omitempty"`
-	Timestamp  int64             `json:"timestamp"`
-	Entry      *FileSystemEntry `json:"entry,omitempty"`
+	Success   bool             `json:"success"`
+	Path      string           `json:"path"`
+	Operation string           `json:"operation"`
+	Error     string           `json:"error,omitempty"`
+	Timestamp int64            `json:"timestamp"`
+	Entry     *FileSystemEntry `json:"entry,omitempty"`
 }
 
 // DirectoryWatcherConfig contains configuration for directory watching
 type DirectoryWatcherConfig struct {
-	Enabled         bool          `json:"enabled"`
-	WatchHidden     bool          `json:"watch_hidden"`
-	DebounceMs      int           `json:"debounce_ms"`
-	MaxEvents        int           `json:"max_events"`
-	BufferSize       int           `json:"buffer_size"`
-	IgnorePatterns   []string      `json:"ignore_patterns"`
+	Enabled        bool     `json:"enabled"`
+	WatchHidden    bool     `json:"watch_hidden"`
+	DebounceMs     int      `json:"debounce_ms"`
+	MaxEvents      int      `json:"max_events"`
+	BufferSize     int      `json:"buffer_size"`
+	IgnorePatterns []string `json:"ignore_patterns"`
 }
 
 // FileNavigationHistory maintains navigation history
 type FileNavigationHistory struct {
 	Current    string   `json:"current"`
 	History    []string `json:"history"`
-	MaxHistory int     `json:"max_history"`
+	MaxHistory int      `json:"max_history"`
 	Index      int      `json:"index"`
 }
 
@@ -194,7 +193,7 @@ func (f *FileSystemEntry) IsTextFile() bool {
 		".sh": true, ".bash": true, ".zsh": true, ".fish": true, ".ps1": true,
 		".log": true, ".conf": true, ".config": true, ".ini": true, ".env": true,
 		".sql": true, ".gitignore": true, ".dockerfile": true, "Dockerfile": true,
-	".go": true, ".rs": true, ".c": true, ".cpp": true, ".h": true, ".hpp": true,
+		".go": true, ".rs": true, ".c": true, ".cpp": true, ".h": true, ".hpp": true,
 		".java": true, ".class": true, ".kt": true, ".scala": true, ".php": true,
 		".rb": true, ".pl": true, ".r": true,
 	}
@@ -294,9 +293,9 @@ func (f *FileSystemEntry) UpdateStats() error {
 	}
 
 	// Try to get extended time information if available
-	if sys, ok := info.Sys().(*syscall.Stat_t); ok {
-		f.AccessedAt = time.Unix(sys.Atim.Sec, sys.Atim.Nsec)
-		f.ChangedAt = time.Unix(sys.Ctim.Sec, sys.Ctim.Nsec)
+	if accessed, changed, ok := statTimes(info); ok {
+		f.AccessedAt = accessed
+		f.ChangedAt = changed
 		// Use ModTime for creation time (birthtime not available on all systems)
 		f.CreatedAt = info.ModTime()
 	} else {
@@ -318,20 +317,20 @@ func (f *FileSystemEntry) GetMIMEType() string {
 	// Use file extension to determine MIME type
 	ext := strings.ToLower(f.GetExtension())
 	mimeTypes := map[string]string{
-		".txt": "text/plain",
+		".txt":  "text/plain",
 		".html": "text/html",
-	".css": "text/css",
-	".js": "application/javascript",
-	".json": "application/json",
-	".xml": "application/xml",
-		".pdf": "application/pdf",
-		".zip": "application/zip",
-		".jpg": "image/jpeg",
-	".jpeg": "image/jpeg",
-		".png": "image/png",
-	".gif": "image/gif",
-		".mp4": "video/mp4",
-		".mp3": "audio/mpeg",
+		".css":  "text/css",
+		".js":   "application/javascript",
+		".json": "application/json",
+		".xml":  "application/xml",
+		".pdf":  "application/pdf",
+		".zip":  "application/zip",
+		".jpg":  "image/jpeg",
+		".jpeg": "image/jpeg",
+		".png":  "image/png",
+		".gif":  "image/gif",
+		".mp4":  "video/mp4",
+		".mp3":  "audio/mpeg",
 	}
 
 	if mimeType, exists := mimeTypes[ext]; exists {
@@ -356,15 +355,19 @@ func (f *FileSystemEntry) UpdatePermissionsInfo() error {
 	mode := info.Mode()
 	permissions := uint32(mode.Perm())
 
+	// Numeric ownership, where the platform has it. Windows identifies owners
+	// by SID rather than uid/gid, so these stay zero there.
+	uid, gid, _ := statOwner(info)
+
 	// Create permission info
 	f.PermissionsInfo = &PermissionsInfo{
 		Octal:       fmt.Sprintf("%o", permissions),
 		Symbolic:    mode.String(),
-		User:        formatPermissionBits(permissions, 6, 9),   // User bits (rwx)
-		Group:       formatPermissionBits(permissions, 3, 6),   // Group bits (rwx)
-		Other:       formatPermissionBits(permissions, 0, 3),   // Other bits (rwx)
-		UserID:      int(info.Sys().(*syscall.Stat_t).Uid),
-		GroupID:     int(info.Sys().(*syscall.Stat_t).Gid),
+		User:        formatPermissionBits(permissions, 6, 9), // User bits (rwx)
+		Group:       formatPermissionBits(permissions, 3, 6), // Group bits (rwx)
+		Other:       formatPermissionBits(permissions, 0, 3), // Other bits (rwx)
+		UserID:      uid,
+		GroupID:     gid,
 		Permissions: permissions,
 	}
 
@@ -500,7 +503,7 @@ func (f *FileSystemEntry) ValidateForOperation(operation string) error {
 	case "rename", "move":
 		// Ensure the target is within allowed bounds
 		if strings.HasPrefix(f.Path, "/") && !strings.HasPrefix(f.Path, "/tmp/") &&
-		   !strings.HasPrefix(f.Path, "/home/") && !strings.HasPrefix(f.Path, "/Users/") {
+			!strings.HasPrefix(f.Path, "/home/") && !strings.HasPrefix(f.Path, "/Users/") {
 			// This is a system path - be more careful
 			systemPaths := []string{"/", "/bin", "/sbin", "/usr", "/etc", "/var", "/sys", "/proc", "/dev"}
 			for _, sysPath := range systemPaths {
@@ -602,43 +605,43 @@ func (f *FileSystemEntry) Clone() *FileSystemEntry {
 // FileSystemError represents different types of file system errors
 type FileSystemError struct {
 	Type        FileSystemErrorType `json:"type"`
-	Path        string             `json:"path"`
-	Operation   string             `json:"operation"`
-	Message     string             `json:"message"`
-	OriginalErr error              `json:"-"`
-	UserMessage string             `json:"user_message"`
-	Permissions *PermissionsInfo   `json:"permissions,omitempty"`
-	ErrorCode   int                `json:"error_code"`
-	Timestamp   time.Time          `json:"timestamp"`
+	Path        string              `json:"path"`
+	Operation   string              `json:"operation"`
+	Message     string              `json:"message"`
+	OriginalErr error               `json:"-"`
+	UserMessage string              `json:"user_message"`
+	Permissions *PermissionsInfo    `json:"permissions,omitempty"`
+	ErrorCode   int                 `json:"error_code"`
+	Timestamp   time.Time           `json:"timestamp"`
 }
 
 // FileSystemErrorType represents categories of file system errors
 type FileSystemErrorType string
 
 const (
-	ErrorPermission      FileSystemErrorType = "permission_denied"
-	ErrorNotFound       FileSystemErrorType = "not_found"
-	ErrorExists         FileSystemErrorType = "already_exists"
-	ErrorInvalidPath    FileSystemErrorType = "invalid_path"
-	ErrorIO             FileSystemErrorType = "io_error"
-	ErrorSpace          FileSystemErrorType = "no_space"
-	ErrorQuota          FileSystemErrorType = "quota_exceeded"
-	ErrorReadOnly       FileSystemErrorType = "read_only"
-	ErrorBusy           FileSystemErrorType = "resource_busy"
-	ErrorCorrupted      FileSystemErrorType = "corrupted"
-	ErrorLocked         FileSystemErrorType = "locked"
-	ErrorNetwork        FileSystemErrorType = "network_error"
-	ErrorTimeout        FileSystemErrorType = "timeout"
-	ErrorInvalidName    FileSystemErrorType = "invalid_name"
-	ErrorDirectoryFull  FileSystemErrorType = "directory_full"
-	ErrorTooManyLinks   FileSystemErrorType = "too_many_links"
-	ErrorNotDirectory   FileSystemErrorType = "not_directory"
-	ErrorNotFile        FileSystemErrorType = "not_file"
-	ErrorSymLoop        FileSystemErrorType = "symlink_loop"
-	ErrorInvalidMode    FileSystemErrorType = "invalid_mode"
-	ErrorSecurity       FileSystemErrorType = "security_violation"
-	ErrorConfiguration  FileSystemErrorType = "configuration_error"
-	ErrorUnknown        FileSystemErrorType = "unknown"
+	ErrorPermission    FileSystemErrorType = "permission_denied"
+	ErrorNotFound      FileSystemErrorType = "not_found"
+	ErrorExists        FileSystemErrorType = "already_exists"
+	ErrorInvalidPath   FileSystemErrorType = "invalid_path"
+	ErrorIO            FileSystemErrorType = "io_error"
+	ErrorSpace         FileSystemErrorType = "no_space"
+	ErrorQuota         FileSystemErrorType = "quota_exceeded"
+	ErrorReadOnly      FileSystemErrorType = "read_only"
+	ErrorBusy          FileSystemErrorType = "resource_busy"
+	ErrorCorrupted     FileSystemErrorType = "corrupted"
+	ErrorLocked        FileSystemErrorType = "locked"
+	ErrorNetwork       FileSystemErrorType = "network_error"
+	ErrorTimeout       FileSystemErrorType = "timeout"
+	ErrorInvalidName   FileSystemErrorType = "invalid_name"
+	ErrorDirectoryFull FileSystemErrorType = "directory_full"
+	ErrorTooManyLinks  FileSystemErrorType = "too_many_links"
+	ErrorNotDirectory  FileSystemErrorType = "not_directory"
+	ErrorNotFile       FileSystemErrorType = "not_file"
+	ErrorSymLoop       FileSystemErrorType = "symlink_loop"
+	ErrorInvalidMode   FileSystemErrorType = "invalid_mode"
+	ErrorSecurity      FileSystemErrorType = "security_violation"
+	ErrorConfiguration FileSystemErrorType = "configuration_error"
+	ErrorUnknown       FileSystemErrorType = "unknown"
 )
 
 // Error returns a formatted error string
@@ -695,13 +698,13 @@ func (e *FileSystemError) GetErrorCode() int {
 	case ErrorPermission:
 		return 13 // EACCES
 	case ErrorNotFound:
-		return 2  // ENOENT
+		return 2 // ENOENT
 	case ErrorExists:
 		return 17 // EEXIST
 	case ErrorInvalidPath:
 		return 22 // EINVAL
 	case ErrorIO:
-		return 5  // EIO
+		return 5 // EIO
 	case ErrorSpace:
 		return 28 // ENOSPC
 	case ErrorReadOnly:
@@ -880,10 +883,10 @@ func getErrorCodeFromOsError(osErr error) int {
 		return 17 // EEXIST
 	}
 	if osErr == os.ErrNotExist {
-		return 2  // ENOENT
+		return 2 // ENOENT
 	}
 	if osErr == os.ErrClosed {
-		return 9  // EBADF
+		return 9 // EBADF
 	}
 	if osErr == os.ErrInvalid {
 		return 22 // EINVAL
@@ -960,9 +963,9 @@ func NewFileSystemEntry(path string) (*FileSystemEntry, error) {
 
 	// Get extended time information if available
 	var createdAt, accessedAt, changedAt time.Time
-	if sys, ok := info.Sys().(*syscall.Stat_t); ok {
-		accessedAt = time.Unix(sys.Atim.Sec, sys.Atim.Nsec)
-		changedAt = time.Unix(sys.Ctim.Sec, sys.Ctim.Nsec)
+	if a, c, ok := statTimes(info); ok {
+		accessedAt = a
+		changedAt = c
 		// Use ModTime for creation time (birthtime not available on all systems)
 		createdAt = info.ModTime()
 	} else {
@@ -973,25 +976,25 @@ func NewFileSystemEntry(path string) (*FileSystemEntry, error) {
 	}
 
 	entry := &FileSystemEntry{
-		Name:         filepath.Base(path),
-		Path:         path,
-		IsDir:        info.IsDir(),
-		Size:         info.Size(),
-		Mode:         info.Mode(),
-		ModTime:      info.ModTime(),
-		Permissions:  info.Mode().String(),
-		Owner:        "", // Would need additional OS-specific calls
-		Group:        "", // Would need additional OS-specific calls
-		IsHidden:     strings.HasPrefix(filepath.Base(path), "."),
-		IsExecutable: info.Mode().Perm()&0111 != 0, // Execute bits for user, group, other
-		Children:     nil,
+		Name:          filepath.Base(path),
+		Path:          path,
+		IsDir:         info.IsDir(),
+		Size:          info.Size(),
+		Mode:          info.Mode(),
+		ModTime:       info.ModTime(),
+		Permissions:   info.Mode().String(),
+		Owner:         "", // Would need additional OS-specific calls
+		Group:         "", // Would need additional OS-specific calls
+		IsHidden:      strings.HasPrefix(filepath.Base(path), "."),
+		IsExecutable:  info.Mode().Perm()&0111 != 0, // Execute bits for user, group, other
+		Children:      nil,
 		ExtendedAttrs: make(map[string]string),
-		Tags:         []string{},
-		CreatedAt:    createdAt,
-		AccessedAt:   accessedAt,
-		ChangedAt:    changedAt,
-		ContentType:  "",
-		Encoding:     "",
+		Tags:          []string{},
+		CreatedAt:     createdAt,
+		AccessedAt:    accessedAt,
+		ChangedAt:     changedAt,
+		ContentType:   "",
+		Encoding:      "",
 	}
 
 	return entry, nil
@@ -1000,25 +1003,25 @@ func NewFileSystemEntry(path string) (*FileSystemEntry, error) {
 // NewFileSystemEntryFromInfo creates a new FileSystemEntry from existing os.FileInfo
 func NewFileSystemEntryFromInfo(path string, info os.FileInfo) *FileSystemEntry {
 	entry := &FileSystemEntry{
-		Name:         filepath.Base(path),
-		Path:         path,
-		IsDir:        info.IsDir(),
-		Size:         info.Size(),
-		Mode:         info.Mode(),
-		ModTime:      info.ModTime(),
-		Permissions:  info.Mode().String(),
-		Owner:        "", // Would need additional OS-specific calls
-		Group:        "", // Would need additional OS-specific calls
-		IsHidden:     strings.HasPrefix(filepath.Base(path), "."),
-		IsExecutable: info.Mode().Perm()&0111 != 0,
-		Children:     nil,
+		Name:          filepath.Base(path),
+		Path:          path,
+		IsDir:         info.IsDir(),
+		Size:          info.Size(),
+		Mode:          info.Mode(),
+		ModTime:       info.ModTime(),
+		Permissions:   info.Mode().String(),
+		Owner:         "", // Would need additional OS-specific calls
+		Group:         "", // Would need additional OS-specific calls
+		IsHidden:      strings.HasPrefix(filepath.Base(path), "."),
+		IsExecutable:  info.Mode().Perm()&0111 != 0,
+		Children:      nil,
 		ExtendedAttrs: make(map[string]string),
-		Tags:         []string{},
-		CreatedAt:    time.Time{}, // Initialize with zero value
-	AccessedAt:   time.Time{}, // Initialize with zero value
-		ChangedAt:    time.Time{}, // Initialize with zero value
-		ContentType:  "",
-		Encoding:     "",
+		Tags:          []string{},
+		CreatedAt:     time.Time{}, // Initialize with zero value
+		AccessedAt:    time.Time{}, // Initialize with zero value
+		ChangedAt:     time.Time{}, // Initialize with zero value
+		ContentType:   "",
+		Encoding:      "",
 	}
 
 	return entry

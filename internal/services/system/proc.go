@@ -3,9 +3,7 @@ package system
 import (
 	"fmt"
 	"os"
-	"runtime"
 	"strconv"
-	"syscall"
 )
 
 // ProcessSignal is a typed signal name accepted by SignalProcess. We keep
@@ -15,14 +13,14 @@ import (
 type ProcessSignal string
 
 const (
-	SignalTerm  ProcessSignal = "SIGTERM"
-	SignalKill  ProcessSignal = "SIGKILL"
-	SignalStop  ProcessSignal = "SIGSTOP"
-	SignalCont  ProcessSignal = "SIGCONT"
-	SignalHup   ProcessSignal = "SIGHUP"
-	SignalInt   ProcessSignal = "SIGINT"
-	SignalUsr1  ProcessSignal = "SIGUSR1"
-	SignalUsr2  ProcessSignal = "SIGUSR2"
+	SignalTerm ProcessSignal = "SIGTERM"
+	SignalKill ProcessSignal = "SIGKILL"
+	SignalStop ProcessSignal = "SIGSTOP"
+	SignalCont ProcessSignal = "SIGCONT"
+	SignalHup  ProcessSignal = "SIGHUP"
+	SignalInt  ProcessSignal = "SIGINT"
+	SignalUsr1 ProcessSignal = "SIGUSR1"
+	SignalUsr2 ProcessSignal = "SIGUSR2"
 )
 
 // SignalProcess sends the given signal to the process at pid.
@@ -45,39 +43,11 @@ func (s *Service) SignalProcess(pid int, sig ProcessSignal) error {
 		return fmt.Errorf("find process %d: %w", pid, err)
 	}
 
-	if runtime.GOOS == "windows" {
-		switch sig {
-		case SignalKill, SignalTerm:
-			// Both map to a hard kill on Windows; there is no graceful
-			// SIGTERM equivalent for arbitrary processes.
-			return p.Kill()
-		default:
-			return fmt.Errorf("signal %s not supported on windows", sig)
-		}
-	}
-
-	var ssig syscall.Signal
-	switch sig {
-	case SignalTerm:
-		ssig = syscall.SIGTERM
-	case SignalKill:
-		ssig = syscall.SIGKILL
-	case SignalStop:
-		ssig = syscall.SIGSTOP
-	case SignalCont:
-		ssig = syscall.SIGCONT
-	case SignalHup:
-		ssig = syscall.SIGHUP
-	case SignalInt:
-		ssig = syscall.SIGINT
-	case SignalUsr1:
-		ssig = syscall.SIGUSR1
-	case SignalUsr2:
-		ssig = syscall.SIGUSR2
-	default:
-		return fmt.Errorf("unknown signal %s", sig)
-	}
-	return p.Signal(ssig)
+	// Signal delivery is platform-specific — see proc_unix.go and
+	// proc_windows.go. The constants differ enough that a runtime check is
+	// not sufficient: SIGSTOP and friends do not exist at all on Windows, so
+	// referencing them would fail the build rather than the call.
+	return sendSignal(p, sig)
 }
 
 // GetProcessInfo returns a richer view of a single process suitable for
