@@ -12,6 +12,9 @@ frontend/dist
 frontend/bindings/
 frontend/node_modules
 build/linux/appimage/build
+# Staged binary and icon the AppImage step copies in before packaging.
+build/linux/appimage/adex
+build/linux/appimage/*.png
 build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
 
 # Nuxt v4 specific

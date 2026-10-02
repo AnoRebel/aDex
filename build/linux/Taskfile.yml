@@ -176,7 +176,14 @@ tasks:
       # launcher — the window would show a generic icon and not group. The
       # value must equal LinuxOptions.ApplicationID in main.go, which is what
       # GTK reports as the window class.
-      - grep -q '^StartupWMClass=' "{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop" || echo 'StartupWMClass={{.APP_ID}}' >> "{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop"
+      # Strip any existing key before adding ours. A plain append left two
+      # StartupWMClass lines when the committed .desktop already carried one,
+      # and the AppImage tooling rejects that outright: "file contains
+      # multiple keys named StartupWMClass in group Desktop Entry".
+      - |
+        f="{{.ROOT_DIR}}/build/linux/{{.APP_NAME}}.desktop"
+        sed -i '/^StartupWMClass=/d' "$f"
+        printf 'StartupWMClass=%s\n' '{{.APP_ID}}' >> "$f"
     vars:
       APP_NAME: '{{.APP_NAME}}'
       EXEC: '{{.APP_NAME}}'
