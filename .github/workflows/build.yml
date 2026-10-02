@@ -38,6 +38,15 @@ jobs:
           - os: macos-latest
             platform: darwin
             arch: arm64
+          # arm64 on native runners. Wails is a cgo application, so setting
+          # GOOS/GOARCH on an amd64 host cannot build it — that needs a
+          # matching C toolchain and platform headers, which these provide.
+          - os: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+          - os: windows-11-arm
+            platform: windows
+            arch: arm64
 
     steps:
       - name: Checkout code
@@ -139,6 +148,9 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-latest
+    # Creating a release and uploading its assets writes to the repository.
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
@@ -159,84 +171,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Build multi-architecture binaries
-  build-multiarch:
-    name: Multi-Arch Build
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        target:
-          - { os: linux, arch: amd64 }
-          - { os: linux, arch: arm64 }
-          - { os: windows, arch: amd64 }
-          - { os: windows, arch: arm64 }
-          - { os: darwin, arch: amd64 }
-          - { os: darwin, arch: arm64 }
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Setup Go
-        uses: actions/setup-go@v7
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Setup QEMU (for cross-compilation)
-        if: matrix.arch == 'arm64'
-        uses: docker/setup-qemu-action@v4
-        with:
-          platforms: arm64
-
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      # The wails3 CLI itself is a cgo build against GTK4/WebKitGTK, so these
-      # headers must be present BEFORE `go install` — without them the install
-      # fails with "Package 'gtk4', required by 'virtual:world', not found"
-      # and the whole arm64 job dies before it compiles anything.
-      - name: Install Linux build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
-
-      - name: Install Task
-        run: |
-          go install github.com/go-task/task/v3/cmd/task@latest
-
-      - name: Install Wails v3 CLI
-        run: |
-          go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Cross-compile binary
-        run: |
-          task ${{ matrix.target.os }}:build
-        env:
-          GOOS: ${{ matrix.target.os }}
-          GOARCH: ${{ matrix.target.arch }}
-          PRODUCTION: "true"
-          VERSION: ${{ github.ref_type == 'tag' && github.ref_name || 'dev-' }}
-          BUILD_DATE: ${{ github.event.head_commit.timestamp }}
-          COMMIT: ${{ github.sha }}
-
-      - name: Upload cross-compiled binary
-        uses: actions/upload-artifact@v7
-        with:
-          name: aDex-${{ matrix.target.os }}-${{ matrix.target.arch }}-cross
-          # The build outputs bin/adex (APP_NAME in Taskfile.yml); the old
-          # path named a binary that is never produced, so this artifact was
-          # always empty.
-          path: bin/adex${{ matrix.target.os == 'windows' && '.exe' || '' }}
-          retention-days: 30
-
-  # Security scanning
   security:
     name: Security Scan
     runs-on: ubuntu-latest
