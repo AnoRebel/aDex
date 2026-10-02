@@ -201,7 +201,16 @@ tasks:
       - "darwin/icons.icns"
       - "windows/icon.ico"
     cmds:
-      - wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico -iconcomposerinput appicon.icon -macassetdir darwin
+      # -iconcomposerinput is only passed when appicon.icon actually exists.
+      # Without the file, wails3 still invokes Apple's actool on macOS and the
+      # build dies with "failed to run actool: exit status 1" — which took
+      # down every macOS job, and with fail-fast the whole matrix.
+      - |
+        if [ -f appicon.icon ]; then
+          wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico -iconcomposerinput appicon.icon -macassetdir darwin
+        else
+          wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico
+        fi
 
   dev:frontend:
     summary: Runs the frontend in development mode

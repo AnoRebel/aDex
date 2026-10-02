@@ -24,6 +24,10 @@ jobs:
     name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
+      # One platform failing should not cancel the rest: with fail-fast on, a
+      # macOS error took down the Linux and Windows jobs mid-build and hid
+      # whether they would have succeeded.
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
