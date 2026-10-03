@@ -1,6 +1,7 @@
 package events
 
 import (
+	"aDex/internal/utils"
 	"context"
 	"fmt"
 	"sync"
@@ -21,10 +22,10 @@ import (
 // — which is what made `go test` hang for 30 s on every test that
 // initialized the coordinator.
 type EventBus struct {
-	mu          sync.RWMutex
-	subs        map[string]*subscription // keyed by sub ID
-	wg          sync.WaitGroup
-	closed      bool
+	mu     sync.RWMutex
+	subs   map[string]*subscription // keyed by sub ID
+	wg     sync.WaitGroup
+	closed bool
 }
 
 type subscription struct {
@@ -96,7 +97,7 @@ func (eb *EventBus) Subscribe(ctx context.Context, eventTypes []string, handler 
 	}
 
 	subCtx, cancel := context.WithCancel(ctx)
-	id := fmt.Sprintf("sub-%d", time.Now().UnixNano())
+	id := utils.UniqueID("sub-")
 	types := make(map[string]struct{}, len(eventTypes))
 	for _, t := range eventTypes {
 		types[t] = struct{}{}

@@ -1,6 +1,7 @@
 package network
 
 import (
+	"aDex/internal/utils"
 	"context"
 	"fmt"
 	"net"
@@ -12,6 +13,7 @@ import (
 	"aDex/internal/events"
 	"aDex/internal/models"
 	"aDex/internal/services/geoip"
+
 	networkLib "github.com/shirou/gopsutil/v3/net"
 )
 
@@ -642,7 +644,7 @@ func (s *NetworkService) checkAlerts() {
 // createAlert creates a new network alert
 func (s *NetworkService) createAlert(alertType, message, severity, details, interfaceName string, current, threshold float64) {
 	alert := NetworkAlert{
-		ID:        fmt.Sprintf("%s_%d", alertType, time.Now().Unix()),
+		ID:        utils.UniqueID(alertType + "_"),
 		Type:      alertType,
 		Severity:  severity,
 		Message:   details,

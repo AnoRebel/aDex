@@ -1,7 +1,7 @@
 package models
 
 import (
-	"fmt"
+	"aDex/internal/utils"
 	"time"
 )
 
@@ -295,11 +295,11 @@ func NewTerminalCommand(sessionID, command, cwd string, args []string) *Terminal
 // Helper functions
 
 func generateTerminalSessionID() string {
-	return fmt.Sprintf("term-%d", time.Now().UnixNano())
+	return utils.UniqueID("term-")
 }
 
 func generateTabID() string {
-	return fmt.Sprintf("tab-%d", time.Now().UnixNano())
+	return utils.UniqueID("tab-")
 }
 
 func getDefaultShell() string {

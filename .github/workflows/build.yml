@@ -110,6 +110,19 @@ jobs:
         with:
           bun-version: latest
 
+      # The installer is built with makensis. windows-11-arm ships NSIS; the
+      # Windows Server 2025 image (windows-latest) has not always, so install
+      # it only when missing and make sure it is on PATH either way.
+      - name: Ensure NSIS (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $nsis = "${env:ProgramFiles(x86)}\NSIS"
+          if (-not (Get-Command makensis -ErrorAction SilentlyContinue) -and -not (Test-Path "$nsis\makensis.exe")) {
+            choco install nsis -y --no-progress
+          }
+          if (Test-Path "$nsis\makensis.exe") { Add-Content $env:GITHUB_PATH $nsis }
+
       - name: Install dependencies (macOS)
         if: matrix.platform == 'darwin'
         run: |

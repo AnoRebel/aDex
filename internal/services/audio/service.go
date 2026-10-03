@@ -12,22 +12,23 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ebitengine/oto/v3"
 	"aDex/internal/utils"
+
+	"github.com/ebitengine/oto/v3"
 )
 
 // Service handles audio operations
 type Service struct {
-	platform       *utils.FeatureDetection
-	otoCtx         *oto.Context
-	readyChan      <-chan struct{}
-	players        map[string]*oto.Player
-	soundFiles     map[string]string
-	sessions       map[string]*AudioSession
-	isMonitoring   bool
-	stopChan       chan struct{}
-	mu             sync.RWMutex
-	isInitialized  bool
+	platform      *utils.FeatureDetection
+	otoCtx        *oto.Context
+	readyChan     <-chan struct{}
+	players       map[string]*oto.Player
+	soundFiles    map[string]string
+	sessions      map[string]*AudioSession
+	isMonitoring  bool
+	stopChan      chan struct{}
+	mu            sync.RWMutex
+	isInitialized bool
 }
 
 // NewService creates a new audio service instance.
@@ -87,23 +88,23 @@ func (s *Service) initializeAudio() error {
 
 // AudioDevice represents an audio device
 type AudioDevice struct {
-	ID          string
-	Name        string
-	Type        string // input, output, or both
-	IsDefault   bool
-	SampleRate  int
-	Channels    int
-	BufferSize  int
+	ID         string
+	Name       string
+	Type       string // input, output, or both
+	IsDefault  bool
+	SampleRate int
+	Channels   int
+	BufferSize int
 }
 
 // AudioSession represents an active audio session
 type AudioSession struct {
-	ID         string
-	DeviceID   string
-	ProcessID  int
+	ID          string
+	DeviceID    string
+	ProcessID   int
 	ProcessName string
-	State      string // playing, paused, stopped
-	Volume     float64
+	State       string // playing, paused, stopped
+	Volume      float64
 }
 
 // GetDevices retrieves available audio devices
@@ -209,7 +210,7 @@ func (s *Service) PlaySoundFromBytes(ctx context.Context, soundData []byte, form
 	}
 
 	// Store the player
-	playerID := fmt.Sprintf("byte-sound-%d", time.Now().UnixNano())
+	playerID := utils.UniqueID("byte-sound-")
 	s.mu.Lock()
 	s.players[playerID] = player
 	s.mu.Unlock()

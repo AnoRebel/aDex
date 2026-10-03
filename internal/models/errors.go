@@ -1,6 +1,7 @@
 package models
 
 import (
+	"aDex/internal/utils"
 	"fmt"
 	"runtime"
 	"strings"
@@ -253,7 +254,7 @@ func NewServiceError(service, operation, errorType, message string, retryable bo
 
 // generateErrorCode generates a unique error code
 func generateErrorCode(errorType string) string {
-	return fmt.Sprintf("%s_%d", errorType, time.Now().UnixNano())
+	return utils.UniqueID(errorType + "_")
 }
 
 // isRetryableError determines if an error is retryable based on type and severity

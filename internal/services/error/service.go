@@ -1,6 +1,7 @@
 package error
 
 import (
+	"aDex/internal/utils"
 	"fmt"
 	"runtime"
 	"strings"
@@ -606,12 +607,12 @@ func (s *Service) errorReportingTask() {
 
 // generateErrorID generates a unique error ID
 func generateErrorID() string {
-	return fmt.Sprintf("ERR_%d", time.Now().UnixNano())
+	return utils.UniqueID("ERR_")
 }
 
 // generateReportID generates a unique report ID
 func generateReportID() string {
-	return fmt.Sprintf("RPT_%d", time.Now().UnixNano())
+	return utils.UniqueID("RPT_")
 }
 
 // Helper function for Go 1.21+ strings.ContainsFold fallback

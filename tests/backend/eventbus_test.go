@@ -99,12 +99,7 @@ func TestEventBus_ShutdownDrainsGoroutines(t *testing.T) {
 		}
 	}
 
-	// 10s, not 1s. The bus cancels each subscriber and waits on its
-	// WaitGroup; a second is ample locally but not on a loaded CI runner,
-	// where this timed out on both Windows targets. The timeout is here to
-	// stop a genuine deadlock hanging the suite, so it only has to be shorter
-	// than a developer's patience, not tight.
-	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancelShutdown()
 	if err := bus.Shutdown(shutdownCtx); err != nil {
 		t.Fatalf("Shutdown: %v", err)
