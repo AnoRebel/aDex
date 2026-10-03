@@ -104,7 +104,12 @@ tasks:
     deps:
       - task: build
     cmds:
+      # Non-fatal: linuxdeploy-plugin-gtk resolves GTK library paths with
+      # dpkg-architecture, so AppImage packaging only works on Debian-based
+      # hosts (it does on the Ubuntu CI runners). Elsewhere it fails, and that
+      # must not stop the .deb and .rpm from being built.
       - task: create:appimage
+        ignore_error: true
       - task: create:deb
       - task: create:rpm
       - task: create:aur

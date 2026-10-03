@@ -132,13 +132,31 @@ jobs:
         run: |
           task package
 
+      # Every job writes the same names (adex, adex.deb, ...), and release assets
+      # must be unique, so suffix each with platform-arch. Bundles (.app) are
+      # directories and get zipped rather than uploaded file by file.
+      - name: Stage release files
+        shell: bash
+        run: |
+          mkdir -p release
+          for f in bin/*; do
+            name=$(basename "$f")
+            case "$name" in *.log) continue ;; esac
+            stem="${name%%.*}"; ext="${name#"$stem"}"
+            out="release/${stem}-${{ matrix.platform }}-${{ matrix.arch }}${ext}"
+            if [ -d "$f" ]; then
+              ditto -c -k --keepParent "$f" "$out.zip"
+            else
+              cp "$f" "$out"
+            fi
+          done
+          ls -l release
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:
           name: aDex-${{ matrix.platform }}-${{ matrix.arch }}
-          path: |
-            bin/*
-            !bin/*.log
+          path: release/*
           retention-days: 30
 
   # Create releases for tags
