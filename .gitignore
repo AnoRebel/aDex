@@ -129,7 +129,6 @@ wailsapp*
 *.out
 
 # Go modules cache
-go.sum
 
 # Air live reload
 tmp/

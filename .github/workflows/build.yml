@@ -68,23 +68,13 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Cache Go modules
-        uses: actions/cache@v6
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-
       - name: Cache frontend dependencies
         uses: actions/cache@v6
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('frontend/bun.lock*') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ hashFiles('frontend/bun.lock*') }}
           restore-keys: |
-            ${{ runner.os }}-bun-
+            ${{ runner.os }}-${{ runner.arch }}-bun-
 
       # Platform dependencies FIRST: the wails3 CLI is itself a cgo build, so
       # installing it before GTK4 is present fails with "Package 'gtk4',
