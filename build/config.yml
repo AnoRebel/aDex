@@ -28,7 +28,6 @@ dev_mode:
       - node_modules
       - frontend
       - bin
-      - openspec
       - docs
     file:
       - .DS_Store

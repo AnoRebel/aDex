@@ -792,8 +792,7 @@ re-export the generated bindings. They exist so the ~19 importing components
 and stores keep a stable path, and to carry a few historical aliases
 (`GetSchemes` -> `GetColorSchemes`). Do not hand-write IPC in them.
 
-Gotchas (learned the hard way — see
-`openspec/changes/edex-parity-and-uplift/tasks.md` "Launch crash fix"):
+Gotchas (learned the hard way):
 
 - Wails JSON-marshals every bound method's return value. Returning a
   live Go struct that holds channels / `sync` primitives /
@@ -834,8 +833,7 @@ divergences for iteration.
 Features needing evidence: `desktop-shell-layout`, `theme-engine`,
 `terminal`, `system-monitor`, `network-monitor`,
 `globe-visualization`, `keyboard-layout-pack`, `settings-modal`,
-`boot-sequence`. See section 8 of the OpenSpec tasks doc for the
-exact capture list per feature.
+`boot-sequence`.
 
 ## Additional Resources
 

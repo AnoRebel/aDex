@@ -1,0 +1,19 @@
+# audio-cue-system — verification log
+
+Generated: 2026-09-05T15:29:45+03:00
+Commit:    e02dbba (migrate-wails-v3)
+Wails:     v3.0.0-beta.16
+
+## Cue assets embedded in the Go binary
+WAV files: 23
+380-gunshot-single.wav alarm.wav barreta-m9.wav classic-click.wav 
+click-tone.wav denied.wav error.wav expand.wav folder.wav granted.wav 
+gunshot.wav handgun-click.wav info.wav keyboard-click.wav keyboard.wav 
+mechanical-keyboard.wav panels.wav scan.wav single-pistol-gunshot.wav 
+spacebar-click-keyboard.wav stdin.wav stdout.wav theme.wav 
+
+## Go audio tests
+ok  	aDex-UI/internal/services/audio	(cached)
+
+## Frontend cue tests
+      Tests  9 passed (9)

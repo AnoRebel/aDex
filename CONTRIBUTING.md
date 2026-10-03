@@ -106,5 +106,4 @@ Before opening one:
 - New behaviour is covered by a test, or you say why it is not
 - Commit messages explain the reasoning, not just the change
 
-Larger changes use [OpenSpec](openspec/) — a proposal, specs, design and task
-breakdown before implementation. Run `openspec list` to see active changes.
+For larger changes, open an issue to discuss the approach before starting.

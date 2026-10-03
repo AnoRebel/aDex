@@ -9,8 +9,6 @@
 // plus aliases that route the existing aDex 12-event vocabulary
 // (`button_click`, `notification`, ...) through the same cues so legacy
 // callers don't need to migrate at once.
-//
-// Spec: openspec/changes/edex-parity-and-uplift/specs/audio-cue-system/spec.md
 
 import { ref, computed, readonly, type ComputedRef, type Ref } from "vue";
 import { useStorage } from "@vueuse/core";

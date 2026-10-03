@@ -1,6 +1,6 @@
 # Duplicated service consolidation — verdicts
 
-Date: 2026-08-27. Task group 9 of the Wails v2 → v3 migration (design D11).
+Date: 2026-08-27. Part of the Wails v2 → v3 migration.
 
 Five services existed in both `backend/services/` (wired into the running app)
 and `internal/services/` (no Go importers). The dead copies were 3–10x larger,
@@ -31,8 +31,7 @@ reflected unused surface area, not additional working capability.
 ## Consequences
 
 - No verdict adopts a dead implementation, so **the consolidation introduces no
-  behaviour change**. Nothing needed checking against the specs on those grounds
-  (task 9.3).
+  behaviour change**.
 - The five `internal/` duplicates are deleted; the live `backend/` packages move
   to `internal/` unchanged.
 - Anything genuinely wanted from the deleted code remains recoverable from git

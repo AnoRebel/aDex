@@ -2,45 +2,28 @@
 // scripts/verify-evidence.mjs
 // Run via: bun scripts/verify-evidence.mjs
 //
-// Per `specs/feature-evidence-protocol/spec.md`, every feature claimed
-// completed in tasks.md must have at least one screenshot + notes.md under
-// docs/evidence/<feature>/. This script walks the active openspec change's
-// tasks.md, identifies feature names referenced by checked-off tasks, and
-// fails if their evidence folder is missing or empty.
-//
-// Heuristic: features are derived from `docs/evidence/<feature>/` paths
-// mentioned in checked-off tasks.
+// Every feature folder under docs/evidence/ must hold a notes.md plus at least
+// one screenshot or log artifact. Folders starting with "_" (baseline,
+// template, protocol) are reference material and are skipped.
 
-import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
+import { readdirSync, existsSync, statSync } from "node:fs";
 import { resolve, join } from "node:path";
 
 const ROOT = resolve(new URL("..", import.meta.url).pathname);
-const CHANGE_DIR = join(ROOT, "openspec", "changes", "edex-parity-and-uplift");
-const TASKS = join(CHANGE_DIR, "tasks.md");
 const EVIDENCE = join(ROOT, "docs", "evidence");
 
-if (!existsSync(TASKS)) {
-  console.error(`No tasks file at ${TASKS}`);
+if (!existsSync(EVIDENCE)) {
+  console.error("No docs/evidence directory");
   process.exit(2);
 }
 
-const src = readFileSync(TASKS, "utf8");
-const checkedRe = /^- \[x\][^\n]*?docs\/evidence\/([\w._-]+)\//gim;
-
-const required = new Set();
-for (const m of src.matchAll(checkedRe)) {
-  required.add(m[1]);
-}
+const features = readdirSync(EVIDENCE).filter(
+  (n) => !n.startsWith("_") && !n.startsWith(".") && statSync(join(EVIDENCE, n)).isDirectory(),
+);
 
 const errors = [];
-for (const feature of required) {
-  if (feature.startsWith("_")) continue; // baseline / template / protocol
-  const dir = join(EVIDENCE, feature);
-  if (!existsSync(dir)) {
-    errors.push(`missing dir: docs/evidence/${feature}/`);
-    continue;
-  }
-  const entries = readdirSync(dir).filter((n) => !n.startsWith("."));
+for (const feature of features) {
+  const entries = readdirSync(join(EVIDENCE, feature)).filter((n) => !n.startsWith("."));
   const hasNotes = entries.includes("notes.md");
   const hasArtifact = entries.some((n) => /\.(png|jpe?g|gif|webp|webm|mp4|svg|md|log)$/i.test(n) && n !== "notes.md");
   if (!hasNotes) errors.push(`docs/evidence/${feature}/notes.md missing`);
@@ -48,7 +31,7 @@ for (const feature of required) {
 }
 
 if (errors.length === 0) {
-  console.log(`ok evidence present for ${required.size} feature(s)`);
+  console.log(`ok evidence present for ${features.length} feature(s)`);
   process.exit(0);
 }
 

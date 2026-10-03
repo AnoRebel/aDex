@@ -56,7 +56,7 @@ tasks:
       - bunx vitest run
 
   verify:evidence:
-    desc: Fail if any feature claimed done in tasks.md lacks docs/evidence/<feature>/
+    desc: Fail if any documented feature lacks docs/evidence/<feature>/
     cmds:
       - bun scripts/verify-evidence.mjs
 

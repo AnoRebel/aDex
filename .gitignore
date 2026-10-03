@@ -58,6 +58,7 @@ Thumbs.db
 # Logs
 logs
 *.log
+!docs/evidence/**/*.log
 
 # Runtime data
 pids
@@ -152,9 +153,7 @@ temp/
 # Steering documents (don't commit)
 steering-docs/
 
-# AI
-# Local AI assistant tooling — config and command templates for the
-# developer's own environment, not part of the project.
+# Local editor and tooling directories
 .claude/
 .serena/
 .opencode

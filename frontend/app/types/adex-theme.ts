@@ -2,7 +2,6 @@
 //
 // V2 theme schema — port-compatible with eDEX-UI but with the unsafe
 // `injectCSS` field replaced by a typed `layout` enum. See:
-//   openspec/changes/edex-parity-and-uplift/specs/theme-engine/spec.md
 //   frontend/app/assets/css/layouts/<layout>.css
 //
 // Themes live as individual JSON files at:

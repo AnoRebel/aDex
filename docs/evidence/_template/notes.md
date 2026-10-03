@@ -2,15 +2,14 @@
 
 - OS:           <linux|darwin|windows> <version>
 - Theme:        <theme-id>
-- Wails:        v2.12.0
+- Wails:        v3 (beta)
 - Date:         <ISO 8601>
 - App SHA:      <git rev-parse HEAD>
 - Verifier:     <name>
 
 ## What this proves
 
-<one paragraph linking to the relevant requirement in
-openspec/changes/edex-parity-and-uplift/specs/<capability>/spec.md>
+<one paragraph describing the behaviour this evidence demonstrates>
 
 ## How to reproduce
 

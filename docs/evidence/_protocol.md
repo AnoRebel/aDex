@@ -1,6 +1,6 @@
 # Evidence Capture Protocol
 
-Every feature claimed complete in `openspec/changes/edex-parity-and-uplift/tasks.md` requires three evidence layers per `specs/feature-evidence-protocol/spec.md`:
+Every feature claimed complete requires three evidence layers:
 
 1. **Go boundary test** — `tests/backend/<service>_boundary_test.go` (happy + error path).
 2. **Vitest store/composable test** — `tests/frontend/<store>.spec.ts` mocking the binding.
@@ -68,4 +68,4 @@ Copy `docs/evidence/_template/notes.md` to the feature directory and fill it in:
 
 ## Wails native helper (for the future)
 
-When time permits, wire `runtime.WindowSetSize` + a screenshotter binary into `bun run evidence:capture <feature> <theme>` so the CI loop can produce evidence without manual capture. Tracked as task 2.10.
+When time permits, wire `runtime.WindowSetSize` + a screenshotter binary into `bun run evidence:capture <feature> <theme>` so the CI loop can produce evidence without manual capture.

@@ -23,7 +23,7 @@ The hand-written shim at `frontend/app/lib/wailsjs/coordinator.ts` line 99–115
 
 - `window.go.main.ServiceCoordinator.<Method>` (**WRONG** — package is `coordinator`, not `main`)
 
-This is the **root cause** of "System monitor shows zeros" reported in `.opencode/URGENT_FIXES.md`. Methods resolve to `undefined` and silently fail; some defensive code returns mock values.
+This is the **root cause** of "System monitor shows zeros". Methods resolve to `undefined` and silently fail; some defensive code returns mock values.
 
 ## Coordinator methods exposed (Go)
 
@@ -70,10 +70,10 @@ The shim defines the same surface but resolves through the wrong global path. Wa
 
 ## Methods defined in spec but not yet on coordinator
 
-These are added in section 1 of `tasks.md`:
+These are added:
 
-- `GetTerminalCWD(id string) (string, error)` — task 1.2
-- `GetCWDStats() (CWDStats, error)` — task 1.2
+- `GetTerminalCWD(id string) (string, error)`
+- `GetCWDStats() (CWDStats, error)`
 
 ## Structural debt
 
@@ -86,5 +86,5 @@ This is out of scope for this change but documented here so a future cleanup cha
 ## Action items derived from this diff
 
 1. Replace the hand-written shim's global path: `window.go.main.ServiceCoordinator` → `window.go.coordinator.ServiceCoordinator`. Better: delete the shim and use the generated `wailsjs/go/coordinator/ServiceCoordinator` directly.
-2. Add `GetTerminalCWD` + `GetCWDStats` (task 1.2).
+2. Add `GetTerminalCWD` + `GetCWDStats`.
 3. Add a runtime probe at app boot that resolves `window.go.coordinator.ServiceCoordinator.IsStarted` and surfaces a fatal banner if missing — prevents the silent-mock failure mode.

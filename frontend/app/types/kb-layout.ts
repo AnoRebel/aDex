@@ -4,8 +4,7 @@
 // because that schema's `cmd` / `shift_cmd` / `ctrl_cmd` / `alt_cmd` /
 // `altshift_cmd` / `fn_cmd` / `capslck_cmd` fields are required to render
 // the alt-graph chars, dead keys, and per-locale F-key escapes correctly
-// across all 19 ported layouts. See:
-//   openspec/changes/edex-parity-and-uplift/specs/keyboard-layout-pack/spec.md
+// across all 19 ported layouts.
 
 /** A single key on the on-screen keyboard. Field semantics match the
  *  original `keyboard.class.js`. */

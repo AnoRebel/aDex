@@ -15,13 +15,10 @@ Validates the V2 theme engine end-to-end:
   `frontend/app/types/adex-theme.ts`
 - each theme declares a layout preset from the typed enum
   (`default | disrupted | typeleft | fulltype | notype | colorfilter`),
-  satisfying spec requirement [theme-engine/spec.md → "Layout Presets
-  Replace injectCSS"]
+  replacing the old injectCSS mechanism
 - the runtime composable (`useAdexTheme`) applies CSS custom properties
-  and the `data-layout` attribute within the 200 ms budget required by
-  spec requirement [theme-engine/spec.md → "Theme Hot-Swap"]
-- localStorage persistence round-trips correctly, satisfying
-  [theme-engine/spec.md → "Theme Persistence"]
+  and the `data-layout` attribute within the 200 ms hot-swap budget
+- localStorage persistence round-trips correctly
 - unknown ids surface a typed error rather than silently falling back
 
 ## How to reproduce

@@ -15,7 +15,7 @@ env:
   GO_VERSION: '1.26'
   NODE_VERSION: '22'
   # Track the latest v3 beta rather than pinning: v3 is pre-stable and ships
-  # fixes near-daily. See openspec design D1/D7.
+  # fixes near-daily.
   WAILS_VERSION: 'latest'
 
 jobs:
