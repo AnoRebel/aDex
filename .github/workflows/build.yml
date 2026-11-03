@@ -12,11 +12,11 @@ env:
   # Must be >= the `go` directive in go.mod, or every job dies at the first
   # `go mod tidy` with "go.mod requires go >= 1.26.0 (running go 1.25.x;
   # GOTOOLCHAIN=local)". Bump this when go.mod's minimum moves.
-  GO_VERSION: '1.26'
+  GO_VERSION: '1.27.3'
   NODE_VERSION: '22'
-  # Track the latest v3 beta rather than pinning: v3 is pre-stable and ships
-  # fixes near-daily.
-  WAILS_VERSION: 'latest'
+  # Keep in lockstep with the wailsapp/wails/v3 version in go.mod and
+  # @wailsio/runtime in frontend/package.json.
+  WAILS_VERSION: 'v3.1.0'
 
 jobs:
   # Build and test on all platforms
