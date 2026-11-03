@@ -57,6 +57,9 @@ func TestEligibility(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			if c.reason == "not writable" && runtime.GOOS == "windows" {
+				t.Skip("Windows ignores directory permission bits, so the directory is not read-only")
+			}
 			ok, reason := updater.Eligibility(c.goos, c.exe, c.appImage)
 			if ok != c.want {
 				t.Fatalf("eligible = %v (%q), want %v", ok, reason, c.want)

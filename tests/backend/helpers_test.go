@@ -65,9 +65,16 @@ func TestMain(m *testing.M) {
 
 // IsolateAppDirs points the app's config and data directories at a fresh
 // temp dir for the test, so services never touch the real ones. Returns it.
+//
+// Not t.TempDir: services can still be flushing files there as the test ends,
+// and t.TempDir fails the test when it can't remove a non-empty directory.
 func IsolateAppDirs(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
+	dir, err := os.MkdirTemp("", "adex-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
 	for _, k := range []string{"HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "APPDATA", "LOCALAPPDATA"} {
 		t.Setenv(k, dir)
 	}

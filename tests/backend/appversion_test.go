@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"bytes"
 	"os"
 	"regexp"
 	"testing"
@@ -23,6 +24,8 @@ func TestParseVersionFromRealConfig(t *testing.T) {
 		t.Fatalf("version %q is not bare semver", v)
 	}
 	// Cross-check with a plain text match, independent of the YAML parser.
+	// A Windows checkout may have CRLF line endings.
+	data = bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))
 	m := regexp.MustCompile(`(?m)^info:\n(?:[ \t]+.*\n)*?[ \t]+version:[ \t]*"?v?([^"\n]+)"?`).FindSubmatch(data)
 	if m == nil || string(m[1]) != v {
 		t.Fatalf("ParseVersion = %q, info.version in file = %q", v, m)

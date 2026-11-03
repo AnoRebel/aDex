@@ -3,6 +3,7 @@ package tests
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -21,6 +22,9 @@ func TestServiceStartupSurfacesInitFailure(t *testing.T) {
 	// Making the data directory a regular file means every attempt to
 	// create or read a directory beneath it fails.
 	IsolateAppDirs(t)
+	if err := os.MkdirAll(filepath.Dir(appdir.Data()), 0o755); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
 	if err := os.WriteFile(appdir.Data(), []byte("not a directory"), 0o644); err != nil {
 		t.Fatalf("setup: %v", err)
 	}

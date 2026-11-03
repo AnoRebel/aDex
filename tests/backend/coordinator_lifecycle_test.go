@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"aDex/internal/services/coordinator"
 	"aDex/internal/events"
+	"aDex/internal/services/coordinator"
 )
 
 // TestCoordinator_FullLifecycle proves Initialize → Shutdown completes
