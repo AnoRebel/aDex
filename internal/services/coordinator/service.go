@@ -1,6 +1,7 @@
 package coordinator
 
 import (
+	"aDex/internal/appdir"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -119,8 +120,10 @@ func (sc *ServiceCoordinator) Initialize(ctx context.Context) error {
 	// Create context with cancellation
 	sc.ctx, sc.cancel = context.WithCancel(ctx)
 
-	// Get data directory for services
-	dataDir := filepath.Join(".", "data")
+	// Per-user data directory. Never relative to the working directory: an
+	// AppImage starts inside its read-only mount, and an installed binary
+	// can start from anywhere.
+	dataDir := appdir.Data()
 	configPath := filepath.Join(dataDir, "colorscheme-config.json")
 	schemesDir := filepath.Join(dataDir, "colorschemes")
 	fontConfigPath := filepath.Join(dataDir, "font-config.json")

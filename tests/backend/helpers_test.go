@@ -3,7 +3,6 @@ package tests
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -24,20 +23,7 @@ func NewTestCoordinator(t *testing.T) (*coordinator.ServiceCoordinator, string) 
 	// suspends the oto context and the coordinator's Shutdown() drains
 	// the event bus. Tests can run the full coordinator lifecycle.
 
-	dir := t.TempDir()
-	// Some services hard-code "./data" relative paths; cd into the temp dir
-	// so they don't pollute the repo when tests run.
-	prev, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("chdir tempdir: %v", err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(prev) })
-	if err := os.MkdirAll(filepath.Join(dir, "data"), 0o755); err != nil {
-		t.Fatalf("mkdir data: %v", err)
-	}
+	dir := IsolateAppDirs(t)
 
 	sc := coordinator.NewServiceCoordinator()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -59,6 +45,33 @@ func NewTestCoordinator(t *testing.T) (*coordinator.ServiceCoordinator, string) 
 	})
 
 	return sc, dir
+}
+
+// TestMain keeps every test in this package away from the real config and
+// data directories: services resolve them from the environment, so a test
+// that forgets IsolateAppDirs would otherwise write into the user's own.
+func TestMain(m *testing.M) {
+	dir, err := os.MkdirTemp("", "adex-tests-")
+	if err != nil {
+		panic(err)
+	}
+	for _, k := range []string{"HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "APPDATA", "LOCALAPPDATA"} {
+		_ = os.Setenv(k, dir)
+	}
+	code := m.Run()
+	_ = os.RemoveAll(dir)
+	os.Exit(code)
+}
+
+// IsolateAppDirs points the app's config and data directories at a fresh
+// temp dir for the test, so services never touch the real ones. Returns it.
+func IsolateAppDirs(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	for _, k := range []string{"HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "APPDATA", "LOCALAPPDATA"} {
+		t.Setenv(k, dir)
+	}
+	return dir
 }
 
 // AssertNoErr fails the test if err is non-nil with a labelled message.

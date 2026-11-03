@@ -20,6 +20,7 @@ func TestCoordinator_FullLifecycle(t *testing.T) {
 		t.Skip("PTY init path differs on windows")
 	}
 
+	IsolateAppDirs(t)
 	sc := coordinator.NewServiceCoordinator()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

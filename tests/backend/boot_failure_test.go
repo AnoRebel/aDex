@@ -3,10 +3,10 @@ package tests
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
+	"aDex/internal/appdir"
 	"aDex/internal/services/coordinator"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -18,20 +18,11 @@ import (
 // ServiceStartup returns non-nil, so propagating the error is what makes
 // the failure visible instead of the app disappearing without explanation.
 func TestServiceStartupSurfacesInitFailure(t *testing.T) {
-	// Service data resolves relative to the working directory. Making
-	// `data` a regular file means every attempt to read a directory
-	// beneath it fails.
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "data"), []byte("not a directory"), 0o644); err != nil {
+	// Making the data directory a regular file means every attempt to
+	// create or read a directory beneath it fails.
+	IsolateAppDirs(t)
+	if err := os.WriteFile(appdir.Data(), []byte("not a directory"), 0o644); err != nil {
 		t.Fatalf("setup: %v", err)
-	}
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("getwd: %v", err)
-	}
-	t.Cleanup(func() { _ = os.Chdir(wd) })
-	if err := os.Chdir(dir); err != nil {
-		t.Fatalf("chdir: %v", err)
 	}
 
 	sc := coordinator.NewServiceCoordinator()

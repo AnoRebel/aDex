@@ -11,6 +11,7 @@ import (
 // Verifies ServiceShutdown is idempotent and does not deadlock when called
 // repeatedly (spec: application-lifecycle — "Cleanup is requested more than once").
 func TestShutdownIdempotentNoDeadlock(t *testing.T) {
+	IsolateAppDirs(t)
 	sc := coordinator.NewServiceCoordinator()
 	if err := sc.Initialize(context.Background()); err != nil {
 		t.Fatalf("initialize: %v", err)

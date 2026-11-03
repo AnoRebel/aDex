@@ -112,7 +112,7 @@ func (s *Service) CreateTerminalIn(ctx context.Context, width, height int, cwd s
 	cmd.Dir = startDir
 
 	// Set up environment
-	cmd.Env = os.Environ()
+	cmd.Env = shellEnv(os.Environ())
 	cmd.Env = append(cmd.Env, "TERM=xterm-256color")
 
 	// Start PTY
