@@ -274,7 +274,7 @@ The `release` job in `.github/workflows/build.yml` runs
    arches without an AppImage get the raw binary so their users are still
    notified).
 2. Runs `wails3 updater manifest -version <tag without v> -key <key>
-   -url-prefix https://github.com/AnoRebel/aDex-UI/releases/download/<tag>/
+   -url-prefix https://github.com/AnoRebel/aDex/releases/download/<tag>/
    -output update-manifest.json` over them.
 3. Runs `wails3 updater verify -manifest update-manifest.json -publickey
    build/adex.key.pub`, and fails if any built platform/arch is missing from

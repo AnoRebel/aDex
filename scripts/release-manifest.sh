@@ -23,7 +23,7 @@ dir=$2
 key=$(realpath "$3")
 pub=$(realpath "$4")
 version=${tag#v}
-repo=${GITHUB_REPOSITORY:-AnoRebel/aDex-UI}
+repo=${GITHUB_REPOSITORY:-AnoRebel/aDex}
 
 cd "$dir"
 shopt -s nullglob

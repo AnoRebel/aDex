@@ -14,9 +14,9 @@ import (
 
 // ManifestURL is the signed update manifest attached to the latest stable
 // release. GitHub's /latest/ alias skips drafts and pre-releases.
-const ManifestURL = "https://github.com/AnoRebel/aDex-UI/releases/latest/download/update-manifest.json"
+const ManifestURL = "https://github.com/AnoRebel/aDex/releases/latest/download/update-manifest.json"
 
-const releasePageBase = "https://github.com/AnoRebel/aDex-UI/releases/tag/v"
+const releasePageBase = "https://github.com/AnoRebel/aDex/releases/tag/v"
 
 // Info is the updater's status as the frontend sees it.
 type Info struct {
