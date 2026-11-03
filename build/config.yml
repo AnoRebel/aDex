@@ -15,7 +15,7 @@ info:
   description: "A modern science fiction desktop environment terminal application"
   copyright: "Copyright © 2026"
   comments: "A modern science fiction desktop environment terminal application"
-  version: "1.0.0"
+  version: "1.1.0"
 
 # Dev mode configuration
 dev_mode:
