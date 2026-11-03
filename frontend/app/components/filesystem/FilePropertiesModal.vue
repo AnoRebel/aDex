@@ -13,53 +13,53 @@
         <div class="fp-header">
           <div id="fp-title" class="fp-title">
             <span class="fp-bracket">[</span>
-            PROPERTIES
+            {{ t('files.menu.properties') }}
             <span class="fp-bracket">]</span>
           </div>
-          <button class="fp-close" type="button" @click="close" aria-label="Close">
+          <button class="fp-close" type="button" @click="close" :aria-label="t('common.close')">
             X
           </button>
         </div>
 
-        <div v-if="loading" class="fp-state">Loading…</div>
+        <div v-if="loading" class="fp-state">{{ t('files.properties.loading') }}</div>
         <div v-else-if="error" class="fp-state fp-state-error">{{ error }}</div>
         <dl v-else class="fp-grid">
           <div class="fp-row">
-            <dt>Name</dt>
+            <dt>{{ t('files.properties.name') }}</dt>
             <dd class="fp-truncate">{{ info?.name }}</dd>
           </div>
           <div class="fp-row">
-            <dt>Path</dt>
+            <dt>{{ t('files.properties.path') }}</dt>
             <dd class="fp-truncate" :title="info?.path">{{ info?.path }}</dd>
           </div>
           <div class="fp-row">
-            <dt>Type</dt>
-            <dd>{{ info?.isDir ? 'Directory' : 'File' }}</dd>
+            <dt>{{ t('files.properties.type') }}</dt>
+            <dd>{{ info?.isDir ? t('files.properties.directory') : t('files.properties.file') }}</dd>
           </div>
           <div class="fp-row">
-            <dt>Size</dt>
+            <dt>{{ t('files.properties.size') }}</dt>
             <dd>{{ humanSize(info?.size) }}</dd>
           </div>
           <div class="fp-row">
-            <dt>Modified</dt>
+            <dt>{{ t('files.properties.modified') }}</dt>
             <dd>{{ formatDate(info?.modTime) }}</dd>
           </div>
           <div class="fp-row">
-            <dt>Permissions</dt>
+            <dt>{{ t('files.properties.permissions') }}</dt>
             <dd class="fp-mono">{{ info?.permissions || '—' }}</dd>
           </div>
           <div class="fp-row">
-            <dt>Owner</dt>
+            <dt>{{ t('files.properties.owner') }}</dt>
             <dd>{{ info?.owner || '—' }}</dd>
           </div>
           <div class="fp-row">
-            <dt>Group</dt>
+            <dt>{{ t('files.properties.group') }}</dt>
             <dd>{{ info?.group || '—' }}</dd>
           </div>
         </dl>
 
         <div class="fp-actions">
-          <button class="fp-btn" type="button" @click="close">CLOSE</button>
+          <button class="fp-btn" type="button" @click="close">{{ t('dialogs.close') }}</button>
         </div>
       </div>
     </div>
@@ -77,6 +77,7 @@
  */
 import { ref, watch } from 'vue'
 import { GetFileInfo } from '~/lib/wailsjs/coordinator'
+import { useI18n } from '~/composables/useI18n'
 
 interface FileInfo {
   name?: string
@@ -99,6 +100,7 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
 }>()
 
+const { t } = useI18n()
 const info = ref<FileInfo | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -117,7 +119,7 @@ watch(
     try {
       info.value = (await GetFileInfo(path)) as FileInfo
     } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to load info'
+      error.value = e instanceof Error ? e.message : t('files.properties.loadFailed')
     } finally {
       loading.value = false
     }

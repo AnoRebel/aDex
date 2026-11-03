@@ -19,7 +19,7 @@
         <p :id="`cd-body-${id}`" class="cd-body">{{ message }}</p>
         <div class="cd-actions">
           <button ref="cancelBtn" type="button" class="cd-btn" @click="cancel">
-            {{ cancelLabel ?? 'CANCEL' }}
+            {{ cancelLabel ?? t('dialogs.cancel') }}
           </button>
           <button
             type="button"
@@ -27,7 +27,7 @@
             :class="danger ? 'cd-btn-danger' : 'cd-btn-primary'"
             @click="confirm"
           >
-            {{ confirmLabel ?? 'OK' }}
+            {{ confirmLabel ?? t('dialogs.ok') }}
           </button>
         </div>
       </div>
@@ -43,6 +43,7 @@
  * or click the danger button.
  */
 import { ref, watch, nextTick, useId } from 'vue'
+import { useI18n } from '~/composables/useI18n'
 
 const props = defineProps<{
   modelValue: boolean
@@ -59,6 +60,7 @@ const emit = defineEmits<{
   (e: 'cancel'): void
 }>()
 
+const { t } = useI18n()
 const id = useId()
 const cancelBtn = ref<HTMLButtonElement | null>(null)
 

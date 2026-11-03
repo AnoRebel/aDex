@@ -24,6 +24,21 @@ vi.mock('@wailsio/runtime', () => ({
     SetFrameless: vi.fn(async () => undefined),
   },
   Application: { Quit: vi.fn(async () => undefined) },
+  Browser: { OpenURL: vi.fn(async () => undefined) },
+  Updater: {
+    Events: {
+      CheckStarted: 'wails:updater:check-started',
+      UpdateAvailable: 'wails:updater:update-available',
+      NoUpdate: 'wails:updater:no-update',
+      DownloadStarted: 'wails:updater:download-started',
+      DownloadProgress: 'wails:updater:download-progress',
+      DownloadComplete: 'wails:updater:download-complete',
+      Verifying: 'wails:updater:verifying',
+      Installing: 'wails:updater:installing',
+      UpdateReady: 'wails:updater:update-ready',
+      Error: 'wails:updater:error',
+    },
+  },
 
   // The generated bindings import these directly — `Call` and
   // `CancellablePromise` to invoke bound Go methods, `Create` to rebuild

@@ -1,8 +1,8 @@
 <template>
   <div class="mod-panel mod-geo-globe">
     <div class="section-title">
-      <span>WORLD VIEW</span>
-      <span class="section-title-right">COUNTRIES</span>
+      <span>{{ t('panels.globe.title') }}</span>
+      <span class="section-title-right">{{ t('panels.globe.countries') }}</span>
     </div>
 
     <div ref="containerRef" class="globe-container">
@@ -14,11 +14,11 @@
          full value when CSS ellipsis-truncates the row. -->
     <div class="geo-globe-meta">
       <div class="geo-row">
-        <span>ENDPOINT</span>
+        <span>{{ t('panels.globe.endpoint') }}</span>
         <span :title="endpointLabel">{{ endpointLabel }}</span>
       </div>
       <div class="geo-row">
-        <span>LOCATION</span>
+        <span>{{ t('panels.globe.location') }}</span>
         <span class="geo-truncate" :title="locationLabel">{{ locationLabel }}</span>
       </div>
       <div v-if="ispName" class="geo-row">
@@ -26,7 +26,7 @@
         <span class="geo-truncate" :title="ispName">{{ ispName }}</span>
       </div>
       <div class="geo-row">
-        <span>CONNECTIONS</span>
+        <span>{{ t('panels.globe.connections') }}</span>
         <span>{{ activeConnectionCount }}</span>
       </div>
     </div>
@@ -58,7 +58,10 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useDocumentVisibility, useResizeObserver, useDevicePixelRatio } from '@vueuse/core'
 import { feature } from 'topojson-client'
 import { useNetworkStore } from '~/stores/network'
+import { useI18n } from '~/composables/useI18n'
 import { GetSelfGeoIP } from '~/lib/wailsjs/coordinator'
+
+const { t } = useI18n()
 
 const containerRef = ref<HTMLElement | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -92,7 +95,7 @@ const locationLabel = computed(() => {
   const { city, country } = geo.value
   // 'Resolving...' rather than a dash, matching the classic globe: the
   // lookup is asynchronous and usually does land.
-  return [city, country].filter(Boolean).join(', ') || 'Resolving...'
+  return [city, country].filter(Boolean).join(', ') || t('panels.globe.resolving')
 })
 
 let worker: Worker | null = null

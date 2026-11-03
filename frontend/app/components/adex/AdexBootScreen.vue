@@ -16,7 +16,7 @@
             aDex
           </h1>
           <div class="boot-subtitle" :class="{ show: subtitleVisible }">
-            ADVANCED DESKTOP EXPERIENCE
+            {{ t('boot.subtitle') }}
           </div>
         </div>
 
@@ -30,7 +30,7 @@
           >
             <span class="boot-message-icon">{{ levelIcon(msg.level) }}</span>
             <span class="boot-message-tag">[{{ msg.tag }}]</span>
-            <span class="boot-message-text">{{ msg.text }}</span>
+            <span class="boot-message-text">{{ msg.textKey ? t(msg.textKey) : msg.text }}</span>
           </div>
         </div>
 
@@ -61,6 +61,9 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { onKeyStroke } from '@vueuse/core'
 import { useAdexAudio } from '~/composables/useAdexAudio'
 import { Events } from '~/lib/wailsjs/runtime'
+import { useI18n } from '~/composables/useI18n'
+
+const { t } = useI18n()
 
 // ---- Types ----
 
@@ -81,6 +84,8 @@ interface BootMessage {
   level: BootLevel
   tag: string
   text: string
+  /** Translation key for canned rows; backend rows carry `text` as-is. */
+  textKey?: string
   done: boolean
   current: boolean
   delay: number
@@ -124,15 +129,15 @@ const glitchActive = ref(false)
 const progressPercent = ref(0)
 
 const bootMessages: BootMessage[] = [
-  { level: 'wait',    tag: 'config',    text: 'Loading settings...',                       done: false, current: false, delay: 180 },
-  { level: 'wait',    tag: 'theme',     text: 'Initializing theme engine...',              done: false, current: false, delay: 220 },
-  { level: 'wait',    tag: 'keyboard',  text: 'Loading keyboard layout...',                done: false, current: false, delay: 160 },
-  { level: 'wait',    tag: 'audio',     text: 'Initializing audio cue system...',          done: false, current: false, delay: 200 },
-  { level: 'wait',    tag: 'system',    text: 'Probing CPU / memory / processes...',       done: false, current: false, delay: 240 },
-  { level: 'wait',    tag: 'network',   text: 'Resolving network interfaces...',           done: false, current: false, delay: 280 },
-  { level: 'wait',    tag: 'filesystem',text: 'Mounting filesystem service...',            done: false, current: false, delay: 200 },
-  { level: 'wait',    tag: 'terminal',  text: 'Spawning PTY service...',                   done: false, current: false, delay: 260 },
-  { level: 'success', tag: 'kernel',    text: 'aDex ready — handing off to UI',         done: false, current: false, delay: 160 },
+  { level: 'wait',    tag: 'config',     text: '', textKey: 'boot.steps.loadingSettings', done: false, current: false, delay: 180 },
+  { level: 'wait',    tag: 'theme',      text: '', textKey: 'boot.steps.themeEngine',    done: false, current: false, delay: 220 },
+  { level: 'wait',    tag: 'keyboard',   text: '', textKey: 'boot.steps.keyboardLayout', done: false, current: false, delay: 160 },
+  { level: 'wait',    tag: 'audio',      text: '', textKey: 'boot.steps.audioCues',      done: false, current: false, delay: 200 },
+  { level: 'wait',    tag: 'system',     text: '', textKey: 'boot.steps.probing',        done: false, current: false, delay: 240 },
+  { level: 'wait',    tag: 'network',    text: '', textKey: 'boot.steps.network',        done: false, current: false, delay: 280 },
+  { level: 'wait',    tag: 'filesystem', text: '', textKey: 'boot.steps.filesystem',     done: false, current: false, delay: 200 },
+  { level: 'wait',    tag: 'terminal',   text: '', textKey: 'boot.steps.pty',            done: false, current: false, delay: 260 },
+  { level: 'success', tag: 'kernel',     text: '', textKey: 'boot.steps.ready',          done: false, current: false, delay: 160 },
 ]
 
 const visibleMessages = ref<BootMessage[]>([])

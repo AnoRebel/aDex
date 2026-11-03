@@ -36,25 +36,25 @@
     <div class="adex-scanlines" aria-hidden="true" />
 
     <!-- TOP NAVIGATION BAR -->
-    <nav class="adex-topbar" role="navigation" aria-label="Section navigation">
+    <nav class="adex-topbar" role="navigation" :aria-label="t('app.topbar.sectionNav')">
       <div
         class="topbar-section"
         :class="{ active: regions.left }"
-        title="Show or hide the left panel column"
+        :title="t('app.topbar.toggleLeft')"
         @click="toggleRegion('left')"
-      >PANEL</div>
+      >{{ t('app.topbar.panel') }}</div>
       <div
         class="topbar-section"
         :class="{ active: regions.bottom }"
-        title="Show or hide the file manager and keyboard"
+        :title="t('app.topbar.toggleBottom')"
         @click="toggleRegion('bottom')"
-      >SYSTEM</div>
+      >{{ t('app.topbar.system') }}</div>
       <div
         class="topbar-section"
         :class="{ active: regions.terminal }"
-        title="Show or hide the terminal"
+        :title="t('app.topbar.toggleTerminal')"
         @click="toggleRegion('terminal')"
-      >TERMINAL</div>
+      >{{ t('app.topbar.terminal') }}</div>
 
       <div class="topbar-spacer" />
 
@@ -65,7 +65,7 @@
         :key="tab.id"
         class="topbar-section"
         :class="{ active: activeTabIndex === idx, 'topbar-section-dead': tab.dead }"
-        :title="tab.dead ? 'Click to restart this shell' : 'Double-click to rename'"
+        :title="tab.dead ? t('app.tabs.restartHint') : t('app.tabs.renameHint')"
         @click="switchTab(idx)"
         @dblclick.stop="startTabRename(idx)"
       >
@@ -91,46 +91,46 @@
         v-for="n in (MAX_TABS - shellTabs.length)"
         :key="'empty-' + n"
         class="topbar-section topbar-section-empty"
-        :title="'New shell'"
+        :title="t('app.tabs.newShell')"
         @click="addTab"
-      >EMPTY</div>
+      >{{ t('app.tabs.empty') }}</div>
 
       <div class="topbar-spacer" />
 
       <div
         class="topbar-section"
         :class="{ active: regions.right }"
-        title="Show or hide the right panel column"
+        :title="t('app.topbar.toggleRight')"
         @click="toggleRegion('right')"
-      >PANEL</div>
+      >{{ t('app.topbar.panel') }}</div>
       <div
         class="topbar-section"
         :class="{ active: regions.network }"
-        title="Show or hide the network panels"
+        :title="t('app.topbar.toggleNetwork')"
         @click="toggleRegion('network')"
-      >NETWORK</div>
+      >{{ t('app.topbar.network') }}</div>
 
       <!-- Window controls — pinned right -->
-      <div class="topbar-window-controls" role="group" aria-label="Window controls">
+      <div class="topbar-window-controls" role="group" :aria-label="t('app.window.controls')">
         <button
           type="button"
           class="topbar-wctl"
-          aria-label="Open settings (Ctrl+,)"
-          title="Settings (Ctrl+,)"
+          :aria-label="t('app.window.openSettings')"
+          :title="t('app.window.settings')"
           @click="showSettings = !showSettings"
         >&#x2699;</button>
         <button
           type="button"
           class="topbar-wctl"
-          aria-label="Toggle fullscreen"
-          title="Toggle fullscreen"
+          :aria-label="t('app.window.fullscreen')"
+          :title="t('app.window.fullscreen')"
           @click="onToggleMaximize"
         >&#x25A1;</button>
         <button
           type="button"
           class="topbar-wctl topbar-wctl-close"
-          aria-label="Quit aDex-UI"
-          title="Quit"
+          :aria-label="t('app.window.quitApp')"
+          :title="t('app.window.quit')"
           @click="onRequestQuit"
         >&#x00D7;</button>
       </div>
@@ -181,10 +181,10 @@
               :key="tab.id"
               class="shell-tab"
               :class="{ active: activeTabIndex === idx, 'shell-tab-dead': tab.dead }"
-              :title="tab.dead ? 'Click to restart this shell' : tab.title"
+              :title="tab.dead ? t('app.tabs.restartHint') : tab.title"
               @click="switchTab(idx)"
             >
-              <span>{{ tab.title || ('SHELL ' + (idx + 1)) }}{{ tab.dead ? ' [DEAD]' : '' }}</span>
+              <span>{{ tab.dead ? t('app.tabs.dead', { title: tab.title || t('app.tabs.shell', { n: idx + 1 }) }) : (tab.title || t('app.tabs.shell', { n: idx + 1 })) }}</span>
             </div>
             <!-- Empty tab slots -->
             <div
@@ -194,7 +194,7 @@
               style="opacity: 0.3;"
               @click="addTab"
             >
-              <span>EMPTY</span>
+              <span>{{ t('app.tabs.empty') }}</span>
             </div>
           </div>
 
@@ -207,7 +207,7 @@
               v-for="(tab, idx) in shellTabs"
               v-show="activeTabIndex === idx"
               :key="'eb-' + tab.id"
-              label="TERMINAL"
+:label="t('app.topbar.terminal')"
               auto-retry
             >
               <AdexTerminal
@@ -231,12 +231,12 @@
                 @click="addTab"
               >
                 <span class="shell-empty-cta-symbol">▸</span>
-                <span>NEW SHELL</span>
+                <span>{{ t('app.shell.new') }}</span>
               </button>
               <p
                 v-if="lastShellError"
                 class="shell-empty-error"
-              >ERROR: {{ lastShellError }}</p>
+              >{{ t('app.shell.error', { message: lastShellError }) }}</p>
             </div>
           </div>
 
@@ -281,7 +281,7 @@
            a stale `@key="onVirtualKey"` listener was removed because the
            component never emits `key`. The @key prop dropped here on
            purpose to avoid implying a double-injection contract. -->
-      <ErrorBoundary label="KEYBOARD"><AdexKeyboard /></ErrorBoundary>
+      <ErrorBoundary :label="t('app.panels.keyboard')"><AdexKeyboard /></ErrorBoundary>
     </div>
 
     <!-- Session lock. Mounted at page level so it covers the whole shell,
@@ -322,20 +322,20 @@
         }"
         class="adex-quit-confirm-card mod-panel"
       >
-        <h3 id="adex-quit-confirm-title" class="adex-quit-confirm-title">QUIT aDex-UI?</h3>
-        <p class="adex-quit-confirm-body">All shell sessions will be terminated.</p>
+        <h3 id="adex-quit-confirm-title" class="adex-quit-confirm-title">{{ t('app.quit.title') }}</h3>
+        <p class="adex-quit-confirm-body">{{ t('app.quit.body') }}</p>
         <div class="adex-quit-confirm-actions">
           <button
             type="button"
             class="adex-quit-btn"
             @click="showQuitConfirm = false"
-          >CANCEL</button>
+          >{{ t('app.quit.cancel') }}</button>
           <button
             type="button"
             class="adex-quit-btn adex-quit-btn-primary"
             data-test="quit-confirm"
             @click="onConfirmQuit"
-          >QUIT</button>
+          >{{ t('app.quit.confirm') }}</button>
         </div>
       </div>
     </div>
@@ -410,6 +410,9 @@ interface SettingsPayload {
 }
 import { useUpdateChecker } from '~/composables/useUpdateChecker'
 import { useSettingsPersistence } from '~/composables/useSettingsPersistence'
+import { useI18n } from '~/composables/useI18n'
+
+const { t } = useI18n()
 
 // Stores
 const systemStore = useSystemStore()
@@ -444,7 +447,7 @@ const renamingTabIndex = ref<number | null>(null)
 const renamingDraft = ref('')
 
 function defaultTabTitle(idx: number): string {
-  return idx === 0 ? 'MAIN SHELL' : `SHELL ${idx + 1}`
+  return idx === 0 ? t('app.tabs.main') : t('app.tabs.shell', { n: idx + 1 })
 }
 
 function tabDisplayTitle(idx: number): string {
@@ -617,8 +620,8 @@ const layoutSettings = useStorage<{ display?: { layout?: string } }>(
 const activeLayout = computed<string>(() => {
   const userPick = (layoutSettings.value?.display?.layout ?? '').trim()
   if (userPick) return userPick
-  const t = themeStore as { activeLayout?: string; currentTheme?: { layout?: string } | null }
-  return t.activeLayout ?? t.currentTheme?.layout ?? 'default'
+  const theme = themeStore as { activeLayout?: string; currentTheme?: { layout?: string } | null }
+  return theme.activeLayout ?? theme.currentTheme?.layout ?? 'default'
 })
 
 /* Custom layouts ---------------------------------------------------------
@@ -716,10 +719,8 @@ function onBootComplete() {
 
   // Update check — fire-and-forget. The composable honors the user's
   // interval preference (manual / launch / daily / weekly), so this
-  // call no-ops if checks aren't due. We delay by 1.5s after boot so
-  // the initial paint isn't competing with a fetch + JSON parse on
-  // the same frame; long enough to feel snappy, short enough that
-  // the user won't see the modal pop in jarringly.
+  // call no-ops if checks aren't due. The 1.5s delay keeps the check
+  // off the first paint without the modal popping in jarringly late.
   useTimeoutFn(async () => {
     try {
       await updateChecker.maybeCheckOnLaunch()
@@ -728,7 +729,7 @@ function onBootComplete() {
       }
     } catch (err) {
       // Update checks are best-effort — log and move on so a
-      // GitHub outage doesn't visibly impact app startup.
+      // network failure doesn't visibly impact app startup.
       console.warn('[updates] launch check failed:', err)
     }
   }, 1500)
@@ -861,7 +862,7 @@ function switchTab(idx: number) {
 // scoped EventsOn listener inside AdexTerminal. Mark the tab so the
 // strip shows it as DEAD; the user can click to restart.
 function onTerminalExited(sessionId: string) {
-  const tab = shellTabs.value.find((t) => t.sessionId === sessionId)
+  const tab = shellTabs.value.find((s) => s.sessionId === sessionId)
   if (!tab) return
   tab.dead = true
 }
@@ -932,7 +933,7 @@ const shellStatusLeft = computed(() => {
   const tab = shellTabs.value[activeTabIndex.value]
   if (!tab) return ''
   const session = terminalStore.activeSession
-  if (!session) return 'No active session'
+  if (!session) return t('app.shell.noSession')
   const cwd = liveCwds.value[session.id] || session.workingDirectory || '~'
   return `${session.shell ?? '/bin/bash'}  --  ${cwd}`
 })

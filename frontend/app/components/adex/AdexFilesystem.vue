@@ -3,11 +3,11 @@
     <!-- Header -->
     <div class="fs-header">
       <div class="fs-header-left">
-        <span class="fs-header-title">FILESYSTEM</span>
-        <button class="fs-header-btn" @click="toggleDotfiles" :title="showDotfiles ? 'Hide dotfiles' : 'Show dotfiles'">
+        <span class="fs-header-title">{{ t('files.title') }}</span>
+        <button class="fs-header-btn" @click="toggleDotfiles" :title="showDotfiles ? t('files.hideDotfiles') : t('files.showDotfiles')">
           {{ showDotfiles ? '[.*]' : '[a-z]' }}
         </button>
-        <button class="fs-header-btn" @click="toggleViewMode" :title="viewMode === 'grid' ? 'List view' : 'Grid view'">
+        <button class="fs-header-btn" @click="toggleViewMode" :title="viewMode === 'grid' ? t('files.listView') : t('files.gridView')">
           {{ viewMode === 'grid' ? '=#' : '::' }}
         </button>
       </div>
@@ -30,10 +30,10 @@
         <div
           class="fs-item fs-item-special"
           @click="showDisks"
-          title="Show disk mounts"
+          :title="t('files.showDisksTitle')"
         >
           <div class="fs-item-icon">[/]</div>
-          <div class="fs-item-name">Show disks</div>
+          <div class="fs-item-name">{{ t('files.showDisks') }}</div>
         </div>
 
         <!-- Go up item -->
@@ -41,10 +41,10 @@
           v-if="currentPath !== '/'"
           class="fs-item fs-item-special"
           @click="goUp"
-          title="Go to parent directory"
+          :title="t('files.goUpTitle')"
         >
           <div class="fs-item-icon">[..]</div>
-          <div class="fs-item-name">Go up</div>
+          <div class="fs-item-name">{{ t('files.goUp') }}</div>
         </div>
 
         <!-- Directories -->
@@ -78,7 +78,7 @@
 
         <!-- Empty directory message -->
         <div v-if="filteredDirectories.length === 0 && filteredFiles.length === 0" class="fs-empty">
-          DIRECTORY EMPTY
+          {{ t('files.empty') }}
         </div>
       </div>
 
@@ -87,22 +87,22 @@
         <!-- List header -->
         <div class="fs-list-header">
           <span class="list-name" @click="setSortBy('name')">
-            NAME {{ sortBy === 'name' ? (sortOrder === 'asc' ? '^' : 'v') : '' }}
+            {{ t('files.columns.name') }} {{ sortBy === 'name' ? (sortOrder === 'asc' ? '^' : 'v') : '' }}
           </span>
           <span class="list-type" @click="setSortBy('type')">
-            TYPE {{ sortBy === 'type' ? (sortOrder === 'asc' ? '^' : 'v') : '' }}
+            {{ t('files.columns.type') }} {{ sortBy === 'type' ? (sortOrder === 'asc' ? '^' : 'v') : '' }}
           </span>
           <span class="list-size" @click="setSortBy('size')">
-            SIZE {{ sortBy === 'size' ? (sortOrder === 'asc' ? '^' : 'v') : '' }}
+            {{ t('files.columns.size') }} {{ sortBy === 'size' ? (sortOrder === 'asc' ? '^' : 'v') : '' }}
           </span>
           <span class="list-date" @click="setSortBy('modified')">
-            MODIFIED {{ sortBy === 'modified' ? (sortOrder === 'asc' ? '^' : 'v') : '' }}
+            {{ t('files.columns.modified') }} {{ sortBy === 'modified' ? (sortOrder === 'asc' ? '^' : 'v') : '' }}
           </span>
         </div>
 
         <!-- Show disks -->
         <div class="fs-list-item fs-list-item-special" @click="showDisks">
-          <span class="list-name">[/] Show disks</span>
+          <span class="list-name">[/] {{ t('files.showDisks') }}</span>
           <span class="list-type">--</span>
           <span class="list-size">--</span>
           <span class="list-date">--</span>
@@ -114,7 +114,7 @@
           class="fs-list-item fs-list-item-special"
           @click="goUp"
         >
-          <span class="list-name">[..] Go up</span>
+          <span class="list-name">[..] {{ t('files.goUp') }}</span>
           <span class="list-type">--</span>
           <span class="list-size">--</span>
           <span class="list-date">--</span>
@@ -134,8 +134,8 @@
             <FileIcon class="list-icon" :filename="dir.name" :is-directory="true" size="1.6vh" />
             {{ dir.name }}
           </span>
-          <span class="list-type">DIR</span>
-          <span class="list-size">{{ dir.itemCount != null ? dir.itemCount + ' items' : '--' }}</span>
+          <span class="list-type">{{ t('files.typeDir') }}</span>
+          <span class="list-size">{{ dir.itemCount != null ? t('files.itemCount', { count: dir.itemCount }) : '--' }}</span>
           <span class="list-date">{{ formatDate(dir.modified) }}</span>
         </div>
 
@@ -152,14 +152,14 @@
             <FileIcon class="list-icon" :filename="file.name" size="1.6vh" />
             {{ file.name }}
           </span>
-          <span class="list-type">{{ file.extension || 'FILE' }}</span>
+          <span class="list-type">{{ file.extension || t('files.typeFile') }}</span>
           <span class="list-size">{{ formatSize(file.size) }}</span>
           <span class="list-date">{{ formatDate(file.modified) }}</span>
         </div>
 
         <!-- Empty -->
         <div v-if="filteredDirectories.length === 0 && filteredFiles.length === 0" class="fs-list-item fs-empty-list">
-          <span class="list-name">DIRECTORY EMPTY</span>
+          <span class="list-name">{{ t('files.empty') }}</span>
           <span class="list-type">--</span>
           <span class="list-size">--</span>
           <span class="list-date">--</span>
@@ -169,7 +169,7 @@
       <!-- Disk list overlay -->
       <div v-if="showingDisks" class="fs-disk-list">
         <div class="fs-disk-list-header">
-          <span>MOUNT POINTS</span>
+          <span>{{ t('files.mountPoints') }}</span>
           <button class="fs-header-btn" @click="showingDisks = false">[X]</button>
         </div>
         <div
@@ -198,7 +198,7 @@
           </div>
         </div>
         <div v-if="diskMounts.length === 0" class="fs-disk-entry">
-          <span>Loading disk information...</span>
+          <span>{{ t('files.loadingDisks') }}</span>
         </div>
       </div>
     </div>
@@ -222,7 +222,7 @@
       :items="cmItems"
       :x="cmX"
       :y="cmY"
-      aria-label="File context menu"
+      :aria-label="t('files.menuLabel')"
     />
     <FilePropertiesModal
       v-model="propsOpen"
@@ -269,7 +269,9 @@ import FileIcon from '~/components/filesystem/FileIcon.vue'
 import FilePropertiesModal from '~/components/filesystem/FilePropertiesModal.vue'
 import InputPrompt from '~/components/ui/InputPrompt.vue'
 import ConfirmDialog from '~/components/ui/ConfirmDialog.vue'
+import { useI18n } from '~/composables/useI18n'
 
+const { t } = useI18n()
 const fsStore = useFilesystemStore()
 const terminalStore = useTerminalStore()
 const wails = useWails()
@@ -639,15 +641,15 @@ function joinPath(dir: string, name: string): string {
 }
 
 async function actOpen() {
-  const t = cmTarget.value
-  if (!t) return
-  if (t.isDirectory) {
-    navigateToDir(t.path)
+  const tgt = cmTarget.value
+  if (!tgt) return
+  if (tgt.isDirectory) {
+    navigateToDir(tgt.path)
   } else {
     // Inject `cd <containing dir>` + open in active terminal — best we
     // can do without an "open with" dialog yet.
     const session = terminalStore.activeSession
-    if (session) terminalStore.sendInput(`xdg-open "${t.path}"\n`, session.id)
+    if (session) terminalStore.sendInput(`xdg-open "${tgt.path}"\n`, session.id)
   }
 }
 
@@ -677,48 +679,48 @@ async function actPaste() {
 }
 
 function actRename() {
-  const t = cmTarget.value
-  if (!t) return
+  const tgt = cmTarget.value
+  if (!tgt) return
   openPrompt({
-    title: 'RENAME',
-    description: `Rename "${t.name}" inside ${currentPath.value}`,
-    initialValue: t.name,
-    confirmLabel: 'RENAME',
+    title: t('files.menu.rename'),
+    description: t('files.renameDescription', { name: tgt.name, path: currentPath.value }),
+    initialValue: tgt.name,
+    confirmLabel: t('files.menu.rename'),
     handler: async (newName: string) => {
-      if (newName === t.name) return
+      if (newName === tgt.name) return
       const dst = joinPath(currentPath.value, newName)
-      await MoveFile(t.path, dst)
+      await MoveFile(tgt.path, dst)
     },
   })
 }
 
 function actDelete() {
-  const t = cmTarget.value
-  if (!t) return
+  const tgt = cmTarget.value
+  if (!tgt) return
   openConfirm({
-    title: 'DELETE',
-    message: `Permanently delete "${t.name}"? This cannot be undone.`,
-    confirmLabel: 'DELETE',
+    title: t('files.menu.delete'),
+    message: t('files.deleteMessage', { name: tgt.name }),
+    confirmLabel: t('files.menu.delete'),
     danger: true,
     handler: async () => {
-      await DeleteFile(t.path)
+      await DeleteFile(tgt.path)
     },
   })
 }
 
 function actProperties() {
-  const t = cmTarget.value
-  if (!t) return
-  propsPath.value = t.path
+  const tgt = cmTarget.value
+  if (!tgt) return
+  propsPath.value = tgt.path
   propsOpen.value = true
 }
 
 function actNewFolder() {
   openPrompt({
-    title: 'NEW FOLDER',
-    description: `Create a new folder inside ${currentPath.value}`,
+    title: t('files.menu.newFolder'),
+    description: t('files.newFolderDescription', { path: currentPath.value }),
     placeholder: 'untitled',
-    confirmLabel: 'CREATE',
+    confirmLabel: t('files.create'),
     handler: async (name: string) => {
       await CreateDirectory(joinPath(currentPath.value, name))
     },
@@ -727,10 +729,10 @@ function actNewFolder() {
 
 function actNewFile() {
   openPrompt({
-    title: 'NEW FILE',
-    description: `Create an empty file inside ${currentPath.value}`,
+    title: t('files.menu.newFile'),
+    description: t('files.newFileDescription', { path: currentPath.value }),
     placeholder: 'untitled.txt',
-    confirmLabel: 'CREATE',
+    confirmLabel: t('files.create'),
     handler: async (name: string) => {
       await CreateFile(joinPath(currentPath.value, name))
     },
@@ -748,17 +750,17 @@ function actToggleHidden() {
 // ---- Menu items ----
 
 const cmItems = computed<ContextMenuItems>(() => {
-  const t = cmTarget.value
-  if (!t) {
+  const tgt = cmTarget.value
+  if (!tgt) {
     // Background menu (empty area)
     return [
       [
-        { label: 'NEW FOLDER',  icon: '[+]', onSelect: actNewFolder },
-        { label: 'NEW FILE',    icon: '[F]', onSelect: actNewFile },
+        { label: t('files.menu.newFolder'), icon: '[+]', onSelect: actNewFolder },
+        { label: t('files.menu.newFile'), icon: '[F]', onSelect: actNewFile },
       ],
       [
         {
-          label: fsClipboard.value ? 'PASTE' : 'PASTE',
+          label: t('files.menu.paste'),
           icon: '[v]',
           disabled: !fsClipboard.value,
           onSelect: actPaste,
@@ -766,11 +768,11 @@ const cmItems = computed<ContextMenuItems>(() => {
       ],
       [
         {
-          label: showDotfiles.value ? 'HIDE HIDDEN' : 'SHOW HIDDEN',
+          label: showDotfiles.value ? t('files.menu.hideHidden') : t('files.menu.showHidden'),
           icon: '[.]',
           onSelect: actToggleHidden,
         },
-        { label: 'REFRESH', icon: '[R]', kbds: ['F5'], onSelect: actRefresh },
+        { label: t('files.menu.refresh'), icon: '[R]', kbds: ['F5'], onSelect: actRefresh },
       ],
     ]
   }
@@ -778,25 +780,25 @@ const cmItems = computed<ContextMenuItems>(() => {
   return [
     [
       {
-        label: t.isDirectory ? 'OPEN' : 'OPEN WITH',
-        icon: t.isDirectory ? '[D]' : '[~]',
+        label: tgt.isDirectory ? t('files.menu.open') : t('files.menu.openWith'),
+        icon: tgt.isDirectory ? '[D]' : '[~]',
         onSelect: actOpen,
       },
     ],
     [
-      { label: 'COPY',  icon: '[c]', onSelect: actCopy },
-      { label: 'CUT',   icon: '[x]', onSelect: actCut },
+      { label: t('files.menu.copy'), icon: '[c]', onSelect: actCopy },
+      { label: t('files.menu.cut'), icon: '[x]', onSelect: actCut },
       {
-        label: 'PASTE',
+        label: t('files.menu.paste'),
         icon: '[v]',
         disabled: !fsClipboard.value,
         onSelect: actPaste,
       },
     ],
     [
-      { label: 'RENAME', icon: '[/]', onSelect: actRename },
+      { label: t('files.menu.rename'), icon: '[/]', onSelect: actRename },
       {
-        label: 'DELETE',
+        label: t('files.menu.delete'),
         icon: '[X]',
         kbds: ['Del'],
         danger: true,
@@ -804,7 +806,7 @@ const cmItems = computed<ContextMenuItems>(() => {
       },
     ],
     [
-      { label: 'PROPERTIES', icon: '[i]', onSelect: actProperties },
+      { label: t('files.menu.properties'), icon: '[i]', onSelect: actProperties },
     ],
   ]
 })

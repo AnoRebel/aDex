@@ -110,3 +110,20 @@ func TestValidateDisplay_KeepsGeoGlobeStyle(t *testing.T) {
 		t.Fatalf("globe style = %q, want it left as %q", s.Display.GlobeStyle, "geo")
 	}
 }
+
+func TestValidateDisplay_UnknownLanguageFollowsSystem(t *testing.T) {
+	s := models.DefaultUISettings()
+	s.Display.Language = "xx"
+
+	if !validateDisplay(s) {
+		t.Fatal("expected an unknown language to be reported as repaired")
+	}
+	if s.Display.Language != "" {
+		t.Fatalf("language = %q, want empty (follow system)", s.Display.Language)
+	}
+
+	s.Display.Language = "ja"
+	if validateDisplay(s) || s.Display.Language != "ja" {
+		t.Fatalf("a shipped language must be kept, got %q", s.Display.Language)
+	}
+}

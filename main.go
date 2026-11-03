@@ -13,6 +13,7 @@ import (
 	"aDex/internal/appdir"
 	"aDex/internal/services/coordinator"
 	"aDex/internal/services/settings"
+	"aDex/internal/services/updater"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -44,6 +45,21 @@ var trayIconLight []byte
 
 //go:embed build/assets/trayicon-dark.png
 var trayIconDark []byte
+
+// Build config, read for the app version (its single source of truth), and
+// the public half of the update signing key. Updates whose signature does not
+// verify against this key are refused; the private half lives only in CI.
+//
+//go:embed build/config.yml
+var buildConfig []byte
+
+//go:embed build/adex.key.pub
+var updaterPublicKey []byte
+
+// appVersion returns the version declared in build/config.yml.
+func appVersion() (string, error) {
+	return updater.ParseVersion(buildConfig)
+}
 
 // startPprofIfRequested exposes Go's profiler on localhost when ADEX_PPROF is
 // set to a port. Off by default and never bound to a public interface: this
@@ -122,6 +138,25 @@ func main() {
 			DisableQuitOnLastWindowClosed: true,
 		},
 	})
+
+	// A broken updater must never stop the app: the service reports itself
+	// unavailable and Settings shows why.
+	version, err := appVersion()
+	if err != nil {
+		log.Printf("updater: %v", err)
+	}
+	// ADEX_UPDATE_MANIFEST reads the manifest from another address, for
+	// trying an update against a local server. What it offers must still be
+	// signed with updaterPublicKey, so it cannot install anything else.
+	manifestURL := updater.ManifestURL
+	if override := os.Getenv("ADEX_UPDATE_MANIFEST"); override != "" {
+		manifestURL = override
+	}
+	updates, err := updater.NewService(app.Updater, version, updaterPublicKey, manifestURL)
+	if err != nil {
+		log.Printf("updater disabled: %v", err)
+	}
+	app.RegisterService(application.NewService(updates))
 
 	// Window sizing strategy:
 	//   - Width/Height are the fallback size, used when the window manager
@@ -203,7 +238,7 @@ func main() {
 	// the next unexplained exit at least says whether app.Run returned an
 	// error, returned cleanly, or never returned at all.
 	logSessionEvent("run: start")
-	err := app.Run()
+	err = app.Run()
 	if err != nil {
 		logSessionEvent("run: exited with error: " + err.Error())
 		log.Fatal(err)

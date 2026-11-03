@@ -25,9 +25,9 @@
           @keydown.enter="confirm"
         />
         <div class="ip-actions">
-          <button type="button" class="ip-btn" @click="cancel">CANCEL</button>
+          <button type="button" class="ip-btn" @click="cancel">{{ t('dialogs.cancel') }}</button>
           <button type="button" class="ip-btn ip-btn-primary" @click="confirm">
-            {{ confirmLabel }}
+            {{ confirmLabel ?? t('dialogs.ok') }}
           </button>
         </div>
       </div>
@@ -42,6 +42,7 @@
  * Cancel-on-Esc/Backdrop. Trimmed empty input is treated as Cancel.
  */
 import { ref, watch, nextTick, useId } from 'vue'
+import { useI18n } from '~/composables/useI18n'
 
 const props = defineProps<{
   modelValue: boolean
@@ -58,14 +59,10 @@ const emit = defineEmits<{
   (e: 'cancel'): void
 }>()
 
+const { t } = useI18n()
 const id = useId()
 const value = ref(props.initialValue ?? '')
 const inputRef = ref<HTMLInputElement | null>(null)
-const confirmLabel = computedConfirm()
-
-function computedConfirm() {
-  return props.confirmLabel ?? 'OK'
-}
 
 watch(
   () => props.modelValue,

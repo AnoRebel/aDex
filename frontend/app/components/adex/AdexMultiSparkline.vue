@@ -6,7 +6,7 @@
       :definition="definition"
       :height="chartHeight"
       class="multi-sparkline-chart"
-      :aria-label="ariaLabel"
+      :aria-label="ariaLabel || t('panels.sparkline.multiAriaLabel')"
     />
   </div>
 </template>
@@ -29,6 +29,9 @@ import { useElementSize } from '@vueuse/core'
 import { defineChart, lineY } from '@tanstack/charts'
 import { scaleLinear } from '@tanstack/charts/scales/linear'
 import { Chart } from '@tanstack/charts/vue'
+import { useI18n } from '~/composables/useI18n'
+
+const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
   /** One rolling buffer per series, oldest sample first. */
@@ -45,7 +48,6 @@ const props = withDefaults(defineProps<{
   scaleMax: 100,
   accent: '170, 207, 209',
   windowSize: 60,
-  ariaLabel: 'Per-core activity over time',
 })
 
 const containerRef = ref<HTMLElement | null>(null)

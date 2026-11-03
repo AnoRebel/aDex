@@ -10,7 +10,7 @@
         :series="topSeries"
         :accent="accentRgb"
         :window-size="HISTORY_LENGTH"
-        aria-label="CPU usage, first half of cores"
+        :aria-label="t('panels.cpu.chartFirstHalf')"
       />
     </div>
 
@@ -20,22 +20,22 @@
         :series="bottomSeries"
         :accent="accentRgb"
         :window-size="HISTORY_LENGTH"
-        aria-label="CPU usage, second half of cores"
+        :aria-label="t('panels.cpu.chartSecondHalf')"
       />
     </div>
 
     <!-- Stats row -->
     <div class="cpu-stats">
       <div>
-        <span class="stat-label">TEMP </span>
+        <span class="stat-label">{{ t('panels.cpu.temp') }} </span>
         <span>{{ temperatureDisplay }}</span>
       </div>
       <div>
-        <span class="stat-label">FREQ </span>
+        <span class="stat-label">{{ t('panels.cpu.freq') }} </span>
         <span>{{ frequencyDisplay }}</span>
       </div>
       <div>
-        <span class="stat-label">TASKS </span>
+        <span class="stat-label">{{ t('panels.cpu.tasks') }} </span>
         <span>{{ taskCount }}</span>
       </div>
     </div>
@@ -46,8 +46,11 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
 import { useSystemStore } from '~/stores/system'
+import { useI18n } from '~/composables/useI18n'
 import AdexMultiSparkline from '~/components/adex/AdexMultiSparkline.vue'
 import { GetTemperatures } from '~/lib/wailsjs/coordinator'
+
+const { t } = useI18n()
 
 const systemStore = useSystemStore()
 

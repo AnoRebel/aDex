@@ -245,6 +245,96 @@ task --list-all
 go test -v ./tests/backend/build_test.go
 ```
 
+## In-App Updates
+
+The app checks the update manifest attached to the latest stable release
+(`releases/latest/download/update-manifest.json`) and installs only artifacts
+whose ed25519 signature verifies against `build/adex.key.pub`, which is
+embedded in the binary.
+
+### What updates in place
+
+| Platform | In-app artifact | Updates in place when |
+|----------|-----------------|-----------------------|
+| macOS | `adex-darwin-<arch>.app.zip` | running from a `.app` bundle whose folder is writable |
+| Windows | `adex-windows-<arch>.exe` | the install folder is writable (the NSIS installer installs per user, to `%LOCALAPPDATA%\Programs\aDex`) |
+| Linux | `*.AppImage` | running from an AppImage in a writable folder |
+
+Everything else (`.deb`, `.rpm`, pacman packages, the raw Linux binary, and
+Linux architectures without an AppImage) is told about new releases and gets
+a link to the release page. The NSIS installer is never used for in-app
+updates.
+
+### Release signing
+
+The `release` job in `.github/workflows/build.yml` runs
+`scripts/release-manifest.sh`, which:
+
+1. Picks one in-app artifact per platform/arch (see the table above; Linux
+   arches without an AppImage get the raw binary so their users are still
+   notified).
+2. Runs `wails3 updater manifest -version <tag without v> -key <key>
+   -url-prefix https://github.com/AnoRebel/aDex-UI/releases/download/<tag>/
+   -output update-manifest.json` over them.
+3. Runs `wails3 updater verify -manifest update-manifest.json -publickey
+   build/adex.key.pub`, and fails if any built platform/arch is missing from
+   the manifest or listed twice.
+4. Writes `SHA256SUMS` over every asset, including the manifest.
+
+The private key comes from the `ADEX_UPDATER_KEY` repository secret. The job
+fails if it is missing, writes it to a `0600` temp file, and deletes it when
+the step ends. The key itself is never committed (`adex.key` is gitignored).
+
+To test the script locally, run it against a directory of release assets with
+a throwaway key:
+
+```bash
+wails3 updater genkey -out /tmp/test.key
+scripts/release-manifest.sh v1.2.3 ./assets /tmp/test.key /tmp/test.key.pub
+```
+
+### Trying an update locally
+
+`ADEX_UPDATE_MANIFEST` reads the manifest from another address. It changes
+only where the manifest comes from: what it offers must still be signed with
+the key the app carries.
+
+1. Set `info.version` in `build/config.yml` lower (say `0.9.0`), run
+   `wails3 task linux:create:appimage`, and keep the AppImage somewhere
+   writable. Restore the version and build again.
+2. Sign a manifest for the second build and serve it:
+
+   ```bash
+   cp bin/adex-x86_64.AppImage serve/adex-linux-amd64.AppImage
+   wails3 updater manifest -version 1.0.0 -name "aDex 1.0.0" -key adex.key \
+     -url-prefix http://127.0.0.1:8491/ -output serve/update-manifest.json \
+     serve/adex-linux-amd64.AppImage
+   python3 -m http.server 8491 -d serve
+   ```
+
+3. Run the first AppImage with
+   `ADEX_UPDATE_MANIFEST=http://127.0.0.1:8491/update-manifest.json`.
+   Settings → Updates → CHECK NOW then finds, downloads, verifies, installs
+   and restarts into it.
+
+### Key rotation
+
+Every shipped copy trusts only the key it was built with, so losing
+`adex.key` means no existing install can verify another update. Keep an
+offline backup. To rotate:
+
+1. Generate a new pair: `wails3 updater genkey -out adex-new.key`.
+2. Rename the current `build/adex.key.pub` to `build/adex.key.prev.pub` and
+   commit the new public key as `build/adex.key.pub`. Release once with
+   `ADEX_UPDATER_KEY` unchanged: that release is signed with the old key, so
+   existing installs accept it, and it embeds the new key. While
+   `adex.key.prev.pub` exists, CI verifies the manifest against it.
+3. After that release, replace the secret with the new private key
+   (`gh secret set ADEX_UPDATER_KEY < adex-new.key`) and delete
+   `build/adex.key.prev.pub`.
+
+Copies that skip the bridging release need one manual download.
+
 ## Maintenance
 
 ### Version Updates
@@ -262,7 +352,6 @@ go test -v ./tests/backend/build_test.go
 ## Future Enhancements
 
 ### Potential Improvements
-- **Auto-updater**: Built-in update mechanism
 - **Package Signing**: Enhanced security features
 - **Cloud Build**: Remote build service integration
 - **More Formats**: Additional package formats

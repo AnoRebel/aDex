@@ -470,20 +470,6 @@ export const useAppStore = defineStore('app', {
       }
     },
 
-    async checkForUpdates(): Promise<{ hasUpdate: boolean; version?: string }> {
-      try {
-        // The Go coordinator exposes no CheckForUpdates method, so this never
-        // had a backend to call: under v2 the `window.go` probe just failed
-        // its guard and fell through to the same result returned here. Real
-        // update checking runs in the frontend against GitHub Releases — see
-        // useUpdateChecker.
-        return { hasUpdate: false }
-      } catch (error) {
-        console.error('Failed to check for updates:', error)
-        return { hasUpdate: false }
-      }
-    },
-
     async quit(): Promise<void> {
       try {
         await this.cleanup()

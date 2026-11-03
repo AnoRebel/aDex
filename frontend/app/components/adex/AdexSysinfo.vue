@@ -1,19 +1,19 @@
 <template>
   <div class="mod-panel mod-sysinfo">
     <div class="section-title">
-      <span class="title-left">SYSTEM INFO</span>
+      <span class="title-left">{{ t('panels.sysinfo.title') }}</span>
     </div>
 
     <div class="sysinfo-row">
-      <span class="sysinfo-label">YEAR</span>
+      <span class="sysinfo-label">{{ t('panels.sysinfo.year') }}</span>
       <span class="sysinfo-value">{{ currentYear }}</span>
     </div>
     <div class="sysinfo-row">
-      <span class="sysinfo-label">DATE</span>
+      <span class="sysinfo-label">{{ t('panels.sysinfo.date') }}</span>
       <span class="sysinfo-value">{{ currentDate }}</span>
     </div>
     <div class="sysinfo-row">
-      <span class="sysinfo-label">UPTIME</span>
+      <span class="sysinfo-label">{{ t('panels.sysinfo.uptime') }}</span>
       <span class="sysinfo-value">{{ uptimeDisplay }}</span>
     </div>
     <div class="sysinfo-row">
@@ -21,11 +21,11 @@
       <span class="sysinfo-value sysinfo-value-truncated" :title="osDisplay">{{ osDisplay }}</span>
     </div>
     <div v-if="kernelDisplay" class="sysinfo-row">
-      <span class="sysinfo-label">KERNEL</span>
+      <span class="sysinfo-label">{{ t('panels.sysinfo.kernel') }}</span>
       <span class="sysinfo-value sysinfo-value-truncated" :title="kernelDisplay">{{ kernelDisplay }}</span>
     </div>
     <div class="sysinfo-row">
-      <span class="sysinfo-label">POWER</span>
+      <span class="sysinfo-label">{{ t('panels.sysinfo.power') }}</span>
       <span class="sysinfo-value" :title="powerDisplay">{{ powerDisplay }}</span>
     </div>
   </div>
@@ -36,7 +36,10 @@ import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useNow, useDateFormat } from '@vueuse/core'
 import { intervalToDuration } from 'date-fns'
 import { useSystemStore } from '~/stores/system'
+import { useI18n } from '~/composables/useI18n'
 import { GetPowerInfo } from '~/lib/wailsjs/coordinator'
+
+const { t } = useI18n()
 
 const systemStore = useSystemStore()
 
@@ -81,14 +84,14 @@ const uptimeDisplay = computed(() => {
   const mm = String(d.minutes ?? 0).padStart(2, '0')
   const ss = String(d.seconds ?? 0).padStart(2, '0')
   return totalDays > 0
-    ? `${totalDays}d ${hh}h ${mm}m ${ss}s`
-    : `${hh}h ${mm}m ${ss}s`
+    ? t('panels.sysinfo.uptimeDays', { days: totalDays, hh, mm, ss })
+    : t('panels.sysinfo.uptimeTime', { hh, mm, ss })
 })
 
 const osDisplay = computed(() => {
   const info = systemStore.systemInfo
-  if (!info) return 'Unknown'
-  const os = (info as any).os || (info as any).platform || info.platform || 'Unknown'
+  if (!info) return t('panels.unknown')
+  const os = (info as any).os || (info as any).platform || info.platform || t('panels.unknown')
   const arch = (info as any).arch || (info as any).architecture || info.architecture || ''
   return arch ? `${os} ${arch}` : os
 })
@@ -105,17 +108,18 @@ const kernelDisplay = computed(() => {
 // a battery still read sensibly.
 const powerDisplay = computed(() => {
   const p = power.value
-  if (!p) return 'AC Power'
+  if (!p) return t('panels.sysinfo.acPower')
   if (p.source === 'Battery') {
-    const pct = p.percent >= 0 ? ` ${p.percent}%` : ''
-    return `Battery${pct}`
+    return p.percent >= 0
+      ? t('panels.sysinfo.batteryPercent', { percent: p.percent })
+      : t('panels.sysinfo.battery')
   }
   // On AC. If we have a percent + charging status, surface it; otherwise
   // just "AC Power".
   if (p.percent >= 0 && p.status === 'Charging') {
-    return `AC (Charging ${p.percent}%)`
+    return t('panels.sysinfo.acCharging', { percent: p.percent })
   }
-  return 'AC Power'
+  return t('panels.sysinfo.acPower')
 })
 
 async function refreshPower() {

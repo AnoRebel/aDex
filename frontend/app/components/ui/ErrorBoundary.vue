@@ -2,11 +2,11 @@
   <div v-if="failed" class="error-boundary" role="alert">
     <div class="eb-title">
       <span class="eb-bracket">[</span>
-      {{ label }} UNAVAILABLE
+      {{ t('dialogs.errorBoundary.unavailable', { label: label ?? t('dialogs.errorBoundary.panel') }) }}
       <span class="eb-bracket">]</span>
     </div>
     <p class="eb-message">{{ message }}</p>
-    <button type="button" class="eb-retry" @click="retry">RETRY</button>
+    <button type="button" class="eb-retry" @click="retry">{{ t('dialogs.errorBoundary.retry') }}</button>
   </div>
   <slot v-else />
 </template>
@@ -27,6 +27,7 @@
  */
 import { ref, nextTick, onErrorCaptured } from 'vue'
 import { handleComponentError } from '~/utils/errorHandler'
+import { useI18n } from '~/composables/useI18n'
 
 const props = withDefaults(
   defineProps<{
@@ -35,8 +36,10 @@ const props = withDefaults(
     /** Retry automatically once after a short delay. */
     autoRetry?: boolean
   }>(),
-  { label: 'PANEL', autoRetry: false },
+  { autoRetry: false },
 )
+
+const { t } = useI18n()
 
 const emit = defineEmits<{ (e: 'error', err: unknown): void }>()
 
@@ -59,7 +62,7 @@ onErrorCaptured((err) => {
   })
 
   try {
-    handleComponentError(props.label, err instanceof Error ? err : new Error(String(err)))
+    handleComponentError(props.label ?? 'PANEL', err instanceof Error ? err : new Error(String(err)))
   } catch {
     // The reporter itself must never take the boundary down.
   }

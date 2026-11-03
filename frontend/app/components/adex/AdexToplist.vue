@@ -1,14 +1,14 @@
 <template>
   <div class="mod-panel mod-toplist" tabindex="0" @keydown="onKeydown">
     <div class="section-title">
-      <span class="title-left">PROCESSES</span>
+      <span class="title-left">{{ t('panels.toplist.title') }}</span>
       <span class="title-right">
         <span class="toplist-count">{{ counterLabel }}</span>
         <button
           type="button"
           class="toplist-expand-btn"
-          title="Open process manager (Ctrl+Shift+P)"
-          aria-label="Open process manager"
+          :title="t('panels.toplist.openManagerHint', { shortcut: 'Ctrl+Shift+P' })"
+          :aria-label="t('panels.toplist.openManager')"
           @click.stop="managerOpen = true"
         >
           ⤢
@@ -26,7 +26,7 @@
         v-model="filterRaw"
         type="text"
         class="toplist-filter-input"
-        placeholder="filter (name, pid)"
+        :placeholder="t('panels.toplist.filterPlaceholder')"
         autocomplete="off"
         spellcheck="false"
         @keydown.stop
@@ -36,9 +36,9 @@
     <!-- Column headers -->
     <div class="toplist-header">
       <span class="col-pid">PID</span>
-      <span class="col-name">NAME</span>
+      <span class="col-name">{{ t('panels.toplist.name') }}</span>
       <span class="col-cpu">CPU</span>
-      <span class="col-mem">MEM</span>
+      <span class="col-mem">{{ t('panels.toplist.mem') }}</span>
     </div>
 
     <!-- Virtualised row container. useVirtualList renders only the rows
@@ -53,7 +53,7 @@
           class="toplist-row"
           :class="{ active: index === selectedIndex }"
           :style="{ height: ROW_HEIGHT_PX + 'px' }"
-          :title="`${data.name} (PID ${data.pid})\nCPU ${data.cpu.toFixed(1)}%  MEM ${data.memory.toFixed(1)}%${data.user ? '\\nUser: ' + data.user : ''}${data.command ? '\\n' + data.command : ''}`"
+          :title="rowTitle(data)"
           @click="selectRow(index)"
           @dblclick="openInfo(data)"
           @contextmenu.prevent="onContextMenu($event, data)"
@@ -69,7 +69,7 @@
     <!-- Empty state when there's no data at all -->
     <div v-if="filteredProcesses.length === 0" class="toplist-empty">
       <span style="opacity: 0.4;">{{
-        rawProcesses.length === 0 ? 'Waiting for data...' : 'No matches'
+        rawProcesses.length === 0 ? t('panels.toplist.waiting') : t('panels.toplist.noMatches')
       }}</span>
     </div>
 
@@ -79,7 +79,7 @@
       :items="cmItems"
       :x="cmX"
       :y="cmY"
-      aria-label="Process context menu"
+      :aria-label="t('panels.toplist.contextMenu')"
     />
     <ProcessInfoModal
       v-model="infoOpen"
@@ -116,6 +116,9 @@ import AdexContextMenu, {
 import ProcessInfoModal from '~/components/system/ProcessInfoModal.vue'
 import ProcessManagerModal from '~/components/system/ProcessManagerModal.vue'
 import ConfirmDialog from '~/components/ui/ConfirmDialog.vue'
+import { useI18n } from '~/composables/useI18n'
+
+const { t } = useI18n()
 
 interface TopProcess {
   pid: number
@@ -182,6 +185,16 @@ const filteredProcesses = computed<TopProcess[]>(() => {
     (a, b) => b.cpu + b.memory - (a.cpu + a.memory)
   )
 })
+
+// Hover text for a row: name and PID, usage, then owner and command line.
+function rowTitle(p: TopProcess): string {
+  return [
+    t('panels.toplist.rowTitle', { name: p.name, pid: p.pid }),
+    t('panels.toplist.rowUsage', { cpu: p.cpu.toFixed(1), mem: p.memory.toFixed(1) }),
+    p.user ? t('panels.toplist.rowUser', { user: p.user }) : '',
+    p.command ?? '',
+  ].filter(Boolean).join('\n')
+}
 
 const counterLabel = computed(() => {
   const total = rawProcesses.value.length
@@ -319,7 +332,7 @@ function openConfirm(cfg: Partial<typeof confirmCfg> & {
 }) {
   confirmCfg.title = cfg.title ?? ''
   confirmCfg.message = cfg.message ?? ''
-  confirmCfg.confirmLabel = cfg.confirmLabel ?? 'OK'
+  confirmCfg.confirmLabel = cfg.confirmLabel ?? t('common.ok')
   confirmCfg.danger = cfg.danger ?? false
   confirmCfg.handler = cfg.handler
   confirmOpen.value = true
@@ -372,9 +385,9 @@ function actKill() {
   // at the confirm dialog deciding whether to pull the trigger.
   try { useAdexAudio().playCue('destructive') } catch { /* non-fatal */ }
   openConfirm({
-    title: 'KILL PROCESS',
-    message: `Send SIGKILL to "${proc.name}" (PID ${proc.pid})? This is immediate and cannot be undone.`,
-    confirmLabel: 'KILL',
+    title: t('panels.toplist.killTitle'),
+    message: t('panels.toplist.killMessage', { name: proc.name, pid: proc.pid }),
+    confirmLabel: t('panels.toplist.kill'),
     danger: true,
     handler: async () => {
       // Gunshot fires on CONFIRM — the trigger pulls.
@@ -412,19 +425,19 @@ const cmItems = computed<ContextMenuItems>(() => {
   if (!cmTarget.value) return []
   return [
     [
-      { label: 'PROCESS INFO', icon: '[i]', onSelect: actInfo },
-      { label: 'COPY PID',     icon: '[#]', onSelect: actCopyPid },
+      { label: t('panels.toplist.processInfo'), icon: '[i]', onSelect: actInfo },
+      { label: t('panels.toplist.copyPid'), icon: '[#]', onSelect: actCopyPid },
     ],
     [
-      { label: 'TERMINATE',    icon: '[T]', onSelect: actTerm,
+      { label: t('panels.toplist.terminate'), icon: '[T]', onSelect: actTerm,
         kbds: ['SIGTERM'] },
-      { label: 'STOP',         icon: '[||]', onSelect: actStop,
+      { label: t('panels.toplist.stop'), icon: '[||]', onSelect: actStop,
         kbds: ['SIGSTOP'] },
-      { label: 'CONTINUE',     icon: '[>]', onSelect: actCont,
+      { label: t('panels.toplist.continue'), icon: '[>]', onSelect: actCont,
         kbds: ['SIGCONT'] },
     ],
     [
-      { label: 'KILL', icon: '[X]', onSelect: actKill,
+      { label: t('panels.toplist.kill'), icon: '[X]', onSelect: actKill,
         kbds: ['SIGKILL'], danger: true },
     ],
   ]

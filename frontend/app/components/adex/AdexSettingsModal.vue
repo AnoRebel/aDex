@@ -10,10 +10,10 @@
         <div class="settings-header" @pointerdown="startDrag">
           <div class="settings-header-title">
             <span class="settings-header-bracket">[</span>
-            SYSTEM CONFIGURATION
+            {{ t('settings.title') }}
             <span class="settings-header-bracket">]</span>
           </div>
-          <button class="settings-close-btn" @click="cancel" title="Close settings">
+          <button class="settings-close-btn" @click="cancel" :title="t('settings.closeTitle')">
             X
           </button>
         </div>
@@ -30,7 +30,7 @@
               @click="activeCategory = cat.id"
             >
               <span class="sidebar-marker">{{ activeCategory === cat.id ? '>' : ' ' }}</span>
-              {{ cat.label }}
+              {{ t(`settings.categories.${cat.id}`) }}
             </div>
           </div>
 
@@ -38,10 +38,10 @@
           <div class="settings-content">
             <!-- SHELL -->
             <div v-if="activeCategory === 'terminal'" class="settings-section">
-              <div class="settings-section-title">TERMINAL CONFIGURATION</div>
+              <div class="settings-section-title">{{ t('settings.terminal.title') }}</div>
 
               <div class="settings-field">
-                <label class="settings-label">Shell Path</label>
+                <label class="settings-label">{{ t('settings.terminal.shellPath') }}</label>
                 <input
                   v-model="localSettings.shell.path"
                   type="text"
@@ -50,14 +50,12 @@
                   @change="onShellPathChange"
                 />
                 <p class="settings-hint">
-                  Leave blank to use your default shell ($SHELL on macOS/Linux,
-                  $ComSpec on Windows). New terminals pick up the change; existing
-                  tabs keep their current shell.
+                  {{ t('settings.terminal.shellPathHint') }}
                 </p>
               </div>
 
               <div class="settings-field">
-                <label class="settings-label">Shell Arguments</label>
+                <label class="settings-label">{{ t('settings.terminal.shellArgs') }}</label>
                 <input
                   v-model="localSettings.shell.args"
                   type="text"
@@ -67,7 +65,7 @@
               </div>
 
               <div class="settings-field">
-                <label class="settings-label">Working Directory</label>
+                <label class="settings-label">{{ t('settings.terminal.workingDirectory') }}</label>
                 <input
                   v-model="localSettings.shell.workingDirectory"
                   type="text"
@@ -79,10 +77,10 @@
 
             <!-- THEME -->
             <div v-if="activeCategory === 'theme'" class="settings-section">
-              <div class="settings-section-title">THEME</div>
+              <div class="settings-section-title">{{ t('settings.theme.title') }}</div>
 
               <div class="settings-field">
-                <label class="settings-label">Theme ({{ themeIndex.length }} available)</label>
+                <label class="settings-label">{{ t('settings.theme.themeCount', { count: themeIndex.length }) }}</label>
                 <USelectMenu
                   variant="none"
                   color="neutral"
@@ -90,13 +88,12 @@
                   :items="themeMenuItems"
                   value-key="id"
                   label-key="displayName"
-                  :search-input="{ placeholder: 'Search themes...' }"
+                  :search-input="{ placeholder: t('settings.theme.searchThemes') }"
                   class="settings-select"
                   @update:model-value="onThemeApply"
                 />
                 <p class="settings-hint">
-                  Selecting a theme applies it immediately and persists
-                  the choice across launches.
+                  {{ t('settings.theme.themeHint') }}
                 </p>
               </div>
 
@@ -106,7 +103,7 @@
                    theme's bundled layout choice" so eDex-themed presets
                    like tron-disrupted automatically pick `disrupted`. -->
               <div class="settings-field">
-                <label class="settings-label">Layout preset</label>
+                <label class="settings-label">{{ t('settings.theme.layoutPreset') }}</label>
                 <USelectMenu
                   variant="none"
                   color="neutral"
@@ -119,36 +116,56 @@
                   @update:model-value="persistCurrentSettings"
                 />
                 <p class="settings-hint">
-                  <strong>Theme default</strong> follows whichever layout
-                  the active theme ships with.<br/>
-                  <strong>Default</strong> — classic left mods / terminal / right mods + keyboard.<br/>
-                  <strong>Disrupted</strong> — terminal top, file manager + keyboard split bottom.<br/>
-                  <strong>Notype</strong> — hide the on-screen keyboard.<br/>
-                  <strong>Fulltype</strong> — full-width on-screen keyboard, file manager hidden.<br/>
-                  <strong>Terminal focus</strong> — terminal fills the window; side panels, keyboard and file manager hidden.<br/>
-                  <strong>Typeleft</strong> — keyboard on the left half.<br/>
-                  <strong>Colorfilter</strong> — minimal chrome, single column.
+                  <strong>{{ t('settings.theme.layoutHints.themeDefaultName') }}</strong> {{ t('settings.theme.layoutHints.themeDefault') }}<br/>
+                  <strong>{{ t('settings.theme.layoutHints.defaultName') }}</strong> {{ t('settings.theme.layoutHints.default') }}<br/>
+                  <strong>Disrupted</strong> {{ t('settings.theme.layoutHints.disrupted') }}<br/>
+                  <strong>Notype</strong> {{ t('settings.theme.layoutHints.notype') }}<br/>
+                  <strong>Fulltype</strong> {{ t('settings.theme.layoutHints.fulltype') }}<br/>
+                  <strong>{{ t('settings.theme.layoutHints.terminalFocusName') }}</strong> {{ t('settings.theme.layoutHints.terminalFocus') }}<br/>
+                  <strong>Typeleft</strong> {{ t('settings.theme.layoutHints.typeleft') }}<br/>
+                  <strong>Colorfilter</strong> {{ t('settings.theme.layoutHints.colorfilter') }}
                 </p>
                 <p class="settings-hint">
-                  <strong>Custom layouts</strong> — define your own panel
-                  arrangement by creating
-                  <code>{{ customLayoutsPath || 'layouts.json' }}</code>.
-                  Each entry needs an <code>id</code> and a
-                  <code>regions</code> map of
-                  <code>left</code>/<code>centre</code>/<code>right</code>/<code>bottom</code>
-                  to panel names. Restart to pick up changes.
+                  <RichText
+                    :msg="t('settings.theme.customLayoutsHint')"
+                    :values="{
+                      title: ['strong', t('settings.theme.customLayoutsTitle')],
+                      path: ['code', customLayoutsPath || 'layouts.json'],
+                      id: ['code', 'id'],
+                      regions: ['code', 'regions'],
+                      left: ['code', 'left'],
+                      centre: ['code', 'centre'],
+                      right: ['code', 'right'],
+                      bottom: ['code', 'bottom'],
+                    }"
+                  />
                   <span v-if="customLayoutEngine.layouts.value.length">
-                    <br/>{{ customLayoutEngine.layouts.value.length }} custom
-                    layout(s) loaded.
+                    <br/>{{ t('settings.theme.customLayoutsLoaded', { count: customLayoutEngine.layouts.value.length }) }}
                   </span>
                 </p>
+              </div>
+
+              <div class="settings-field">
+                <label class="settings-label">{{ t('settings.display.language') }}</label>
+                <USelectMenu
+                  variant="none"
+                  color="neutral"
+                  v-model="localSettings.display.language"
+                  :items="languageItems"
+                  value-key="id"
+                  label-key="label"
+                  :search-input="false"
+                  class="settings-select"
+                  data-testid="settings-language"
+                  @update:model-value="persistCurrentSettings"
+                />
               </div>
 
               <!-- Globe rendering style. Two genuinely different panels,
                    not a cosmetic toggle: the classic globe is the stylised
                    dot grid, the geo one projects real country outlines. -->
               <div class="settings-field">
-                <label class="settings-label">Globe style</label>
+                <label class="settings-label">{{ t('settings.theme.globeStyle') }}</label>
                 <USelectMenu
                   variant="none"
                   color="neutral"
@@ -161,17 +178,11 @@
                   @update:model-value="persistCurrentSettings"
                 />
                 <p class="settings-hint">
-                  <strong>Classic</strong> (default) — the stylised rotating
-                  dot-grid globe. Cheapest to draw.<br/>
-                  <strong>Countries</strong> — an orthographic projection of real
-                  country outlines, so the connection marker sits on a
-                  recognisable landmass. Adds roughly 105&nbsp;KB of map data,
-                  loaded only when this style is selected.
+                  <strong>{{ t('settings.theme.globeClassicName') }}</strong> {{ t('settings.theme.globeClassicHint') }}<br/>
+                  <strong>{{ t('settings.theme.globeGeoName') }}</strong> {{ t('settings.theme.globeGeoHint') }}
                 </p>
                 <p class="settings-hint">
-                  Countries renders in a background thread, so it costs about
-                  the same as Classic and cannot slow the terminal or the
-                  charts even when a frame is slow.
+                  {{ t('settings.theme.globePerfHint') }}
                 </p>
               </div>
 
@@ -179,26 +190,25 @@
                    COLOR SCHEME panel: two controls did not justify a separate
                    section, and the palette is part of theming. -->
               <div class="settings-section-title" style="margin-top: 1.2rem;">
-                TERMINAL PALETTE
+                {{ t('settings.theme.paletteTitle') }}
               </div>
 
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Use theme colors</label>
+                <label class="settings-label">{{ t('settings.theme.useThemeColors') }}</label>
                 <USwitch
                   v-model="useThemeColors"
                   size="md"
                   color="primary"
-                  aria-label="Use theme colors"
+                  :aria-label="t('settings.theme.useThemeColors')"
                 />
               </div>
               <p class="settings-hint">
-                When ON, the terminal palette derives from the active
-                theme. Turn OFF to pick a separate color scheme.
+                {{ t('settings.theme.useThemeColorsHint') }}
               </p>
 
               <div v-if="!useThemeColors" class="settings-field">
-                <label class="settings-label">Scheme</label>
+                <label class="settings-label">{{ t('settings.theme.scheme') }}</label>
                 <USelectMenu
                   variant="none"
                   color="neutral"
@@ -206,7 +216,7 @@
                   :items="colorSchemeItems"
                   value-key="id"
                   label-key="label"
-                  :search-input="{ placeholder: 'Search schemes...' }"
+                  :search-input="{ placeholder: t('settings.theme.searchSchemes') }"
                   class="settings-select"
                   @update:model-value="onColorSchemeApply"
                 />
@@ -215,10 +225,10 @@
 
             <!-- KEYBOARD -->
             <div v-if="activeCategory === 'keyboard'" class="settings-section">
-              <div class="settings-section-title">KEYBOARD</div>
+              <div class="settings-section-title">{{ t('settings.keyboard.title') }}</div>
 
               <div class="settings-field">
-                <label class="settings-label">Layout ({{ kbIndex.length }} available)</label>
+                <label class="settings-label">{{ t('settings.keyboard.layoutCount', { count: kbIndex.length }) }}</label>
                 <USelectMenu
                   variant="none"
                   color="neutral"
@@ -226,23 +236,22 @@
                   :items="kbMenuItems"
                   value-key="id"
                   label-key="displayName"
-                  :search-input="{ placeholder: 'Search layouts...' }"
+                  :search-input="{ placeholder: t('settings.keyboard.searchLayouts') }"
                   class="settings-select"
                   @update:model-value="onKeyboardLayoutApply"
                 />
                 <p class="settings-hint">
-                  Switches the on-screen keyboard layout. Physical keyboard
-                  events are passed through unchanged.
+                  {{ t('settings.keyboard.hint') }}
                 </p>
               </div>
             </div>
 
             <!-- FONT -->
             <div v-if="activeCategory === 'font'" class="settings-section">
-              <div class="settings-section-title">FONT</div>
+              <div class="settings-section-title">{{ t('settings.font.title') }}</div>
 
               <div class="settings-field">
-                <label class="settings-label">Terminal Font Size ({{ localSettings.display.terminalFontSize }}px)</label>
+                <label class="settings-label">{{ t('settings.font.terminalFontSize', { size: localSettings.display.terminalFontSize }) }}</label>
                 <input
                   v-model.number="localSettings.display.terminalFontSize"
                   type="range"
@@ -254,7 +263,7 @@
               </div>
 
               <div class="settings-field">
-                <label class="settings-label">Terminal Font Family</label>
+                <label class="settings-label">{{ t('settings.font.terminalFontFamily') }}</label>
                 <USelectMenu
                   variant="none"
                   color="neutral"
@@ -266,12 +275,12 @@
                   class="settings-select"
                 />
                 <p class="settings-hint">
-                  Applies to the terminal renderer only.
+                  {{ t('settings.font.terminalFontHint') }}
                 </p>
               </div>
 
               <div class="settings-field">
-                <label class="settings-label">Interface Font Family</label>
+                <label class="settings-label">{{ t('settings.font.uiFontFamily') }}</label>
                 <USelectMenu
                   variant="none"
                   color="neutral"
@@ -284,22 +293,23 @@
                   @update:model-value="onUiFontApply"
                 />
                 <p class="settings-hint">
-                  Applies to the panels, settings and top bar.
-                  <strong>Theme default</strong> uses whichever display font
-                  the active theme ships with.
+                  <RichText
+                    :msg="t('settings.font.uiFontHint')"
+                    :values="{ themeDefault: ['strong', t('settings.font.themeDefault')] }"
+                  />
                 </p>
               </div>
             </div>
 
             <!-- NETWORK -->
             <div v-if="activeCategory === 'network'" class="settings-section">
-              <div class="settings-section-title">NETWORK</div>
+              <div class="settings-section-title">{{ t('settings.network.title') }}</div>
 
               <div class="settings-field">
                 <label class="settings-label">
-                  Adapter
+                  {{ t('settings.network.adapter') }}
                   <span v-if="adapterItems.length <= 1" class="settings-hint" style="opacity:0.5">
-                    (no adapters detected)
+                    {{ t('settings.network.noAdapters') }}
                   </span>
                 </label>
                 <USelectMenu
@@ -312,15 +322,12 @@
                   class="settings-select"
                 />
                 <p class="settings-hint">
-                  Which interface drives the netstat panel and traffic
-                  graphs. "Auto" picks the first up, non-loopback
-                  interface; switch to your wifi (e.g. wlan0) when
-                  ethernet is unplugged.
+                  {{ t('settings.network.adapterHint') }}
                 </p>
               </div>
 
               <div class="settings-field">
-                <label class="settings-label">Ping Target</label>
+                <label class="settings-label">{{ t('settings.network.pingTarget') }}</label>
                 <USelectMenu
                   variant="none"
                   color="neutral"
@@ -331,15 +338,12 @@
                   class="settings-select"
                 />
                 <p class="settings-hint">
-                  Backend uses a TCP handshake (not ICMP) so this works
-                  in sandboxed builds without CAP_NET_RAW. 8.8.8.8:53 is
-                  Google DNS, 1.1.1.1:53 is Cloudflare. Pick "Custom" to
-                  enter your own host:port.
+                  {{ t('settings.network.pingHint') }}
                 </p>
               </div>
 
               <div v-if="pingTargetPreset === 'custom'" class="settings-field">
-                <label class="settings-label">Custom Ping Host:Port</label>
+                <label class="settings-label">{{ t('settings.network.customPing') }}</label>
                 <input
                   v-model="localSettings.network.pingTarget"
                   type="text"
@@ -350,7 +354,7 @@
 
               <div class="settings-field">
                 <label class="settings-label">
-                  Ping cadence ({{ formatSeconds(localSettings.network.pingIntervalMs, 2000) }}s)
+                  {{ t('settings.network.pingCadence', { seconds: formatSeconds(localSettings.network.pingIntervalMs, 2000) }) }}
                 </label>
                 <input
                   v-model.number="localSettings.network.pingIntervalMs"
@@ -361,15 +365,13 @@
                   step="500"
                 />
                 <p class="settings-hint">
-                  How often the netstat panel issues a fresh TCP-handshake
-                  ping. Faster = more responsive PING value but a tiny bit
-                  more network chatter.
+                  {{ t('settings.network.pingCadenceHint') }}
                 </p>
               </div>
 
               <div class="settings-field">
                 <label class="settings-label">
-                  Traffic sample cadence ({{ formatSeconds(localSettings.network.trafficIntervalMs, 1000) }}s)
+                  {{ t('settings.network.trafficCadence', { seconds: formatSeconds(localSettings.network.trafficIntervalMs, 1000) }) }}
                 </label>
                 <input
                   v-model.number="localSettings.network.trafficIntervalMs"
@@ -380,32 +382,26 @@
                   step="250"
                 />
                 <p class="settings-hint">
-                  Sample rate for the up/down bandwidth chart. 1Hz is the
-                  default and matches the panel's visual density; bump
-                  down to 4Hz for smoother lines if your CPU can afford
-                  the extra polling.
+                  {{ t('settings.network.trafficCadenceHint') }}
                 </p>
               </div>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Enable GeoIP lookup</label>
+                <label class="settings-label">{{ t('settings.network.geoip') }}</label>
                 <USwitch
                   v-model="localSettings.network.geoipEnabled"
                   size="md"
                   color="primary"
-                  aria-label="Enable GeoIP lookup"
+                  :aria-label="t('settings.network.geoip')"
                   @update:model-value="persistCurrentSettings"
                 />
               </div>
               <p class="settings-hint">
-                When ON, the Globe panel resolves your public IP to a
-                lat/lon and ISP via an HTTP lookup. Turn OFF for fully
-                offline operation — the globe still renders, just
-                without an endpoint marker.
+                {{ t('settings.network.geoipHint') }}
               </p>
 
               <div v-if="localSettings.network.geoipEnabled" class="settings-field">
-                <label class="settings-label">GeoIP endpoint (optional)</label>
+                <label class="settings-label">{{ t('settings.network.geoipEndpoint') }}</label>
                 <input
                   v-model="localSettings.network.geoipEndpoint"
                   type="text"
@@ -413,37 +409,29 @@
                   placeholder="https://geo.kamero.ai/api/geo"
                 />
                 <p class="settings-hint">
-                  Leave blank to use the default backend chain
-                  (kamero → iplocate). Provide a custom URL only if
-                  you're proxying through your own MaxMind / IPinfo
-                  endpoint.
+                  {{ t('settings.network.geoipEndpointHint') }}
                 </p>
               </div>
             </div>
 
             <!-- SECURITY -->
             <div v-if="activeCategory === 'security'" class="settings-section">
-              <div class="settings-section-title">SECURITY</div>
+              <div class="settings-section-title">{{ t('settings.security.title') }}</div>
               <p class="settings-hint">
-                aDex runs as a single-user desktop application: it inherits
-                your operating-system session and adds no separate login.
-                Terminals run as your user, with your permissions.
+                {{ t('settings.security.intro') }}
               </p>
               <p class="settings-hint" style="opacity: 0.75;">
-                The backend does apply input validation to paths and shell
-                arguments — blocking directory traversal and command injection
-                in filesystem and terminal requests. That protection is always
-                on and has nothing to configure.
+                {{ t('settings.security.validation') }}
               </p>
               <div class="settings-field">
                 <label class="settings-label">
-                  Session Lock {{ lockConfigured ? '(enabled)' : '(not set up)' }}
+                  {{ lockConfigured ? t('settings.security.sessionLockEnabled') : t('settings.security.sessionLockNotSet') }}
                 </label>
                 <input
                   v-model="lockCurrent"
                   type="password"
                   class="settings-input"
-                  :placeholder="lockConfigured ? 'current passphrase' : 'not required'"
+                  :placeholder="lockConfigured ? t('settings.security.currentPassphrase') : t('settings.security.notRequired')"
                   autocomplete="off"
                 />
                 <input
@@ -451,7 +439,7 @@
                   type="password"
                   class="settings-input"
                   style="margin-top: 0.4rem;"
-                  placeholder="new passphrase (min 4 characters)"
+                  :placeholder="t('settings.security.newPassphrase')"
                   autocomplete="off"
                 />
                 <p v-if="lockMessage" class="settings-hint" :style="{ color: lockError ? '#ff6b6b' : undefined }">
@@ -459,25 +447,25 @@
                 </p>
                 <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
                   <button type="button" class="settings-btn" @click="applyLockPassphrase">
-                    {{ lockConfigured ? 'CHANGE PASSPHRASE' : 'SET PASSPHRASE' }}
+                    {{ lockConfigured ? t('settings.security.changePassphrase') : t('settings.security.setPassphrase') }}
                   </button>
                   <button
                     v-if="lockConfigured"
                     type="button"
                     class="settings-btn"
                     @click="removeLock"
-                  >REMOVE LOCK</button>
+                  >{{ t('settings.security.removeLock') }}</button>
                 </div>
                 <p class="settings-hint">
-                  Locks the running session behind a passphrase — press
-                  <kbd>Ctrl + Shift + L</kbd> to lock. Terminals keep running
-                  while locked. The backend refuses file, terminal and process
-                  access while locked, so the overlay is not the only barrier.
+                  <RichText
+                    :msg="t('settings.security.lockHint')"
+                    :values="{ keys: ['kbd', 'Ctrl + Shift + L'] }"
+                  />
                 </p>
               </div>
 
               <div v-if="lockConfigured" class="settings-field">
-                <label class="settings-label">Auto-lock after idle</label>
+                <label class="settings-label">{{ t('settings.security.autoLock') }}</label>
                 <USelectMenu
                   variant="none"
                   color="neutral"
@@ -494,21 +482,21 @@
 
             <!-- AUDIO -->
             <div v-if="activeCategory === 'audio'" class="settings-section">
-              <div class="settings-section-title">AUDIO SETTINGS</div>
+              <div class="settings-section-title">{{ t('settings.audio.title') }}</div>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Enable Audio</label>
+                <label class="settings-label">{{ t('settings.audio.enable') }}</label>
                 <USwitch
                   v-model="localSettings.audio.enabled"
                   size="md"
                   color="primary"
-                  aria-label="Enable audio"
+                  :aria-label="t('settings.audio.enableAria')"
                   @update:model-value="onAudioEnabledChange"
                 />
               </div>
 
               <div class="settings-field">
-                <label class="settings-label">Master Volume ({{ localSettings.audio.volume }}%)</label>
+                <label class="settings-label">{{ t('settings.audio.masterVolume', { volume: localSettings.audio.volume }) }}</label>
                 <input
                   v-model.number="localSettings.audio.volume"
                   type="range"
@@ -522,7 +510,7 @@
               </div>
 
               <div class="settings-field">
-                <label class="settings-label">Soundpack</label>
+                <label class="settings-label">{{ t('settings.audio.soundpack') }}</label>
                 <USelectMenu
                   variant="none"
                   color="neutral"
@@ -536,52 +524,53 @@
                   @update:model-value="onSoundpackChange"
                 />
                 <p class="settings-hint">
-                  <strong>edex</strong> ships the original 13 WAV cues;
-                  <strong>synth</strong> generates them via Web Audio for
-                  accessibility / asset-missing modes.
+                  <RichText
+                    :msg="t('settings.audio.soundpackHint')"
+                    :values="{ edex: ['strong', 'edex'], synth: ['strong', 'synth'] }"
+                  />
                 </p>
               </div>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Mute in Background</label>
+                <label class="settings-label">{{ t('settings.audio.muteBackground') }}</label>
                 <USwitch
                   v-model="localSettings.audio.muteInBackground"
                   :disabled="!localSettings.audio.enabled"
                   size="md"
                   color="primary"
-                  aria-label="Mute in background"
+                  :aria-label="t('settings.audio.muteBackgroundAria')"
                   @update:model-value="persistCurrentSettings"
                 />
               </div>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Boot Splash Audio</label>
+                <label class="settings-label">{{ t('settings.audio.boot') }}</label>
                 <USwitch
                   v-model="localSettings.audio.boot"
                   :disabled="!localSettings.audio.enabled"
                   size="md"
                   color="primary"
-                  aria-label="Toggle boot splash audio"
+                  :aria-label="t('settings.audio.bootAria')"
                   @update:model-value="persistCurrentSettings"
                 />
               </div>
               <p class="settings-hint">
-                Plays a beep on every step of the launch sequence.
+                {{ t('settings.audio.bootHint') }}
               </p>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Shutdown Splash Audio</label>
+                <label class="settings-label">{{ t('settings.audio.shutdown') }}</label>
                 <USwitch
                   v-model="localSettings.audio.shutdown"
                   :disabled="!localSettings.audio.enabled"
                   size="md"
                   color="primary"
-                  aria-label="Toggle shutdown splash audio"
+                  :aria-label="t('settings.audio.shutdownAria')"
                   @update:model-value="persistCurrentSettings"
                 />
               </div>
               <p class="settings-hint">
-                Plays a cue per stage during the quit sequence.
+                {{ t('settings.audio.shutdownHint') }}
               </p>
 
               <!-- Per-category audio toggles. Each maps to a CueCategory
@@ -591,84 +580,80 @@
                    splash, alarms) are governed by the boot/shutdown
                    toggles above. -->
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Keyboard Click</label>
+                <label class="settings-label">{{ t('settings.audio.keyboard') }}</label>
                 <USwitch
                   v-model="localSettings.audio.categoryKeyboard"
                   :disabled="!localSettings.audio.enabled"
                   size="md"
                   color="primary"
-                  aria-label="Toggle keyboard click sounds"
+                  :aria-label="t('settings.audio.keyboardAria')"
                   @update:model-value="persistCurrentSettings"
                 />
               </div>
               <p class="settings-hint">
-                Mechanical-keyboard tick on every terminal keystroke.
+                {{ t('settings.audio.keyboardHint') }}
               </p>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Destructive Confirm Tone</label>
+                <label class="settings-label">{{ t('settings.audio.destructive') }}</label>
                 <USwitch
                   v-model="localSettings.audio.categoryDestructive"
                   :disabled="!localSettings.audio.enabled"
                   size="md"
                   color="primary"
-                  aria-label="Toggle destructive-action confirm sounds"
+                  :aria-label="t('settings.audio.destructiveAria')"
                   @update:model-value="persistCurrentSettings"
                 />
               </div>
               <p class="settings-hint">
-                Handgun-click cue when you confirm a destructive action
-                (Quit, Kill Process, Delete).
+                {{ t('settings.audio.destructiveHint') }}
               </p>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Interface Clicks</label>
+                <label class="settings-label">{{ t('settings.audio.interface') }}</label>
                 <USwitch
                   v-model="localSettings.audio.categoryInterface"
                   :disabled="!localSettings.audio.enabled"
                   size="md"
                   color="primary"
-                  aria-label="Toggle UI click sounds"
+                  :aria-label="t('settings.audio.interfaceAria')"
                   @update:model-value="persistCurrentSettings"
                 />
               </div>
               <p class="settings-hint">
-                Click-tone on buttons, menus, panel toggles, and tabs.
+                {{ t('settings.audio.interfaceHint') }}
               </p>
             </div>
 
             <!-- SYSTEM -->
             <!-- KEYBINDS -->
             <div v-if="activeCategory === 'keybinds'" class="settings-section">
-              <div class="settings-section-title">KEYBOARD SHORTCUTS</div>
+              <div class="settings-section-title">{{ t('settings.keybinds.title') }}</div>
               <p class="settings-hint">
-                Shortcuts use Ctrl+Shift so they cannot collide with the
-                readline bindings your shell uses inside the terminal.
+                {{ t('settings.keybinds.hint') }}
               </p>
 
               <div class="keybind-list">
                 <div v-for="bind in KEYBINDS" :key="bind.action" class="keybind-row">
-                  <span class="keybind-action">{{ bind.action }}</span>
+                  <span class="keybind-action">{{ t(`settings.keybinds.actions.${bind.action}`) }}</span>
                   <kbd class="keybind-keys">{{ bind.keys }}</kbd>
                 </div>
               </div>
 
               <p class="settings-hint" style="opacity: 0.55;">
-                Shortcuts are fixed in this release; remapping is not yet
-                available.
+                {{ t('settings.keybinds.fixedHint') }}
               </p>
             </div>
 
             <!-- MODULES -->
             <div v-if="activeCategory === 'modules'" class="settings-section">
-              <div class="settings-section-title">MODULES</div>
+              <div class="settings-section-title">{{ t('settings.modules.title') }}</div>
               <p class="settings-hint">
-                Show, hide and reorder individual panels. The top-bar buttons
-                toggle whole columns; this is the per-panel control.
+                {{ t('settings.modules.hint') }}
               </p>
 
               <div v-for="region in (['left','right','bottom'] as const)" :key="region" class="settings-field">
-                <label class="settings-label">{{ regionLabel(region) }}</label>
+                <label class="settings-label">{{ t(`settings.modules.regions.${region}`) }}</label>
                 <div class="module-list">
                   <div
                     v-for="(mod, idx) in modulesEngine.allIn(region)"
@@ -680,7 +665,7 @@
                       :model-value="!modulesEngine.isHidden(mod.id)"
                       size="sm"
                       color="primary"
-                      :aria-label="'Show ' + mod.label"
+                      :aria-label="t('settings.modules.show', { name: mod.label })"
                       @update:model-value="(v: boolean) => modulesEngine.setHidden(mod.id, !v)"
                     />
                     <span class="module-name">{{ mod.label }}</span>
@@ -688,14 +673,14 @@
                       type="button"
                       class="module-move"
                       :disabled="idx === 0"
-                      title="Move up"
+                      :title="t('settings.modules.moveUp')"
                       @click="modulesEngine.move(mod.id, -1)"
                     >▲</button>
                     <button
                       type="button"
                       class="module-move"
                       :disabled="idx === modulesEngine.allIn(region).length - 1"
-                      title="Move down"
+                      :title="t('settings.modules.moveDown')"
                       @click="modulesEngine.move(mod.id, 1)"
                     >▼</button>
                   </div>
@@ -703,15 +688,15 @@
               </div>
 
               <button type="button" class="settings-btn" @click="modulesEngine.reset()">
-                RESET MODULE LAYOUT
+                {{ t('settings.modules.reset') }}
               </button>
             </div>
 
             <div v-if="activeCategory === 'system'" class="settings-section">
-              <div class="settings-section-title">SYSTEM SETTINGS</div>
+              <div class="settings-section-title">{{ t('settings.system.title') }}</div>
 
               <div class="settings-field">
-                <label class="settings-label">Open Terminal & File Manager In</label>
+                <label class="settings-label">{{ t('settings.system.openIn') }}</label>
                 <USelectMenu
                   variant="none"
                   color="neutral"
@@ -723,16 +708,20 @@
                   class="settings-select"
                 />
                 <p class="settings-hint">
-                  <strong>Home</strong> ({{ startupPaths.home || '~' }}) opens
-                  the file manager and new shells in your home directory.
-                  <strong>Launch CWD</strong> ({{ startupPaths.cwd || '/' }})
-                  uses the directory aDex-UI was launched from. Affects only
-                  newly opened shells; existing tabs keep their cwd.
+                  <RichText
+                    :msg="t('settings.system.cwdHint')"
+                    :values="{
+                      home: ['strong', t('settings.system.homeName')],
+                      homePath: startupPaths.home || '~',
+                      launch: ['strong', t('settings.system.cwdLaunch')],
+                      cwdPath: startupPaths.cwd || '/',
+                    }"
+                  />
                 </p>
               </div>
 
               <div class="settings-field">
-                <label class="settings-label">Clock Format</label>
+                <label class="settings-label">{{ t('settings.system.clockFormat') }}</label>
                 <USelectMenu
                   variant="none"
                   color="neutral"
@@ -754,200 +743,192 @@
 
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Boot Animation</label>
+                <label class="settings-label">{{ t('settings.system.bootAnimation') }}</label>
                 <USwitch
                   v-model="localSettings.system.bootAnimation"
                   size="md"
                   color="primary"
-                  aria-label="Boot animation"
+                  :aria-label="t('settings.system.bootAnimationAria')"
                 />
               </div>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Show Grid Background</label>
+                <label class="settings-label">{{ t('settings.system.grid') }}</label>
                 <USwitch
                   v-model="localSettings.system.gridBackground"
                   size="md"
                   color="primary"
-                  aria-label="Show grid background"
+                  :aria-label="t('settings.system.gridAria')"
                 />
               </div>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Performance Mode</label>
+                <label class="settings-label">{{ t('settings.system.performance') }}</label>
                 <USwitch
                   v-model="localSettings.system.performanceMode"
                   size="md"
                   color="primary"
-                  aria-label="Performance mode"
+                  :aria-label="t('settings.system.performanceAria')"
                 />
               </div>
             </div>
 
             <!-- ADVANCED -->
             <div v-if="activeCategory === 'advanced'" class="settings-section">
-              <div class="settings-section-title">ADVANCED SETTINGS</div>
+              <div class="settings-section-title">{{ t('settings.advanced.title') }}</div>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Skip boot intro</label>
+                <label class="settings-label">{{ t('settings.advanced.nointro') }}</label>
                 <USwitch
                   v-model="localSettings.advanced.nointro"
                   size="md"
                   color="primary"
-                  aria-label="Skip boot intro"
+                  :aria-label="t('settings.advanced.nointro')"
                   @update:model-value="persistCurrentSettings"
                 />
               </div>
               <p class="settings-hint">
-                Bypasses the animated boot splash and goes straight to
-                the shell. Equivalent to the legacy <code>--nointro</code> CLI flag.
+                <RichText
+                  :msg="t('settings.advanced.nointroHint')"
+                  :values="{ flag: ['code', '--nointro'] }"
+                />
               </p>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Allow Windowed Mode</label>
+                <label class="settings-label">{{ t('settings.advanced.windowed') }}</label>
                 <USwitch
                   v-model="localSettings.advanced.allowWindowedMode"
                   size="md"
                   color="primary"
-                  aria-label="Allow windowed mode"
+                  :aria-label="t('settings.advanced.windowedAria')"
                 />
               </div>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Force Fullscreen</label>
+                <label class="settings-label">{{ t('settings.advanced.fullscreen') }}</label>
                 <USwitch
                   v-model="localSettings.advanced.forceFullscreen"
                   size="md"
                   color="primary"
-                  aria-label="Force fullscreen on launch"
+                  :aria-label="t('settings.advanced.fullscreenAria')"
                 />
               </div>
               <p class="settings-hint">
-                Puts the window into true fullscreen after boot — no
-                decorations, covering the display. Takes effect on next launch.
+                {{ t('settings.advanced.fullscreenHint') }}
               </p>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Desktop Notifications</label>
+                <label class="settings-label">{{ t('settings.advanced.notifications') }}</label>
                 <USwitch
                   v-model="localSettings.advanced.notifications"
                   size="md"
                   color="primary"
-                  aria-label="Desktop notifications"
+                  :aria-label="t('settings.advanced.notificationsAria')"
                   @update:model-value="onNotificationsToggle"
                 />
               </div>
               <p class="settings-hint">
-                Posts to your desktop's notification centre when a long-running
-                operation finishes, so the result reaches you even when aDex is
-                behind another window. Short operations never notify.
+                {{ t('settings.advanced.notificationsHint') }}
               </p>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Disable GPU Acceleration</label>
+                <label class="settings-label">{{ t('settings.advanced.disableGpu') }}</label>
                 <USwitch
                   v-model="localSettings.advanced.disableGpu"
                   size="md"
                   color="primary"
-                  aria-label="Disable GPU acceleration"
+                  :aria-label="t('settings.advanced.disableGpuAria')"
                 />
               </div>
               <p class="settings-hint">
-                <strong>Only turn this on if the app crashes.</strong> Some
-                graphics drivers crash the rendering process — if aDex closes
-                by itself, this usually stops it. The cost is a noticeably
-                less responsive interface, since drawing falls back to the
-                CPU. Takes effect on next launch.
+                <strong>{{ t('settings.advanced.disableGpuWarning') }}</strong> {{ t('settings.advanced.disableGpuHint') }}
               </p>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Frameless Window</label>
+                <label class="settings-label">{{ t('settings.advanced.frameless') }}</label>
                 <USwitch
                   v-model="localSettings.advanced.frameless"
                   size="md"
                   color="primary"
-                  aria-label="Frameless window"
+                  :aria-label="t('settings.advanced.framelessAria')"
                   @update:model-value="onFramelessApply"
                 />
               </div>
               <p class="settings-hint">
-                Removes the OS titlebar and border. Applies immediately; use
-                the window controls in the top bar to move, resize and close.
+                {{ t('settings.advanced.framelessHint') }}
               </p>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Hide Dotfiles in File Manager</label>
+                <label class="settings-label">{{ t('settings.advanced.hideDotfiles') }}</label>
                 <USwitch
                   v-model="localSettings.advanced.hideDotfiles"
                   size="md"
                   color="primary"
-                  aria-label="Hide dotfiles"
+                  :aria-label="t('settings.advanced.hideDotfilesAria')"
                   @update:model-value="persistCurrentSettings"
                 />
               </div>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">File Manager: List View</label>
+                <label class="settings-label">{{ t('settings.advanced.listView') }}</label>
                 <USwitch
                   v-model="localSettings.advanced.fsListView"
                   size="md"
                   color="primary"
-                  aria-label="File manager list view"
+                  :aria-label="t('settings.advanced.listViewAria')"
                   @update:model-value="persistCurrentSettings"
                 />
               </div>
               <p class="settings-hint">
-                ON renders the file manager as a vertical list with
-                metadata; OFF (default) keeps the grid of icon tiles.
+                {{ t('settings.advanced.listViewHint') }}
               </p>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Experimental Globe Features</label>
+                <label class="settings-label">{{ t('settings.advanced.globe') }}</label>
                 <USwitch
                   v-model="localSettings.advanced.experimentalGlobeFeatures"
                   size="md"
                   color="primary"
-                  aria-label="Experimental globe features"
+                  :aria-label="t('settings.advanced.globeAria')"
                   @update:model-value="persistCurrentSettings"
                 />
               </div>
               <p class="settings-hint">
-                Connection trace lines and satellite track overlays
-                on the Globe panel. Rough around the edges.
+                {{ t('settings.advanced.globeHint') }}
               </p>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Experimental Features</label>
+                <label class="settings-label">{{ t('settings.advanced.experimental') }}</label>
                 <USwitch
                   v-model="localSettings.advanced.experimentalFeatures"
                   size="md"
                   color="primary"
-                  aria-label="Experimental features"
+                  :aria-label="t('settings.advanced.experimentalAria')"
                 />
               </div>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">WebGL Renderer</label>
+                <label class="settings-label">{{ t('settings.advanced.webgl') }}</label>
                 <USwitch
                   v-model="localSettings.advanced.webglRenderer"
                   size="md"
                   color="primary"
-                  aria-label="WebGL renderer"
+                  :aria-label="t('settings.advanced.webglAria')"
                 />
               </div>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Debug Mode</label>
+                <label class="settings-label">{{ t('settings.advanced.debug') }}</label>
                 <USwitch
                   v-model="localSettings.advanced.debugMode"
                   size="md"
                   color="primary"
-                  aria-label="Debug mode"
+                  :aria-label="t('settings.advanced.debugAria')"
                 />
               </div>
 
               <div class="settings-field">
-                <label class="settings-label">Terminal Scrollback ({{ localSettings.advanced.scrollback }} lines)</label>
+                <label class="settings-label">{{ t('settings.advanced.scrollback', { lines: localSettings.advanced.scrollback }) }}</label>
                 <input
                   v-model.number="localSettings.advanced.scrollback"
                   type="range"
@@ -961,48 +942,67 @@
 
             <!-- UPDATES -->
             <div v-if="activeCategory === 'updates'" class="settings-section">
-              <div class="settings-section-title">UPDATES</div>
+              <div class="settings-section-title">{{ t('settings.updates.title') }}</div>
 
               <div class="settings-field">
-                <label class="settings-label">Current version</label>
-                <div class="settings-readonly">{{ updates.currentVersion }}</div>
+                <label class="settings-label">{{ t('settings.updates.currentVersion') }}</label>
+                <div class="settings-readonly">{{ updates.currentVersion.value }}</div>
               </div>
 
-              <div v-if="updates.state.value.latest" class="settings-field">
-                <label class="settings-label">Latest release</label>
+              <div v-if="updates.release.value" class="settings-field">
+                <label class="settings-label">{{ t('settings.updates.latestRelease') }}</label>
                 <div class="settings-readonly">
-                  {{ updates.state.value.latest.tag_name }}
+                  {{ updates.release.value.version }}
                   <span v-if="updates.hasUpdate.value" class="settings-readonly-tag settings-readonly-tag-new">
-                    UPDATE AVAILABLE
+                    {{ t('settings.updates.updateAvailable') }}
                   </span>
-                  <span v-else class="settings-readonly-tag">UP TO DATE</span>
+                  <span v-else class="settings-readonly-tag">{{ t('settings.updates.skipped') }}</span>
+                </div>
+              </div>
+              <div v-else-if="updates.phase.value === 'up-to-date'" class="settings-field">
+                <label class="settings-label">{{ t('settings.updates.latestRelease') }}</label>
+                <div class="settings-readonly">
+                  {{ updates.currentVersion.value }}
+                  <span class="settings-readonly-tag">{{ t('settings.updates.upToDate') }}</span>
                 </div>
               </div>
 
+              <div v-if="updates.info.value && !updates.info.value.available" class="settings-field">
+                <label class="settings-label">{{ t('settings.updates.unavailable') }}</label>
+                <div class="settings-readonly settings-readonly-err">{{ updates.info.value.reason }}</div>
+              </div>
+              <div v-else-if="updates.info.value && !updates.info.value.canSelfUpdate" class="settings-field">
+                <label class="settings-label">{{ t('settings.updates.selfUpdateUnavailable') }}</label>
+                <div class="settings-readonly">{{ updates.info.value.selfUpdateReason }}</div>
+                <p class="settings-hint">
+                  {{ t('settings.updates.selfUpdateHint') }}
+                </p>
+              </div>
+
               <div v-if="updates.state.value.lastChecked" class="settings-field">
-                <label class="settings-label">Last checked</label>
+                <label class="settings-label">{{ t('settings.updates.lastChecked') }}</label>
                 <div class="settings-readonly">{{ formatLastChecked(updates.state.value.lastChecked) }}</div>
               </div>
 
               <div v-if="updates.state.value.lastError" class="settings-field">
-                <label class="settings-label">Last error</label>
+                <label class="settings-label">{{ t('settings.updates.lastError') }}</label>
                 <div class="settings-readonly settings-readonly-err">
                   {{ updates.state.value.lastError }}
                 </div>
               </div>
 
               <div class="settings-field settings-field-toggle">
-                <label class="settings-label">Auto-check for updates</label>
+                <label class="settings-label">{{ t('settings.updates.autoCheck') }}</label>
                 <USwitch
                   v-model="updates.settings.value.enabled"
                   size="md"
                   color="primary"
-                  aria-label="Enable update checks"
+                  :aria-label="t('settings.updates.autoCheckAria')"
                 />
               </div>
 
               <div class="settings-field">
-                <label class="settings-label">Check frequency</label>
+                <label class="settings-label">{{ t('settings.updates.frequency') }}</label>
                 <USelectMenu
                   variant="none"
                   color="neutral"
@@ -1016,9 +1016,7 @@
                 />
 
                 <p class="settings-hint">
-                  GitHub anonymous API allows 60 requests/hour per IP,
-                  so even "every launch" is comfortably within budget.
-                  Use "Manual only" if you'd rather poll yourself.
+                  {{ t('settings.updates.frequencyHint', { manual: t('settings.updates.intervals.manual'), checkNow: t('settings.updates.checkNow') }) }}
                 </p>
               </div>
 
@@ -1029,7 +1027,7 @@
                   :disabled="updates.checking.value"
                   @click="checkForUpdatesNow"
                 >
-                  {{ updates.checking.value ? 'CHECKING...' : 'CHECK NOW' }}
+                  {{ updates.checking.value ? t('settings.updates.checking') : t('settings.updates.checkNow') }}
                 </button>
                 <button
                   v-if="updates.hasUpdate.value"
@@ -1038,13 +1036,13 @@
                   style="margin-left: 0.5vw"
                   @click="showUpdateModalFromSettings"
                 >
-                  VIEW UPDATE
+                  {{ t('settings.updates.viewUpdate') }}
                 </button>
               </div>
 
               <div v-if="updates.settings.value.skippedVersions.length > 0" class="settings-field">
                 <label class="settings-label">
-                  Skipped versions ({{ updates.settings.value.skippedVersions.length }})
+                  {{ t('settings.updates.skippedVersions', { count: updates.settings.value.skippedVersions.length }) }}
                 </label>
                 <div class="settings-readonly">
                   {{ updates.settings.value.skippedVersions.join(', ') }}
@@ -1055,11 +1053,10 @@
                   style="margin-top: 0.4vh"
                   @click="updates.unskipAll()"
                 >
-                  CLEAR SKIP LIST
+                  {{ t('settings.updates.clearSkip') }}
                 </button>
                 <p class="settings-hint">
-                  Clearing the skip list lets the update modal
-                  re-surface for any version you previously dismissed.
+                  {{ t('settings.updates.clearSkipHint') }}
                 </p>
               </div>
             </div>
@@ -1070,20 +1067,20 @@
         <!-- Resize grip: bottom-right corner. -->
         <div
           class="settings-resize-grip"
-          title="Drag to resize"
+          :title="t('settings.resizeGrip')"
           @pointerdown="startResize"
         />
 
         <div class="settings-footer">
           <button class="settings-btn settings-btn-secondary" @click="resetToDefaults">
-            RESET DEFAULTS
+            {{ t('settings.resetDefaults') }}
           </button>
           <div class="settings-footer-spacer" />
           <button class="settings-btn settings-btn-secondary" @click="cancel">
-            CANCEL
+            {{ t('settings.cancel') }}
           </button>
           <button class="settings-btn settings-btn-primary" @click="save">
-            SAVE
+            {{ t('settings.save') }}
           </button>
         </div>
       </div>
@@ -1092,8 +1089,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, computed, onMounted } from 'vue'
+import { ref, reactive, watch, computed, onMounted, h, type FunctionalComponent } from 'vue'
 import { useStorage, useDebounceFn, useEventListener } from '@vueuse/core'
+import { useI18n } from '~/composables/useI18n'
 import { useAdexTheme } from '~/composables/useAdexTheme'
 import { useCustomLayouts } from '~/composables/useCustomLayouts'
 import { useModules } from '~/composables/useModules'
@@ -1129,6 +1127,8 @@ interface SettingsData {
     /** Globe panel implementation: 'classic' dot grid or 'geo' country
      *  outlines. */
     globeStyle: string
+    /** Interface language code; '' follows the system. */
+    language: string
   }
   audio: {
     enabled: boolean
@@ -1211,7 +1211,6 @@ interface SettingsData {
 
 interface Category {
   id: string
-  label: string
 }
 
 // ---- Props / Emits ----
@@ -1240,19 +1239,20 @@ const emit = defineEmits<{
 
 const STORAGE_KEY = 'adex-settings'
 
+// Labels come from settings.categories.<id>.
 const categories: Category[] = [
-  { id: 'terminal',    label: 'TERMINAL' },
-  { id: 'theme',       label: 'THEME' },
-  { id: 'keyboard',    label: 'KEYBOARD' },
-  { id: 'font',        label: 'FONT' },
-  { id: 'audio',       label: 'AUDIO' },
-  { id: 'network',     label: 'NETWORK' },
-  { id: 'security',    label: 'SECURITY' },
-  { id: 'keybinds',    label: 'KEYBINDS' },
-  { id: 'modules',     label: 'MODULES' },
-  { id: 'system',      label: 'SYSTEM' },
-  { id: 'advanced',    label: 'ADVANCED' },
-  { id: 'updates',     label: 'UPDATES' },
+  { id: 'terminal' },
+  { id: 'theme' },
+  { id: 'keyboard' },
+  { id: 'font' },
+  { id: 'audio' },
+  { id: 'network' },
+  { id: 'security' },
+  { id: 'keybinds' },
+  { id: 'modules' },
+  { id: 'system' },
+  { id: 'advanced' },
+  { id: 'updates' },
 ]
 
 // ---- State ----
@@ -1268,6 +1268,20 @@ const kbEngine = useAdexKeyboard()
 // Module-scope refs inside the composable mean every consumer
 // (Settings, page-level autocheck, UpdateAvailableModal) sees the same
 // data without us having to pass it down.
+const { t, locales } = useI18n()
+
+/** Renders a translated message whose {name} placeholders become inline
+ *  elements: a value of ['code', 'id'] renders <code>id</code>, a plain
+ *  string is inserted as text. Keeps markup out of the translations. */
+type RichValue = string | [tag: string, text: string]
+const RichText: FunctionalComponent<{ msg: string; values: Record<string, RichValue> }> = ({ msg, values }) =>
+  msg.split(/(\{\w+\})/).filter(Boolean).map((part) => {
+    const value = /^\{\w+\}$/.test(part) ? values[part.slice(1, -1)] : undefined
+    if (value === undefined) return part
+    return Array.isArray(value) ? h(value[0], value[1]) : value
+  }) as any
+RichText.props = ['msg', 'values']
+
 const updates = useUpdateChecker()
 
 function formatLastChecked(iso: string): string {
@@ -1280,7 +1294,7 @@ function formatLastChecked(iso: string): string {
 async function checkForUpdatesNow() {
   // The composable handles the in-flight guard via its `checking` ref,
   // so a double-click here is a no-op. We just kick the request.
-  await updates.checkNow()
+  await updates.check()
   // If the result is a new version, surface it. Emitting up the chain
   // so the parent (pages/index.vue) can mount UpdateAvailableModal —
   // we can't open the modal from inside the settings modal because
@@ -1304,9 +1318,9 @@ const kbIndex = computed<KbLayoutIndexEntry[]>(() => kbEngine.index.value)
 // USelectMenu wants `{ id, label }`-shaped items by default; we pass the
 // raw index entries and tell it which key to read for value/label.
 const themeMenuItems = computed(() =>
-  themeIndex.value.map((t) => ({
-    id: t.id,
-    displayName: `${t.displayName} — ${t.layout}`,
+  themeIndex.value.map((th) => ({
+    id: th.id,
+    displayName: `${th.displayName} — ${th.layout}`,
   })),
 )
 const kbMenuItems = computed(() =>
@@ -1424,11 +1438,17 @@ function resetModalGeometry() {
 // A window resize can leave a saved position off-screen.
 useEventListener(window, 'resize', clampToViewport)
 
+// Language items — the codes must match validLanguages in the Go validator.
+const languageItems = computed(() => [
+  { id: '', label: t('settings.display.languageSystem') },
+  ...Object.entries(locales).map(([id, l]) => ({ id, label: l.name })),
+])
+
 // Globe style items — must match validGlobeStyles in the Go validator.
-const globeStyleItems = [
-  { id: 'classic', label: 'Classic (dot grid)' },
-  { id: 'geo', label: 'Countries (outlines)' },
-]
+const globeStyleItems = computed(() => [
+  { id: 'classic', label: t('settings.theme.globeStyles.classic') },
+  { id: 'geo', label: t('settings.theme.globeStyles.geo') },
+])
 
 // Layout preset items — matches the CSS files in assets/css/layouts/.
 // Empty id ('') means "follow the theme's bundled layout" — that's the
@@ -1453,13 +1473,13 @@ const lockMessage = ref('')
 const lockError = ref(false)
 const lockIdleTimeout = ref(0)
 
-const lockIdleItems = [
-  { id: 0,    label: 'Never' },
-  { id: 300,  label: 'After 5 minutes' },
-  { id: 900,  label: 'After 15 minutes' },
-  { id: 1800, label: 'After 30 minutes' },
-  { id: 3600, label: 'After 1 hour' },
-]
+const lockIdleItems = computed(() => [
+  { id: 0,    label: t('settings.security.idleNever') },
+  { id: 300,  label: t('settings.security.idleMinutes', { count: 5 }) },
+  { id: 900,  label: t('settings.security.idleMinutes', { count: 15 }) },
+  { id: 1800, label: t('settings.security.idleMinutes', { count: 30 }) },
+  { id: 3600, label: t('settings.security.idleHours', { count: 1 }) },
+])
 
 async function refreshLockState() {
   try {
@@ -1479,11 +1499,11 @@ async function applyLockPassphrase() {
     await SetLockPassphrase(lockCurrent.value, lockNext.value)
     lockCurrent.value = ''
     lockNext.value = ''
-    lockMessage.value = 'Passphrase saved.'
+    lockMessage.value = t('settings.security.passphraseSaved')
     await refreshLockState()
   } catch (err) {
     lockError.value = true
-    lockMessage.value = err instanceof Error ? err.message : 'Could not set the passphrase'
+    lockMessage.value = err instanceof Error ? err.message : t('settings.security.setFailed')
   }
 }
 
@@ -1494,11 +1514,11 @@ async function removeLock() {
     const { DisableLock } = await import('~/lib/wailsjs/coordinator')
     await DisableLock(lockCurrent.value)
     lockCurrent.value = ''
-    lockMessage.value = 'Lock removed.'
+    lockMessage.value = t('settings.security.lockRemoved')
     await refreshLockState()
   } catch (err) {
     lockError.value = true
-    lockMessage.value = err instanceof Error ? err.message : 'Could not remove the lock'
+    lockMessage.value = err instanceof Error ? err.message : t('settings.security.removeFailed')
   }
 }
 
@@ -1527,21 +1547,22 @@ async function applyIdleTimeout(value: unknown) {
   }
 }
 
+// `action` is a key under settings.keybinds.actions.
 const KEYBINDS = [
-  { action: 'Open settings',        keys: 'Ctrl + ,' },
-  { action: 'Lock session',         keys: 'Ctrl + Shift + L' },
-  { action: 'New terminal tab',     keys: 'Ctrl + Shift + T' },
-  { action: 'Close terminal tab',   keys: 'Ctrl + Shift + W' },
-  { action: 'Switch to tab 1–5',    keys: 'Ctrl + Shift + 1…5' },
-  { action: 'Quit',                 keys: 'Ctrl + Shift + Q' },
-  { action: 'Toggle terminal',      keys: 'Ctrl + `' },
-  { action: 'Toggle file browser',  keys: 'Ctrl + Shift + F' },
-  { action: 'Toggle system monitor', keys: 'Ctrl + Shift + S' },
+  { action: 'openSettings',   keys: 'Ctrl + ,' },
+  { action: 'lockSession',    keys: 'Ctrl + Shift + L' },
+  { action: 'newTab',         keys: 'Ctrl + Shift + T' },
+  { action: 'closeTab',       keys: 'Ctrl + Shift + W' },
+  { action: 'switchTab',      keys: 'Ctrl + Shift + 1…5' },
+  { action: 'quit',           keys: 'Ctrl + Shift + Q' },
+  { action: 'toggleTerminal', keys: 'Ctrl + `' },
+  { action: 'toggleFiles',    keys: 'Ctrl + Shift + F' },
+  { action: 'toggleMonitor',  keys: 'Ctrl + Shift + S' },
 ]
 
 /** Interface font choices. The empty id means "follow the theme". */
 const uiFontFamilyItems = computed(() => [
-  { id: '', label: 'Theme default' },
+  { id: '', label: t('settings.font.themeDefault') },
   ...fontFamilyItems.value.map(f => ({ id: f.id, label: f.label })),
 ])
 
@@ -1561,42 +1582,39 @@ function onUiFontApply(value: unknown) {
   }
 }
 
-const clockFormatItems = [
-  { id: '24h', label: '24-Hour' },
-  { id: '12h', label: '12-Hour (AM/PM)' },
-]
+const clockFormatItems = computed(() => [
+  { id: '24h', label: t('settings.system.clock24') },
+  { id: '12h', label: t('settings.system.clock12') },
+])
 
-const updateIntervalItems = [
-  { id: 'manual', label: 'Manual only' },
-  { id: 'launch', label: 'On every launch' },
-  { id: 'daily',  label: 'Once a day' },
-  { id: 'weekly', label: 'Once a week' },
-]
+const updateIntervalItems = computed(() => [
+  { id: 'manual', label: t('settings.updates.intervals.manual') },
+  { id: 'launch', label: t('settings.updates.intervals.launch') },
+  { id: 'daily',  label: t('settings.updates.intervals.daily') },
+  { id: 'weekly', label: t('settings.updates.intervals.weekly') },
+])
 
-const BUILTIN_LAYOUTS = [
-  { id: '',            label: 'Theme default' },
-  { id: 'default',     label: 'Default (classic eDex)' },
-  { id: 'disrupted',   label: 'Disrupted (terminal top)' },
-  { id: 'typeleft',    label: 'Typeleft (keyboard left)' },
-  { id: 'fulltype',    label: 'Fulltype (full-width keyboard)' },
-  { id: 'notype',      label: 'Notype (no on-screen keyboard)' },
-  { id: 'colorfilter', label: 'Colorfilter (minimal chrome)' },
-  { id: 'terminal-focus', label: 'Terminal focus (terminal fills the window)' },
-]
+const builtinLayouts = computed(() => [
+  { id: '',            label: t('settings.theme.layouts.themeDefault') },
+  { id: 'default',     label: t('settings.theme.layouts.default') },
+  { id: 'disrupted',   label: t('settings.theme.layouts.disrupted') },
+  { id: 'typeleft',    label: t('settings.theme.layouts.typeleft') },
+  { id: 'fulltype',    label: t('settings.theme.layouts.fulltype') },
+  { id: 'notype',      label: t('settings.theme.layouts.notype') },
+  { id: 'colorfilter', label: t('settings.theme.layouts.colorfilter') },
+  { id: 'terminal-focus', label: t('settings.theme.layouts.terminalFocus') },
+])
 
 // Built-ins plus anything the user defined in layouts.json. Custom entries
 // are suffixed so they are distinguishable in the list.
 const customLayoutEngine = useCustomLayouts()
 const modulesEngine = useModules()
 
-function regionLabel(region: 'left' | 'right' | 'bottom'): string {
-  return { left: 'Left column', right: 'Right column', bottom: 'Bottom row' }[region]
-}
 const layoutItems = computed(() => [
-  ...BUILTIN_LAYOUTS,
+  ...builtinLayouts.value,
   ...customLayoutEngine.layouts.value.map(l => ({
     id: l.id,
-    label: `${l.displayName || l.id} (custom)`,
+    label: t('settings.theme.layouts.custom', { name: l.displayName || l.id }),
   })),
 ])
 
@@ -1659,13 +1677,13 @@ const adapterItems = computed(() => {
   const interfaces = (networkStore.metrics?.interfaces ?? []) as any[]
   const seen = new Set<string>()
   const items: Array<{ id: string; label: string }> = [
-    { id: '', label: 'Auto (first up)' },
+    { id: '', label: t('settings.network.adapterAuto') },
   ]
   for (const iface of interfaces) {
     if (!iface?.name || iface.name === 'lo' || seen.has(iface.name)) continue
     seen.add(iface.name)
-    const tag = iface.isUp ? '' : ' (down)'
-    items.push({ id: iface.name, label: `${iface.name}${tag}` })
+    const label = iface.isUp ? iface.name : t('settings.network.adapterDown', { name: iface.name })
+    items.push({ id: iface.name, label })
   }
   return items
 })
@@ -1679,17 +1697,17 @@ const PING_PRESETS = {
   cloudflare: '1.1.1.1:53',
 } as const
 
-const pingTargetPresetItems = [
+const pingTargetPresetItems = computed(() => [
   { id: 'google',     label: 'Google DNS (8.8.8.8:53)' },
   { id: 'cloudflare', label: 'Cloudflare DNS (1.1.1.1:53)' },
-  { id: 'custom',     label: 'Custom host:port' },
-] as const
+  { id: 'custom',     label: t('settings.network.pingCustomPreset') },
+])
 
 const pingTargetPreset = computed<'google' | 'cloudflare' | 'custom'>({
   get() {
-    const t = (localSettings.network.pingTarget || '').trim()
-    if (t === PING_PRESETS.google) return 'google'
-    if (t === PING_PRESETS.cloudflare) return 'cloudflare'
+    const target = (localSettings.network.pingTarget || '').trim()
+    if (target === PING_PRESETS.google) return 'google'
+    if (target === PING_PRESETS.cloudflare) return 'cloudflare'
     return 'custom'
   },
   set(id) {
@@ -1718,10 +1736,10 @@ const audioEngine = useAdexAudio()
 //             fallbacks defined in SYNTH_RECIPES.
 // User-facing labels are descriptive — the internal id is what gets
 // persisted and matched against `setPack(...)`.
-const audioPackItems = [
-  { id: 'adex',  label: 'WAV samples (recommended)' },
-  { id: 'synth', label: 'Synth fallback (Web Audio)' },
-] as const
+const audioPackItems = computed(() => [
+  { id: 'adex',  label: t('settings.audio.packs.adex') },
+  { id: 'synth', label: t('settings.audio.packs.synth') },
+])
 
 function onSoundpackChange(id: string | null | undefined) {
   if (id === 'adex' || id === 'synth') {
@@ -1805,15 +1823,15 @@ function onMasterVolumeInput() {
 // the underlying value identical to the previous CSS family string so
 // `localSettings.display.fontFamily` continues to round-trip into the
 // stylesheet without a migration.
-const fontFamilyItems = [
+const fontFamilyItems = computed(() => [
   { id: "'Fira Code', monospace",        label: 'Fira Code' },
   { id: "'JetBrains Mono', monospace",    label: 'JetBrains Mono' },
   { id: "'Cascadia Code', monospace",     label: 'Cascadia Code' },
   { id: "'Source Code Pro', monospace",   label: 'Source Code Pro' },
   { id: "'Consolas', monospace",          label: 'Consolas' },
   { id: "'Monaco', monospace",            label: 'Monaco' },
-  { id: 'monospace',                      label: 'System Monospace' },
-] as const
+  { id: 'monospace',                      label: t('settings.font.systemMonospace') },
+])
 
 // ---- Color Scheme tab ----
 //
@@ -1846,10 +1864,10 @@ async function loadColorSchemes() {
 //
 // We display the actual home + cwd paths next to the radio so the user
 // knows what they're picking. Loaded lazily from coordinator.GetStartupPaths.
-const initialCwdItems = [
-  { id: 'home', label: 'Home directory' },
-  { id: 'cwd',  label: 'Launch CWD' },
-] as const
+const initialCwdItems = computed(() => [
+  { id: 'home', label: t('settings.system.cwdHome') },
+  { id: 'cwd',  label: t('settings.system.cwdLaunch') },
+])
 
 const startupPaths = ref<{ home: string; cwd: string }>({ home: '', cwd: '' })
 
@@ -1890,6 +1908,7 @@ function getDefaultSettings(): SettingsData {
       layout: '',
       // Matches the Go default in models.DefaultUISettings.
       globeStyle: 'classic',
+      language: '',
     },
     audio: {
       // Audio defaults to ON so first-launch users get the boot fanfare
@@ -2261,7 +2280,8 @@ onMounted(async () => {
   letter-spacing: 0.04em;
 }
 
-.settings-hint strong {
+/* :deep so RichText-rendered elements match too. */
+.settings-hint :deep(strong) {
   opacity: 1;
   font-weight: normal;
   color: var(--accent, rgb(170, 207, 209));

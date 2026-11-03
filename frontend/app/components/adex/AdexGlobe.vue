@@ -2,8 +2,8 @@
   <div class="mod-panel mod-globe">
     <!-- Header -->
     <div class="section-title">
-      <span class="title-left">WORLD VIEW</span>
-      <span class="title-right">PROJECTION</span>
+      <span class="title-left">{{ t('panels.globe.title') }}</span>
+      <span class="title-right">{{ t('panels.globe.projection') }}</span>
     </div>
 
     <!-- Globe canvas container -->
@@ -31,11 +31,11 @@
          "GLOBAL NETWORK MAP" block in the netstat panel above. -->
     <div class="globe-info">
       <div class="globe-info-row">
-        <span class="globe-info-label">ENDPOINT</span>
+        <span class="globe-info-label">{{ t('panels.globe.endpoint') }}</span>
         <span class="globe-info-value" :title="endpointCoords">{{ endpointCoords }}</span>
       </div>
       <div class="globe-info-row">
-        <span class="globe-info-label">LOCATION</span>
+        <span class="globe-info-label">{{ t('panels.globe.location') }}</span>
         <!-- `title` exposes the full value on hover when CSS
              ellipsis-truncates it. Adding it on every truncated row
              across the UI per user request. -->
@@ -46,7 +46,7 @@
         <span class="globe-info-value globe-info-truncated" :title="ispName">{{ ispName }}</span>
       </div>
       <div class="globe-info-row">
-        <span class="globe-info-label">CONNECTIONS</span>
+        <span class="globe-info-label">{{ t('panels.globe.connections') }}</span>
         <span class="globe-info-value">{{ activeConnectionCount }}</span>
       </div>
     </div>
@@ -57,7 +57,10 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useStorage, useDocumentVisibility } from '@vueuse/core'
 import { useNetworkStore } from '~/stores/network'
+import { useI18n } from '~/composables/useI18n'
 import { GetSelfGeoIP } from '~/lib/wailsjs/coordinator'
+
+const { t } = useI18n()
 
 const networkStore = useNetworkStore()
 
@@ -114,7 +117,7 @@ const locationName = computed(() => {
   const country = props.country || selfGeo.value.country
   if (city) parts.push(city)
   if (country) parts.push(country)
-  return parts.length > 0 ? parts.join(', ') : 'Resolving...'
+  return parts.length > 0 ? parts.join(', ') : t('panels.globe.resolving')
 })
 
 const ispName = computed(() => selfGeo.value.isp)
@@ -222,7 +225,7 @@ const projectToCanvas = (lat: number, lon: number, cx: number, cy: number, radiu
 
 const endpointVisible = ref(false)
 const endpointStyle = ref<Record<string, string>>({})
-const endpointLabel = computed(() => props.city || 'ENDPOINT')
+const endpointLabel = computed(() => props.city || t('panels.globe.endpoint'))
 
 // Update the CSS position of the endpoint marker
 const updateEndpointMarker = (cx: number, cy: number, radius: number) => {

@@ -61,6 +61,8 @@ type UIDisplaySettings struct {
 	Layout string `json:"layout"`
 	// Globe rendering style: "classic" (stylised dot grid) or "geo" (country outlines).
 	GlobeStyle string `json:"globeStyle"`
+	// Interface language code ("en", "es", ...). Empty = follow the system.
+	Language string `json:"language"`
 }
 
 // UIAudioSettings ← SettingsData.audio

@@ -158,3 +158,6 @@ steering-docs/
 .opencode
 .mcp.json
 openspec
+
+# Updater signing private key (the public half is build/adex.key.pub)
+adex.key

@@ -2,16 +2,16 @@
   <div class="mod-panel mod-netstat">
     <!-- Header -->
     <div class="section-title">
-      <span class="title-left">NETWORK STATUS</span>
+      <span class="title-left">{{ t('panels.netstat.title') }}</span>
       <span class="title-right">{{ primaryInterface }}</span>
     </div>
 
     <!-- Status rows -->
     <div class="netstat-body">
       <div class="netstat-row">
-        <span class="netstat-label">STATE</span>
+        <span class="netstat-label">{{ t('panels.netstat.state') }}</span>
         <span class="netstat-value" :class="isOnline ? 'state-online' : 'state-offline'">
-          {{ isOnline ? 'Online' : 'Offline' }}
+          {{ isOnline ? t('panels.netstat.online') : t('panels.netstat.offline') }}
         </span>
       </div>
       <div class="netstat-row">
@@ -23,15 +23,15 @@
         <span class="netstat-value netstat-value-truncated" :title="ipv6Address">{{ ipv6Address }}</span>
       </div>
       <div class="netstat-row">
-        <span class="netstat-label">PING</span>
+        <span class="netstat-label">{{ t('panels.netstat.ping') }}</span>
         <span class="netstat-value">{{ pingLatency }}</span>
       </div>
       <div class="netstat-row">
-        <span class="netstat-label">TYPE</span>
+        <span class="netstat-label">{{ t('panels.netstat.type') }}</span>
         <span class="netstat-value">{{ interfaceType }}</span>
       </div>
       <div class="netstat-row">
-        <span class="netstat-label">SIGNAL</span>
+        <span class="netstat-label">{{ t('panels.netstat.signal') }}</span>
         <span class="netstat-value">{{ signalStrength }}</span>
       </div>
     </div>
@@ -47,7 +47,10 @@
 import { ref, computed } from 'vue'
 import { useStorage, useIntervalFn } from '@vueuse/core'
 import { useNetworkStore } from '~/stores/network'
+import { useI18n } from '~/composables/useI18n'
 import { MeasureLatency, GetSelfGeoIP } from '~/lib/wailsjs/coordinator'
+
+const { t } = useI18n()
 
 const networkStore = useNetworkStore()
 
@@ -116,17 +119,17 @@ const ipv6Address = computed(() => {
 const interfaceType = computed(() => {
   const name = primaryInterface.value.toLowerCase()
   if (name.startsWith('wl') || name.startsWith('wifi') || name.startsWith('wlan')) return 'Wi-Fi'
-  if (name.startsWith('eth') || name.startsWith('en')) return 'Ethernet'
-  if (name.startsWith('lo')) return 'Loopback'
+  if (name.startsWith('eth') || name.startsWith('en')) return t('panels.netstat.ethernet')
+  if (name.startsWith('lo')) return t('panels.netstat.loopback')
   if (name.startsWith('tun') || name.startsWith('wg')) return 'VPN'
-  return 'Unknown'
+  return t('panels.unknown')
 })
 
 const signalStrength = computed(() => {
   const iface = activeInterface.value
   if (iface?.signalStrength != null) return `${iface.signalStrength} dBm`
   if (iface?.speed) return `${iface.speed} Mbps`
-  return isOnline.value ? 'Good' : 'N/A'
+  return isOnline.value ? t('panels.netstat.good') : t('panels.na')
 })
 
 const pingLatency = computed(() => {
@@ -139,7 +142,7 @@ const pingLatency = computed(() => {
   if (pingMs.value !== null && Number.isFinite(ms)) {
     return `${ms.toFixed(1)} ms`
   }
-  return isOnline.value ? 'Measuring...' : 'N/A'
+  return isOnline.value ? t('panels.netstat.measuring') : t('panels.na')
 })
 
 const endpointLat = computed(() => {

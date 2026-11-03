@@ -13,17 +13,17 @@
         <div class="pi-header">
           <div :id="`pi-title-${id}`" class="pi-title">
             <span class="pi-bracket">[</span>
-            PROCESS {{ proc?.pid }}
+            {{ t('processes.info.title', { pid: proc?.pid ?? '' }) }}
             <span class="pi-bracket">]</span>
           </div>
-          <button class="pi-close" type="button" @click="close" aria-label="Close">
+          <button class="pi-close" type="button" @click="close" :aria-label="t('common.close')">
             X
           </button>
         </div>
 
         <dl v-if="proc" class="pi-grid">
           <div class="pi-row">
-            <dt>Name</dt>
+            <dt>{{ t('processes.info.name') }}</dt>
             <dd>{{ proc.name }}</dd>
           </div>
           <div class="pi-row">
@@ -31,11 +31,11 @@
             <dd class="pi-mono">{{ proc.pid }}</dd>
           </div>
           <div class="pi-row">
-            <dt>User</dt>
+            <dt>{{ t('processes.info.user') }}</dt>
             <dd>{{ proc.user || '—' }}</dd>
           </div>
           <div class="pi-row">
-            <dt>Status</dt>
+            <dt>{{ t('processes.info.status') }}</dt>
             <dd>{{ proc.status || '—' }}</dd>
           </div>
           <div class="pi-row">
@@ -43,17 +43,17 @@
             <dd class="pi-mono">{{ proc.cpu?.toFixed(1) ?? '0.0' }}%</dd>
           </div>
           <div class="pi-row">
-            <dt>Memory</dt>
+            <dt>{{ t('processes.info.memory') }}</dt>
             <dd class="pi-mono">{{ proc.memory?.toFixed(1) ?? '0.0' }}%</dd>
           </div>
           <div class="pi-row pi-row-wide">
-            <dt>Command</dt>
+            <dt>{{ t('processes.info.command') }}</dt>
             <dd class="pi-mono pi-cmd">{{ proc.command || proc.name }}</dd>
           </div>
         </dl>
 
         <div class="pi-actions">
-          <button class="pi-btn" type="button" @click="close">CLOSE</button>
+          <button class="pi-btn" type="button" @click="close">{{ t('dialogs.close') }}</button>
         </div>
       </div>
     </div>
@@ -66,6 +66,7 @@
  * the toplist's right-click "Process Info" action.
  */
 import { useId } from 'vue'
+import { useI18n } from '~/composables/useI18n'
 
 interface ProcessRow {
   pid: number
@@ -86,6 +87,7 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
 }>()
 
+const { t } = useI18n()
 const id = useId()
 
 function close() {

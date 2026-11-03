@@ -15,14 +15,14 @@
         <div class="pm-header">
           <div :id="`pm-title-${id}`" class="pm-title">
             <span class="pm-bracket">[</span>
-            PROCESS MANAGER
+            {{ t('processes.title') }}
             <span class="pm-bracket">]</span>
             <span class="pm-counter">{{ counterLabel }}</span>
           </div>
           <button
             class="pm-close"
             type="button"
-            aria-label="Close process manager"
+            :aria-label="t('processes.closeLabel')"
             @click="close"
           >
             X
@@ -38,29 +38,29 @@
               v-model="filterRaw"
               type="text"
               class="pm-filter-input"
-              placeholder="filter (name, pid, user, command)"
+              :placeholder="t('processes.filterPlaceholder')"
               autocomplete="off"
               spellcheck="false"
               @keydown.stop
             />
           </div>
           <div class="pm-sort">
-            <label class="pm-sort-label">SORT</label>
+            <label class="pm-sort-label">{{ t('processes.sort') }}</label>
             <select v-model="sortKey" class="pm-sort-select">
               <option value="cpu+mem">CPU+MEM</option>
               <option value="cpu">CPU</option>
               <option value="memory">MEM</option>
-              <option value="name">NAME</option>
+              <option value="name">{{ t('processes.columns.name') }}</option>
               <option value="pid">PID</option>
-              <option value="user">USER</option>
+              <option value="user">{{ t('processes.columns.user') }}</option>
             </select>
             <button
               class="pm-sort-dir"
               type="button"
-              :aria-label="sortDesc ? 'Descending' : 'Ascending'"
+              :aria-label="sortDesc ? t('processes.descending') : t('processes.ascending')"
               @click="sortDesc = !sortDesc"
             >
-              {{ sortDesc ? 'DESC' : 'ASC' }}
+              {{ sortDesc ? t('processes.desc') : t('processes.asc') }}
             </button>
           </div>
         </div>
@@ -68,13 +68,13 @@
         <!-- Column headers — sync with row template column-widths -->
         <div class="pm-header-row">
           <span class="col-pid">PID</span>
-          <span class="col-name">NAME</span>
-          <span class="col-user">USER</span>
-          <span class="col-status">STATUS</span>
+          <span class="col-name">{{ t('processes.columns.name') }}</span>
+          <span class="col-user">{{ t('processes.columns.user') }}</span>
+          <span class="col-status">{{ t('processes.columns.status') }}</span>
           <span class="col-cpu">CPU%</span>
           <span class="col-mem">MEM%</span>
-          <span class="col-cmd">COMMAND</span>
-          <span class="col-actions">ACTIONS</span>
+          <span class="col-cmd">{{ t('processes.columns.command') }}</span>
+          <span class="col-actions">{{ t('processes.columns.actions') }}</span>
         </div>
 
         <!-- Virtualised rows -->
@@ -102,7 +102,7 @@
                 <button
                   type="button"
                   class="pm-act"
-                  title="Process info"
+                  :title="t('processes.actions.info')"
                   @click="openInfo(data)"
                 >
                   i
@@ -110,7 +110,7 @@
                 <button
                   type="button"
                   class="pm-act"
-                  title="Copy PID"
+                  :title="t('processes.actions.copyPid')"
                   @click="actCopyPid(data)"
                 >
                   #
@@ -118,7 +118,7 @@
                 <button
                   type="button"
                   class="pm-act"
-                  title="Terminate (SIGTERM)"
+                  :title="t('processes.actions.terminate')"
                   @click="actTerm(data)"
                 >
                   T
@@ -126,7 +126,7 @@
                 <button
                   type="button"
                   class="pm-act"
-                  title="Stop (SIGSTOP)"
+                  :title="t('processes.actions.stop')"
                   @click="actStop(data)"
                 >
                   ||
@@ -134,7 +134,7 @@
                 <button
                   type="button"
                   class="pm-act"
-                  title="Continue (SIGCONT)"
+                  :title="t('processes.actions.continue')"
                   @click="actCont(data)"
                 >
                   &gt;
@@ -142,7 +142,7 @@
                 <button
                   type="button"
                   class="pm-act pm-act-danger"
-                  title="Kill (SIGKILL)"
+                  :title="t('processes.actions.kill')"
                   @click="actKill(data)"
                 >
                   X
@@ -155,18 +155,18 @@
         <!-- Empty state -->
         <div v-if="filteredProcesses.length === 0" class="pm-empty">
           <span style="opacity: 0.45;">
-            {{ rawProcesses.length === 0 ? 'Waiting for data...' : 'No matches' }}
+            {{ rawProcesses.length === 0 ? t('processes.waiting') : t('processes.noMatches') }}
           </span>
         </div>
 
         <!-- Footer with shortcut legend -->
         <div class="pm-footer">
-          <span><kbd>↑</kbd><kbd>↓</kbd> select</span>
-          <span><kbd>Enter</kbd> info</span>
-          <span><kbd>Del</kbd> term</span>
-          <span><kbd>⇧</kbd><kbd>Del</kbd> kill</span>
-          <span><kbd>/</kbd> filter</span>
-          <span><kbd>Esc</kbd> close</span>
+          <span><kbd>↑</kbd><kbd>↓</kbd> {{ t('processes.footer.select') }}</span>
+          <span><kbd>Enter</kbd> {{ t('processes.footer.info') }}</span>
+          <span><kbd>Del</kbd> {{ t('processes.footer.term') }}</span>
+          <span><kbd>⇧</kbd><kbd>Del</kbd> {{ t('processes.footer.kill') }}</span>
+          <span><kbd>/</kbd> {{ t('processes.footer.filter') }}</span>
+          <span><kbd>Esc</kbd> {{ t('processes.footer.close') }}</span>
         </div>
 
         <!-- Sub-modals -->
@@ -175,7 +175,7 @@
           :items="cmItems"
           :x="cmX"
           :y="cmY"
-          aria-label="Process context menu"
+          :aria-label="t('processes.menuLabel')"
         />
         <ProcessInfoModal v-model="infoOpen" :proc="cmTarget" />
         <ConfirmDialog
@@ -207,6 +207,7 @@ import AdexContextMenu, {
 } from '~/components/ui/AdexContextMenu.vue'
 import ProcessInfoModal from '~/components/system/ProcessInfoModal.vue'
 import ConfirmDialog from '~/components/ui/ConfirmDialog.vue'
+import { useI18n } from '~/composables/useI18n'
 
 interface ProcessRow {
   pid: number
@@ -223,6 +224,7 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
 }>()
 
+const { t } = useI18n()
 const id = useId()
 const systemStore = useSystemStore()
 
@@ -488,9 +490,9 @@ function actKill(proc: ProcessRow) {
   // Handgun-click chambering on dialog OPEN.
   try { useAdexAudio().playCue('destructive') } catch { /* non-fatal */ }
   openConfirm({
-    title: 'KILL PROCESS',
-    message: `Send SIGKILL to "${proc.name}" (PID ${proc.pid})? This is immediate and cannot be undone.`,
-    confirmLabel: 'KILL',
+    title: t('processes.killTitle'),
+    message: t('processes.killMessage', { name: proc.name, pid: proc.pid }),
+    confirmLabel: t('processes.menu.kill'),
     danger: true,
     handler: () => {
       // Gunshot on CONFIRM — same audio narrative as quit + toplist.
@@ -501,20 +503,20 @@ function actKill(proc: ProcessRow) {
 }
 
 const cmItems = computed<ContextMenuItems>(() => {
-  const t = cmTarget.value
-  if (!t) return []
+  const p = cmTarget.value
+  if (!p) return []
   return [
     [
-      { label: 'PROCESS INFO', icon: '[i]', onSelect: () => openInfo(t) },
-      { label: 'COPY PID', icon: '[#]', onSelect: () => actCopyPid(t) },
+      { label: t('processes.menu.info'), icon: '[i]', onSelect: () => openInfo(p) },
+      { label: t('processes.menu.copyPid'), icon: '[#]', onSelect: () => actCopyPid(p) },
     ],
     [
-      { label: 'TERMINATE', icon: '[T]', onSelect: () => actTerm(t), kbds: ['SIGTERM'] },
-      { label: 'STOP', icon: '[||]', onSelect: () => actStop(t), kbds: ['SIGSTOP'] },
-      { label: 'CONTINUE', icon: '[>]', onSelect: () => actCont(t), kbds: ['SIGCONT'] },
+      { label: t('processes.menu.terminate'), icon: '[T]', onSelect: () => actTerm(p), kbds: ['SIGTERM'] },
+      { label: t('processes.menu.stop'), icon: '[||]', onSelect: () => actStop(p), kbds: ['SIGSTOP'] },
+      { label: t('processes.menu.continue'), icon: '[>]', onSelect: () => actCont(p), kbds: ['SIGCONT'] },
     ],
     [
-      { label: 'KILL', icon: '[X]', onSelect: () => actKill(t), kbds: ['SIGKILL'], danger: true },
+      { label: t('processes.menu.kill'), icon: '[X]', onSelect: () => actKill(p), kbds: ['SIGKILL'], danger: true },
     ],
   ]
 })
@@ -524,8 +526,8 @@ function rowTooltip(p: ProcessRow): string {
     `${p.name} (PID ${p.pid})`,
     `CPU ${p.cpu.toFixed(1)}%  MEM ${p.memory.toFixed(1)}%`,
   ]
-  if (p.user) parts.push(`User: ${p.user}`)
-  if (p.status) parts.push(`Status: ${p.status}`)
+  if (p.user) parts.push(t('processes.tooltipUser', { user: p.user }))
+  if (p.status) parts.push(t('processes.tooltipStatus', { status: p.status }))
   if (p.command) parts.push(p.command)
   return parts.join('\n')
 }

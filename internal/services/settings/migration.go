@@ -423,7 +423,6 @@ func convertGeneralSettings(legacy LegacyGeneralConfig) *models.GeneralSettings 
 		ExitAction:     legacy.ExitAction,
 		// Modern additions
 		AutoSaveSettings:   true,
-		CheckUpdates:       false,
 		TelemetryEnabled:   false,
 		Language:           "en",
 		Timezone:           "auto",

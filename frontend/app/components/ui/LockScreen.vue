@@ -1,17 +1,17 @@
 <template>
-  <div v-if="locked" class="lock-overlay" role="dialog" aria-modal="true" aria-label="Session locked">
+  <div v-if="locked" class="lock-overlay" role="dialog" aria-modal="true" :aria-label="t('lock.ariaLabel')">
     <div class="lock-panel">
       <div class="lock-title">
-        <span class="lock-bracket">[</span> SESSION LOCKED <span class="lock-bracket">]</span>
+        <span class="lock-bracket">[</span> {{ t('lock.title') }} <span class="lock-bracket">]</span>
       </div>
-      <p class="lock-hint">Enter your passphrase to resume.</p>
+      <p class="lock-hint">{{ t('lock.hint') }}</p>
 
       <input
         ref="inputRef"
         v-model="passphrase"
         type="password"
         class="lock-input"
-        placeholder="passphrase"
+        :placeholder="t('lock.placeholder')"
         autocomplete="off"
         spellcheck="false"
         @keydown.enter.prevent="attemptUnlock"
@@ -20,13 +20,10 @@
       <p v-if="error" class="lock-error">{{ error }}</p>
 
       <button type="button" class="lock-button" :disabled="busy" @click="attemptUnlock">
-        {{ busy ? 'CHECKING…' : 'UNLOCK' }}
+        {{ busy ? t('lock.checking') : t('lock.unlock') }}
       </button>
 
-      <p class="lock-note">
-        This protects an unattended session. It is not a substitute for
-        locking your operating-system session.
-      </p>
+      <p class="lock-note">{{ t('lock.note') }}</p>
     </div>
   </div>
 </template>
@@ -51,6 +48,9 @@ import {
   IsLockConfigured,
   GetLockIdleTimeout,
 } from '~/lib/wailsjs/coordinator'
+import { useI18n } from '~/composables/useI18n'
+
+const { t } = useI18n()
 
 const lockedState = ref(false)
 /** Only show the overlay when a passphrase exists — otherwise the prompt
@@ -89,7 +89,7 @@ async function attemptUnlock() {
     passphrase.value = ''
     await refresh()
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Incorrect passphrase'
+    error.value = err instanceof Error ? err.message : t('lock.incorrect')
     passphrase.value = ''
   } finally {
     busy.value = false

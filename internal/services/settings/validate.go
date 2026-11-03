@@ -45,6 +45,12 @@ var validGlobeStyles = map[string]bool{
 
 const defaultGlobeStyle = "classic"
 
+// Interface languages the frontend ships translations for
+// (frontend/app/i18n/locales). Empty means "follow the system".
+var validLanguages = map[string]bool{
+	"en": true, "es": true, "fr": true, "ja": true, "zh": true,
+}
+
 // validateDisplay repairs display settings that name something the
 // application does not ship. Returns true when a value was changed, so the
 // caller can persist the repair instead of re-reporting it every start.
@@ -69,6 +75,11 @@ func validateDisplay(s *models.UISettings) bool {
 		changed = true
 	} else if !validGlobeStyles[s.Display.GlobeStyle] {
 		s.Display.GlobeStyle = defaultGlobeStyle
+		changed = true
+	}
+
+	if s.Display.Language != "" && !validLanguages[s.Display.Language] {
+		s.Display.Language = ""
 		changed = true
 	}
 

@@ -13,7 +13,7 @@ env:
   # `go mod tidy` with "go.mod requires go >= 1.26.0 (running go 1.25.x;
   # GOTOOLCHAIN=local)". Bump this when go.mod's minimum moves.
   GO_VERSION: '1.27.3'
-  NODE_VERSION: '22'
+  NODE_VERSION: '26'
   # Keep in lockstep with the wailsapp/wails/v3 version in go.mod and
   # @wailsio/runtime in frontend/package.json.
   WAILS_VERSION: 'v3.1.0'
@@ -98,7 +98,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version-file: frontend/package.json
 
       # The installer is built with makensis. windows-11-arm ships NSIS; the
       # Windows Server 2025 image (windows-latest) has not always, so install
@@ -176,15 +176,47 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
+      # Flatten: every asset name is already unique (see "Stage release files").
       - name: Download all artifacts
         uses: actions/download-artifact@v8
         with:
           path: artifacts
+          merge-multiple: true
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+
+      - name: Install Wails v3 CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+
+      # Signs the in-app update artifacts with the release key, verifies the
+      # result against the public key the app embeds, and writes SHA256SUMS.
+      # A release without a signed manifest would leave every installed copy
+      # unable to update, so a missing key fails the release.
+      - name: Sign update manifest
+        env:
+          ADEX_UPDATER_KEY: ${{ secrets.ADEX_UPDATER_KEY }}
+        run: |
+          if [ -z "$ADEX_UPDATER_KEY" ]; then
+            echo "::error::ADEX_UPDATER_KEY secret is not set"
+            exit 1
+          fi
+          key="$RUNNER_TEMP/adex.key"
+          trap 'rm -f "$key"' EXIT
+          (umask 077 && printf '%s\n' "$ADEX_UPDATER_KEY" > "$key")
+          # During a key rotation the bridging release is still signed with
+          # the previous key; see docs/cross-platform-packaging.md.
+          pub=build/adex.key.pub
+          if [ -f build/adex.key.prev.pub ]; then pub=build/adex.key.prev.pub; fi
+          scripts/release-manifest.sh "${{ github.ref_name }}" artifacts "$key" "$pub"
 
       - name: Create release
         uses: softprops/action-gh-release@v3
         with:
-          files: artifacts/**/*
+          files: artifacts/*
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
@@ -213,12 +245,12 @@ jobs:
       # not found"), which failed this job on every run. Use the scanner
       # directly from the project that maintains it.
       - name: Run Gosec Security Scanner
-        uses: securego/gosec@master
+        uses: securego/gosec@v2.30.0
         with:
           args: '-no-fail -fmt sarif -out gosec.sarif ./...'
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: 'fs'
           scan-ref: '.'

@@ -11,7 +11,7 @@
       :definition="definition"
       :height="chartHeight"
       class="sparkline-chart"
-      :aria-label="ariaLabel"
+      :aria-label="ariaLabel || t('panels.sparkline.ariaLabel')"
     />
   </div>
 </template>
@@ -41,6 +41,9 @@ import { defineChart, areaY, lineY } from '@tanstack/charts'
 import { dot } from '@tanstack/charts/dot'
 import { scaleLinear } from '@tanstack/charts/scales/linear'
 import { Chart } from '@tanstack/charts/vue'
+import { useI18n } from '~/composables/useI18n'
+
+const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
   /** Oldest-to-newest samples. Rendered against their index on x. */
@@ -54,7 +57,6 @@ const props = withDefaults(defineProps<{
 }>(), {
   scaleMax: 1,
   accent: '170, 207, 209',
-  ariaLabel: 'Activity over time',
 })
 
 const containerRef = ref<HTMLElement | null>(null)

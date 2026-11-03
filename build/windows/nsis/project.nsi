@@ -31,6 +31,9 @@ Unicode true
 ## !define REQUEST_EXECUTION_LEVEL "admin"            # Default "admin"  see also https://nsis.sourceforge.io/Docs/Chapter4.html
 ## !define WAILS_INSTALL_SCOPE     "user"             # Default "machine" - set to "user" for per-user install ($LOCALAPPDATA) without UAC prompt
 ####
+# Per-user install: no UAC prompt, and the install directory stays writable so
+# the app can replace itself when it updates.
+!define WAILS_INSTALL_SCOPE "user"
 ## Include the wails tools
 ####
 !include "wails_tools.nsh"

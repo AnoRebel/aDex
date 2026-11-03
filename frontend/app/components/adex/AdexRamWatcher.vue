@@ -2,8 +2,8 @@
   <div class="mod-panel mod-ram">
     <!-- Header -->
     <div class="section-title">
-      <span class="title-left">MEMORY</span>
-      <span class="title-right">USING {{ usedGiB }} OUT OF {{ totalGiB }} GiB</span>
+      <span class="title-left">{{ t('panels.ram.title') }}</span>
+      <span class="title-right">{{ t('panels.ram.usage', { used: usedGiB, total: totalGiB }) }}</span>
     </div>
 
     <!-- 440-cell grid (40 columns x 11 rows) -->
@@ -31,7 +31,10 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
 import { useSystemStore } from '~/stores/system'
+import { useI18n } from '~/composables/useI18n'
 import { useAdexAudio } from '~/composables/useAdexAudio'
+
+const { t } = useI18n()
 
 const systemStore = useSystemStore()
 const audio = useAdexAudio()

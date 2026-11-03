@@ -6,7 +6,7 @@
         class="ss-screen"
         role="alertdialog"
         aria-live="assertive"
-        aria-label="System shutting down"
+        :aria-label="t('shutdown.ariaLabel')"
       >
         <!-- Scanline overlay for the CRT vibe -->
         <div class="ss-scanlines" aria-hidden="true" />
@@ -21,14 +21,14 @@
           <!-- Glitching headline -->
           <h1 class="ss-title">
             <span
-              v-for="(letter, i) in title"
+              v-for="(letter, i) in headline"
               :key="i"
               class="ss-letter"
               :style="{ animationDelay: `${i * 0.04}s` }"
             >{{ letter === ' ' ? ' ' : letter }}</span>
           </h1>
 
-          <div class="ss-sub">SYSTEM TERMINATION SEQUENCE</div>
+          <div class="ss-sub">{{ t('shutdown.subtitle') }}</div>
 
           <!-- Reactive step log. Each `step.state` is a reactive `ref`
                so the row's class flips the instant the state changes,
@@ -41,7 +41,7 @@
               :class="`ss-step-${step.state.value}`"
             >
               <span class="ss-step-tag">[{{ step.tag }}]</span>
-              <span class="ss-step-text">{{ step.text }}</span>
+              <span class="ss-step-text">{{ t(step.textKey) }}</span>
               <span class="ss-step-status">{{ statusLabel(step.state.value) }}</span>
             </li>
           </ul>
@@ -53,7 +53,7 @@
           </div>
 
           <div class="ss-counter">
-            <span class="ss-counter-label">T-MINUS</span>
+            <span class="ss-counter-label">{{ t('shutdown.countdown') }}</span>
             <span class="ss-counter-value">{{ countdownLabel }}</span>
           </div>
         </div>
@@ -83,17 +83,20 @@
  * The parent owns the actual QuitApp() call so this stays a pure
  * presentation component reusable for reboot / sign-out flows later.
  */
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
 import { useAdexAudio } from '~/composables/useAdexAudio'
 import { nowMs } from '~/utils/now'
+import { useI18n } from '~/composables/useI18n'
+
+const { t } = useI18n()
 
 type StepState = 'pending' | 'active' | 'done'
 
 interface ShutdownStep {
   id: string
   tag: string
-  text: string
+  textKey: string
   /** Soundpack event ID fired when this step's state flips to 'active'. */
   cue: string
   /** Reactive state — drives both the visual class and the audio watcher. */
@@ -103,7 +106,7 @@ interface ShutdownStep {
 interface Props {
   /** Total time the splash stays up before emitting `complete`. */
   durationMs?: number
-  /** Headline text. Each character is rendered as its own animated span. */
+  /** Headline text; defaults to the translated title. Each character is rendered as its own animated span. */
   title?: string
   /**
    * Master audio toggle. When false, all cue playback is suppressed at
@@ -117,7 +120,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   durationMs: 2400,
-  title: 'SHUTTING DOWN',
+  title: undefined,
   enableAudio: true,
 })
 
@@ -128,6 +131,7 @@ const emit = defineEmits<{ complete: [] }>()
 // one Howler-backed engine with consistent volume/mute behavior.
 const audio = useAdexAudio()
 const visible = ref(true)
+const headline = computed(() => props.title ?? t('shutdown.title'))
 
 // ---- Sequence definition ------------------------------------------------
 //
@@ -140,21 +144,21 @@ const visible = ref(true)
 function makeStep(
   id: string,
   tag: string,
-  text: string,
+  textKey: string,
   cue: string,
 ): ShutdownStep {
-  return { id, tag, text, cue, state: ref<StepState>('pending') }
+  return { id, tag, textKey, cue, state: ref<StepState>('pending') }
 }
 
 const steps: ShutdownStep[] = [
   // Cue names use the canonical EdexCue vocabulary directly so they
   // map 1:1 onto WAV assets / synth recipes without going through
   // the legacy alias table in useAdexAudio.
-  makeStep('sessions', 'term',  'Flushing terminal sessions',     'granted'),
-  makeStep('services', 'svc',   'Halting background services',    'panels'),
-  makeStep('state',    'store', 'Persisting state to disk',       'folder'),
-  makeStep('audio',    'audio', 'Closing audio context',          'denied'),
-  makeStep('kernel',   'kern',  'Releasing runtime resources',    'alarm'),
+  makeStep('sessions', 'term',  'shutdown.steps.sessions', 'granted'),
+  makeStep('services', 'svc',   'shutdown.steps.services', 'panels'),
+  makeStep('state',    'store', 'shutdown.steps.state',    'folder'),
+  makeStep('audio',    'audio', 'shutdown.steps.audio',    'denied'),
+  makeStep('kernel',   'kern',  'shutdown.steps.kernel',   'alarm'),
 ]
 
 // ---- Reactive driver state ---------------------------------------------
@@ -170,7 +174,7 @@ function fmtCountdown(ms: number) {
 
 function statusLabel(state: StepState): string {
   switch (state) {
-    case 'done':    return 'OK'
+    case 'done':    return t('shutdown.ok')
     case 'active':  return '...'
     case 'pending':
     default:        return '   '

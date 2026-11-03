@@ -88,7 +88,6 @@ type GeneralSettings struct {
 	ExitCommand        string `json:"exitCommand"`
 	ExitAction         string `json:"exitAction"`
 	AutoSaveSettings   bool   `json:"autoSaveSettings"`
-	CheckUpdates       bool   `json:"checkUpdates"`
 	TelemetryEnabled   bool   `json:"telemetryEnabled"`
 	Language           string `json:"language"`
 	Timezone           string `json:"timezone"`
@@ -266,8 +265,6 @@ type UserPreferences struct {
 	NotificationLevel string `json:"notificationLevel"` // "all", "errors", "none"
 	DataCollection    bool   `json:"dataCollection"`
 	CrashReporting    bool   `json:"crashReporting"`
-	CheckForUpdates   bool   `json:"checkForUpdates"`
-	AutoUpdate        bool   `json:"autoUpdate"`
 	Telemetry         bool   `json:"telemetry"`
 }
 
@@ -293,7 +290,6 @@ func DefaultAppSettings() *AppSettings {
 			ExitCommand:        "exit",
 			ExitAction:         "close",
 			AutoSaveSettings:   true,
-			CheckUpdates:       false,
 			TelemetryEnabled:   false,
 			Language:           "en",
 			Timezone:           "auto",
@@ -441,8 +437,6 @@ func DefaultAppSettings() *AppSettings {
 			NotificationLevel: "errors",
 			DataCollection:    false,
 			CrashReporting:    false,
-			CheckForUpdates:   false,
-			AutoUpdate:        false,
 			Telemetry:         false,
 		},
 	}

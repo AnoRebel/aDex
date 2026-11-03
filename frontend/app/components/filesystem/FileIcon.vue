@@ -54,6 +54,7 @@
  */
 import { ref, watch, computed } from 'vue'
 import { resolveFileIcon, type FileIconRecord } from '~/composables/useFileIcons'
+import { useI18n } from '~/composables/useI18n'
 
 const props = defineProps<{
   /** Full basename or relative path. The matcher is path-aware (e.g.
@@ -68,6 +69,7 @@ const props = defineProps<{
   size?: string
 }>()
 
+const { t } = useI18n()
 const icon = ref<FileIconRecord | null>(null)
 const loading = ref(false)
 // Directories never run the resolver — `loading` only matters for the
@@ -89,7 +91,7 @@ const fallback = computed(() => {
 })
 
 const label = computed(
-  () => `${props.isDirectory ? 'Folder' : 'File'} icon for ${props.filename}`,
+  () => t(props.isDirectory ? 'files.icon.folder' : 'files.icon.file', { name: props.filename }),
 )
 
 let inflight = 0

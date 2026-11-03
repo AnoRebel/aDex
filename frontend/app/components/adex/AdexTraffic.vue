@@ -2,20 +2,20 @@
   <div class="mod-panel mod-traffic">
     <!-- Header -->
     <div class="section-title">
-      <span class="title-left">NETWORK TRAFFIC</span>
-      <span class="title-right">UP / DOWN, MB/S</span>
+      <span class="title-left">{{ t('panels.traffic.title') }}</span>
+      <span class="title-right">{{ t('panels.traffic.subtitle') }}</span>
     </div>
 
     <!-- Total transferred -->
     <div class="traffic-total">
-      <span class="traffic-total-label">TOTAL</span>
+      <span class="traffic-total-label">{{ t('panels.traffic.total') }}</span>
       <span class="traffic-total-value">{{ totalTransferred }}</span>
     </div>
 
     <!-- Upload chart -->
     <div class="traffic-chart-section">
       <div class="traffic-chart-label">
-        <span class="chart-direction">UPLOAD</span>
+        <span class="chart-direction">{{ t('panels.traffic.upload') }}</span>
         <span class="chart-rate">{{ currentUploadRate }} MB/s</span>
       </div>
       <div class="traffic-chart">
@@ -23,7 +23,7 @@
           :data="uploadHistory"
           :scale-max="uploadScaleMax"
           :accent="accentRgb"
-          aria-label="Upload rate over the last 60 seconds"
+          :aria-label="t('panels.traffic.uploadChart')"
         />
         <div class="chart-scale">
           <span>{{ uploadScaleMax.toFixed(1) }}</span>
@@ -36,7 +36,7 @@
     <!-- Download chart -->
     <div class="traffic-chart-section">
       <div class="traffic-chart-label">
-        <span class="chart-direction">DOWNLOAD</span>
+        <span class="chart-direction">{{ t('panels.traffic.download') }}</span>
         <span class="chart-rate">{{ currentDownloadRate }} MB/s</span>
       </div>
       <div class="traffic-chart">
@@ -44,7 +44,7 @@
           :data="downloadHistory"
           :scale-max="downloadScaleMax"
           :accent="accentRgb"
-          aria-label="Download rate over the last 60 seconds"
+          :aria-label="t('panels.traffic.downloadChart')"
         />
         <div class="chart-scale">
           <span>{{ downloadScaleMax.toFixed(1) }}</span>
@@ -56,8 +56,8 @@
 
     <!-- Stats footer -->
     <div class="traffic-stats">
-      <span>SENT: {{ formatBytes(totalBytesSent) }}</span>
-      <span>RECV: {{ formatBytes(totalBytesRecv) }}</span>
+      <span>{{ t('panels.traffic.sent', { value: formatBytes(totalBytesSent) }) }}</span>
+      <span>{{ t('panels.traffic.recv', { value: formatBytes(totalBytesRecv) }) }}</span>
     </div>
   </div>
 </template>
@@ -66,7 +66,10 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useStorage, useIntervalFn } from '@vueuse/core'
 import { useNetworkStore } from '~/stores/network'
+import { useI18n } from '~/composables/useI18n'
 import AdexSparkline from '~/components/adex/AdexSparkline.vue'
+
+const { t } = useI18n()
 
 const networkStore = useNetworkStore()
 
