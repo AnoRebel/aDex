@@ -6,7 +6,7 @@
 //
 // This file previously mounted TerminalPanel, TerminalTabBar and
 // TerminalContextMenu. None of those are reachable from the application —
-// pages/index.vue renders AdexShell, and nothing outside
+// pages/index.vue renders AdexTerminal, and nothing outside
 // app/components/terminal/ references them — so the specs had drifted a long
 // way from any code that runs: they mocked the pre-v5 unscoped `xterm`
 // packages (the app uses `@xterm/*`), omitted composable exports the

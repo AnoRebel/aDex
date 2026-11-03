@@ -1,20 +1,13 @@
 package utils
 
-import (
-	"fmt"
-	"sync/atomic"
-	"time"
-)
+import "uuid"
 
-var idSeq atomic.Uint64
-
-// UniqueID returns prefix followed by a value unique within this process.
+// UniqueID returns prefix followed by a UUIDv7.
 //
-// A timestamp alone is not enough: Windows' clock is far coarser than Linux's,
-// so IDs taken in a tight loop collide there. Used as map keys, colliding IDs
-// silently overwrite each other — subscribers that never get events and never
-// shut down, terminals that replace one another. The counter guarantees
-// uniqueness; the timestamp keeps IDs distinct across restarts and readable.
+// IDs are used as map keys, where a collision silently overwrites an entry
+// (subscribers that never get events, terminals that replace one another).
+// A bare timestamp collided on Windows' coarse clock; v7 is time-ordered but
+// carries random bits, so IDs stay unique and still sort by creation time.
 func UniqueID(prefix string) string {
-	return fmt.Sprintf("%s%d-%d", prefix, time.Now().UnixNano(), idSeq.Add(1))
+	return prefix + uuid.NewV7().String()
 }

@@ -14,7 +14,7 @@ import (
 	"aDex/internal/models"
 	"aDex/internal/services/geoip"
 
-	networkLib "github.com/shirou/gopsutil/v3/net"
+	networkLib "github.com/shirou/gopsutil/v4/net"
 )
 
 // NetworkService provides comprehensive network monitoring functionality

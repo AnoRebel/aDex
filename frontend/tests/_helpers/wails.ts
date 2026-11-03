@@ -114,7 +114,7 @@ export function uninstallWailsMocks() {
     delete w.window.go;
     delete w.window.runtime;
   }
-  // happy-dom case: globalThis === window
+  // globalThis === window in DOM test environments
   delete (globalThis as Record<string, unknown>).go;
   delete (globalThis as Record<string, unknown>).runtime;
 }

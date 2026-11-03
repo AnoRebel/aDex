@@ -12,12 +12,13 @@ import (
 
 	"aDex/internal/utils"
 	"github.com/distatus/battery"
-	"github.com/shirou/gopsutil/v3/cpu"
-	"github.com/shirou/gopsutil/v3/disk"
-	"github.com/shirou/gopsutil/v3/host"
-	"github.com/shirou/gopsutil/v3/mem"
-	"github.com/shirou/gopsutil/v3/net"
-	"github.com/shirou/gopsutil/v3/process"
+	"github.com/shirou/gopsutil/v4/cpu"
+	"github.com/shirou/gopsutil/v4/disk"
+	"github.com/shirou/gopsutil/v4/host"
+	"github.com/shirou/gopsutil/v4/mem"
+	"github.com/shirou/gopsutil/v4/net"
+	"github.com/shirou/gopsutil/v4/process"
+	"github.com/shirou/gopsutil/v4/sensors"
 )
 
 // Service handles system monitoring and operations
@@ -347,7 +348,7 @@ func (s *Service) MeasureLatency(ctx context.Context, target string) (float64, e
 // skips the panel row, which is preferable to showing an error toast
 // every poll cycle.
 func (s *Service) GetTemperatures(ctx context.Context) ([]TemperatureSensor, error) {
-	temps, err := host.SensorsTemperaturesWithContext(ctx)
+	temps, err := sensors.TemperaturesWithContext(ctx)
 	if err != nil {
 		// Sensor errors are common (Wayland flatpaks, locked-down
 		// containers). Return empty rather than propagating so the UI

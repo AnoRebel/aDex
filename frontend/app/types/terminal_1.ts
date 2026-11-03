@@ -618,30 +618,25 @@ export interface TerminalConnectionError extends TerminalError {
 // ============================================================================
 
 export type {
-  // Core types
   TerminalSession as Session,
   TerminalSize as Size,
   TerminalOptions as Options,
 
-  // UI types
   TerminalTab as Tab,
   TerminalTheme as Theme,
   TerminalProfile as Profile,
   TerminalSettings as Settings,
 
-  // Event types
   TerminalEvent as Event,
   TerminalOutputEvent as OutputEvent,
   TerminalInputEvent as InputEvent,
 
-  // Utility types
   TerminalCommand as Command,
   TerminalProcess as Process,
   TerminalNotification as Notification
 }
 
 export {
-  // Enums
   CommandStatus,
   CommandType,
   ProcessStatus

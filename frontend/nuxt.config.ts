@@ -17,7 +17,7 @@ import { parse as parseYaml } from "yaml";
 // A missing or malformed config is a hard failure rather than a silent
 // "0.0.0" fallback: shipping a mis-versioned binary breaks update checks in a
 // way that is invisible until users are already on the wrong version.
-const wailsConfigPath = path.resolve(__dirname, "..", "build", "config.yml");
+const wailsConfigPath = path.resolve(import.meta.dirname, "..", "build", "config.yml");
 let APP_VERSION: string;
 {
   let raw: string;
@@ -79,7 +79,7 @@ export default defineNuxtConfig({
     // Public keys (exposed to client-side)
     public: {
       appName: 'aDex-UI',
-      appVersion: '1.0.0'
+      appVersion: APP_VERSION
     }
   },
 

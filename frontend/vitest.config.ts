@@ -41,7 +41,7 @@ export default defineConfig({
       // not, so anything importing useXTerm fails to load. Point at the file
       // that actually exists.
       '@xterm/addon-ligatures': resolve(
-        __dirname,
+        import.meta.dirname,
         'node_modules/@xterm/addon-ligatures/lib/addon-ligatures.mjs',
       ),
 
@@ -49,16 +49,16 @@ export default defineConfig({
       // an entry here — the bare `~` fallback below points at the project
       // root and silently misses app/. A missing one fails the whole file at
       // import time ("Failed to resolve import"), not as a test failure.
-      '~/components': resolve(__dirname, 'app/components'),
-      '~/stores': resolve(__dirname, 'app/stores'),
-      '~/composables': resolve(__dirname, 'app/composables'),
-      '~/utils': resolve(__dirname, 'app/utils'),
-      '~/types': resolve(__dirname, 'app/types'),
-      '~/assets': resolve(__dirname, 'app/assets'),
-      '~/lib': resolve(__dirname, 'app/lib'),
-      '~~': resolve(__dirname, '.'),
-      '@': resolve(__dirname, '.'),
-      '~': resolve(__dirname, '.')
+      '~/components': resolve(import.meta.dirname, 'app/components'),
+      '~/stores': resolve(import.meta.dirname, 'app/stores'),
+      '~/composables': resolve(import.meta.dirname, 'app/composables'),
+      '~/utils': resolve(import.meta.dirname, 'app/utils'),
+      '~/types': resolve(import.meta.dirname, 'app/types'),
+      '~/assets': resolve(import.meta.dirname, 'app/assets'),
+      '~/lib': resolve(import.meta.dirname, 'app/lib'),
+      '~~': resolve(import.meta.dirname, '.'),
+      '@': resolve(import.meta.dirname, '.'),
+      '~': resolve(import.meta.dirname, '.')
     }
   }
 })
