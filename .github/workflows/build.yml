@@ -30,7 +30,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             platform: linux
             arch: amd64
           - os: windows-latest
@@ -167,7 +167,7 @@ jobs:
     name: Create Release
     if: startsWith(github.ref, 'refs/tags/v')
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Creating a release and uploading its assets writes to the repository.
     permissions:
       contents: write
@@ -189,8 +189,13 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: false
 
+      # The CLI links against GTK4 and WebKitGTK on Linux, even though this
+      # job only uses it to sign and verify the manifest.
       - name: Install Wails v3 CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
+          go install github.com/wailsapp/wails/v3/cmd/wails3@${{ env.WAILS_VERSION }}
 
       # Signs the in-app update artifacts with the release key, verifies the
       # result against the public key the app embeds, and writes SHA256SUMS.
@@ -225,7 +230,7 @@ jobs:
 
   security:
     name: Security Scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Uploading SARIF to the code-scanning API needs this; without it the
     # upload fails with "Resource not accessible by integration".
     permissions:
